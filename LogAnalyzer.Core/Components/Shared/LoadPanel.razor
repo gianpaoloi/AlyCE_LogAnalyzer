@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject LogStore Store
 @inject IConfiguration Config
+@inject IJSRuntime JS
 
 <RadzenCard class="rz-mb-3" Variant="Variant.Outlined">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
@@ -13,7 +14,7 @@
         @if (Store.IsLoading)
         {
             <RadzenText TextStyle="TextStyle.Body2" class="rz-color-info">
-                Loading… @Store.FilesProcessed / @Store.FilesTotal files · @Store.EntriesParsed.ToString("N0") entries
+                Loading&#x2026; @Store.FilesProcessed / @Store.FilesTotal files &middot; @Store.EntriesParsed.ToString("N0") entries
             </RadzenText>
         }
         else
@@ -26,8 +27,8 @@
         }
     </RadzenStack>
 
-    <div class="drop-zone rz-mt-2">
-        <InputFile class="drop-zone-input" OnChange="OnDropZoneSelected" accept=".log,.zip" multiple />
+    <div class="drop-zone rz-mt-2" @ref="_dropZoneRef">
+        <InputFile id="@_inputId" class="drop-zone-input" OnChange="OnDropZoneSelected" accept=".log,.zip" multiple />
         <RadzenIcon Icon="move_to_inbox" />
         <span>Click to load log Files, zip in the app or Drop it</span>
     </div>
@@ -58,11 +59,27 @@
 @code {
     private string _folder = "";
     private string? _dropError;
+    private ElementReference _dropZoneRef;
+    private readonly string _inputId = $"drop-input-{Guid.NewGuid():N}";
+    private bool _jsRegistered;
 
     protected override void OnInitialized()
     {
         _folder = Store.LoadedPath ?? Config["LogAnalyzer:DefaultLogFolder"] ?? "";
         Store.Changed += OnChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("registerNativeDropInput", _dropZoneRef, _inputId);
+                _jsRegistered = true;
+            }
+            catch { /* JS not yet available during pre-render */ }
+        }
     }
 
     private void Load()
@@ -119,5 +136,11 @@
     }
 
     private async void OnChanged() => await InvokeAsync(StateHasChanged);
-    public void Dispose() => Store.Changed -= OnChanged;
+
+    public void Dispose()
+    {
+        Store.Changed -= OnChanged;
+        if (_jsRegistered)
+            _ = JS.InvokeVoidAsync("unregisterNativeDropInput", _dropZoneRef);
+    }
 }

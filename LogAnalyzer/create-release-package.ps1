@@ -111,8 +111,15 @@ echo.
 echo The app will open in your browser at http://localhost:5134
 echo Close this window to stop the server.
 echo.
-start "" http://localhost:5134
-"%~dp0Application\LogAnalyzer.exe"
+
+set ASPNETCORE_URLS=http://localhost:5134
+set ASPNETCORE_ENVIRONMENT=Production
+cd /d "%~dp0Application"
+
+rem Open the browser after a short delay to let the server start
+start /b cmd /c "ping 127.0.0.1 -n 4 > nul && start http://localhost:5134"
+
+LogAnalyzer.exe
 "@ -Encoding ASCII
 Write-Host "  [OK] Created Launch.bat" -ForegroundColor Green
 

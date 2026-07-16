@@ -124,8 +124,8 @@ if (-not (Test-Path $appDir)) {
 Write-Host "  Copying application files..." -ForegroundColor Yellow
 Copy-Item -Path "$publishPath\*" -Destination $appDir -Recurse -Force
 
-# Read README content from README-HOW-TO.txt file
-$readmeSourcePath = Join-Path $projectPath "README-HOW-TO.txt"
+# Copy README from repo root
+$readmeSourcePath = Join-Path (Split-Path -Parent $projectPath) "README-HOW-TO.txt"
 if (Test-Path $readmeSourcePath) {
     $readmeContent = Get-Content -Path $readmeSourcePath -Raw
 } else {

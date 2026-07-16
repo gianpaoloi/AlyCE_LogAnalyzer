@@ -33,3 +33,60 @@ window.copyTextToClipboard = async (text) => {
         textarea.remove();
     }
 };
+
+window.registerNativeDropInput = (dropZone, inputId) => {
+    if (!dropZone || dropZone.__nativeDropHandlers) return;
+
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    const setDropActive = (active) => dropZone.classList.toggle('drag-over', active);
+
+    const assignFiles = (files) => {
+        if (!files || files.length === 0) return false;
+        try {
+            const transfer = new DataTransfer();
+            for (const file of files) transfer.items.add(file);
+            input.files = transfer.files;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+        } catch { return false; }
+    };
+
+    const extractFiles = (event) => {
+        const dt = event.dataTransfer;
+        if (!dt) return [];
+        if (dt.items && dt.items.length > 0) {
+            const files = [];
+            for (const item of dt.items) {
+                if (item.kind === 'file') { const f = item.getAsFile(); if (f) files.push(f); }
+            }
+            return files;
+        }
+        return Array.from(dt.files || []);
+    };
+
+    const onDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setDropActive(true); };
+    const onDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setDropActive(false); };
+    const onDrop = (e) => {
+        e.preventDefault(); e.stopPropagation(); setDropActive(false);
+        assignFiles(extractFiles(e));
+    };
+
+    dropZone.addEventListener('dragenter', onDragOver);
+    dropZone.addEventListener('dragover', onDragOver);
+    dropZone.addEventListener('dragleave', onDragLeave);
+    dropZone.addEventListener('drop', onDrop);
+    dropZone.__nativeDropHandlers = { onDragOver, onDragLeave, onDrop };
+};
+
+window.unregisterNativeDropInput = (dropZone) => {
+    if (!dropZone || !dropZone.__nativeDropHandlers) return;
+    const { onDragOver, onDragLeave, onDrop } = dropZone.__nativeDropHandlers;
+    dropZone.removeEventListener('dragenter', onDragOver);
+    dropZone.removeEventListener('dragover', onDragOver);
+    dropZone.removeEventListener('dragleave', onDragLeave);
+    dropZone.removeEventListener('drop', onDrop);
+    dropZone.classList.remove('drag-over');
+    delete dropZone.__nativeDropHandlers;
+};
