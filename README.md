@@ -1,1 +1,1 @@
-This is the Readme
+The default project is LogAnalyzer.Maui
