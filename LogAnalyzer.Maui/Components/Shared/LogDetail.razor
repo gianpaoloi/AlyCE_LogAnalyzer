@@ -1,0 +1,94 @@
+@* Detail view for a single log entry, shown inside a Radzen dialog. *@
+@inject IJSRuntime JS
+@inject NotificationService Notifications
+
+<RadzenStack Gap="0.75rem">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
+        <RadzenBadge BadgeStyle="@LevelStyle(Entry.Level)" Text="@Entry.Level" />
+        <RadzenText TextStyle="TextStyle.Body2" class="mono">@Entry.Time.ToString("yyyy-MM-dd HH:mm:ss.ffff")</RadzenText>
+        <RadzenButton class="rz-ml-auto" Icon="article" Text="Copy message"
+                      ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                      Click="CopyMessageOnly" />
+        <RadzenButton class="rz-ml-auto" Icon="content_copy" Text="Copy details"
+                      ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small"
+                      Click="CopyDetails" />
+    </RadzenStack>
+
+    <RadzenRow Gap="0.5rem">
+        <RadzenColumn Size="6"><b>Logger</b><br /><span class="mono">@Entry.Logger</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>Environment</b><br /><span class="mono">@(Entry.Environment ?? "—")</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>User</b><br /><span class="mono">@(Entry.Username ?? "—")</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>Company / CID</b><br /><span class="mono">@(Entry.Company ?? "—") / @(Entry.Cid ?? "—")</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>Thread</b><br /><span class="mono">@Entry.ThreadId</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>File</b><br /><span class="mono">@Entry.SourceFile</span></RadzenColumn>
+    </RadzenRow>
+
+    <RadzenText TextStyle="TextStyle.Overline">Message</RadzenText>
+    <pre class="detail-message">@Entry.PrettyMessage</pre>
+</RadzenStack>
+
+@code {
+    [Parameter] public LogEntry Entry { get; set; } = default!;
+
+    private async Task CopyDetails()
+    {
+        await CopyTextAsync(BuildClipboardText(), "Log detail copied to clipboard.");
+    }
+
+    private async Task CopyMessageOnly()
+    {
+        await CopyTextAsync(Entry.PrettyMessage, "Message copied to clipboard.");
+    }
+
+    private async Task CopyTextAsync(string text, string successMessage)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("copyTextToClipboard", text);
+            Notifications.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Copied",
+                Detail = successMessage,
+                Duration = 2200
+            });
+        }
+        catch
+        {
+            Notifications.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Copy failed",
+                Detail = "Clipboard access is not available.",
+                Duration = 2800
+            });
+        }
+    }
+
+    private string BuildClipboardText()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Time: {Entry.Time:yyyy-MM-dd HH:mm:ss.ffff}");
+        sb.AppendLine($"Level: {Entry.Level}");
+        sb.AppendLine($"Logger: {Entry.Logger}");
+        sb.AppendLine($"Environment: {Entry.Environment ?? "-"}");
+        sb.AppendLine($"User: {Entry.Username ?? "-"}");
+        sb.AppendLine($"Company: {Entry.Company ?? "-"}");
+        sb.AppendLine($"CID: {Entry.Cid ?? "-"}");
+        sb.AppendLine($"Thread: {Entry.ThreadId}");
+        sb.AppendLine($"File: {Entry.SourceFile}");
+        sb.AppendLine();
+        sb.AppendLine("Message:");
+        sb.Append(Entry.PrettyMessage);
+        return sb.ToString();
+    }
+
+    private static BadgeStyle LevelStyle(string level) => level.ToUpperInvariant() switch
+    {
+        "ERROR" or "FATAL" => BadgeStyle.Danger,
+        "WARN" or "WARNING" => BadgeStyle.Warning,
+        "INFO" => BadgeStyle.Info,
+        "DEBUG" => BadgeStyle.Light,
+        _ => BadgeStyle.Secondary,
+    };
+}

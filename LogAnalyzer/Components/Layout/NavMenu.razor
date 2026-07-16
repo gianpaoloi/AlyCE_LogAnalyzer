@@ -1,0 +1,37 @@
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">AlyCE Log Analyzer</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-speedometer2-nav-menu" aria-hidden="true"></span> Overview
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="dashboard">
+                <span class="bi bi-bar-chart-fill-nav-menu" aria-hidden="true"></span> Dashboard
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="explorer">
+                <span class="bi bi-search-nav-menu" aria-hidden="true"></span> Explorer
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="triage">
+                <span class="bi bi-exclamation-triangle-fill-nav-menu" aria-hidden="true"></span> Triage
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="live">
+                <span class="bi bi-broadcast-nav-menu" aria-hidden="true"></span> Live watch
+            </NavLink>
+        </div>
+    </nav>
+</div>

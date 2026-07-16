@@ -1,0 +1,123 @@
+@* Folder input + load button + progress, built with Radzen. Reflects shared LogStore state. *@
+@implements IDisposable
+@inject LogStore Store
+@inject IConfiguration Config
+
+<RadzenCard class="rz-mb-3" Variant="Variant.Outlined">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-mr-1"><b>Log folder</b></RadzenText>
+        <RadzenTextBox @bind-Value="_folder" Placeholder="C:\path\to\Logs or \\server\share\Logs"
+                       Disabled="@Store.IsLoading" style="flex:1; min-width:280px" />
+        <RadzenCheckBox @bind-Value="Store.IncludeDebug" Name="dbg" Disabled="@Store.IsLoading" />
+        <RadzenLabel Text="include DEBUG" Component="dbg" title="Including DEBUG uses much more memory" />
+        @if (Store.IsLoading)
+        {
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-color-info">
+                Loading… @Store.FilesProcessed / @Store.FilesTotal files · @Store.EntriesParsed.ToString("N0") entries
+            </RadzenText>
+        }
+        else
+        {
+            <RadzenButton Text="@(Store.IsLoaded ? "Reload" : "Load")" Icon="folder_open"
+                          Click="Load" ButtonStyle="ButtonStyle.Primary" />
+            <RadzenButton Text="Clear" Icon="delete_sweep" Click="Clear"
+                          ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined"
+                          Disabled="@(!Store.IsLoaded)" />
+        }
+    </RadzenStack>
+
+    <div class="drop-zone rz-mt-2">
+        <InputFile class="drop-zone-input" OnChange="OnDropZoneSelected" accept=".log,.zip" multiple />
+        <RadzenIcon Icon="move_to_inbox" />
+        <span>Drop files in the app window or click to browse</span>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(_dropError))
+    {
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-text-danger rz-mt-1">@_dropError</RadzenText>
+    }
+
+    @if (Store.IsLoading)
+    {
+        var pct = Store.FilesTotal > 0 ? (Store.FilesProcessed * 100.0 / Store.FilesTotal) : 0;
+        <RadzenProgressBar Value="@pct" ShowValue="false" class="rz-mt-2" />
+    }
+    else if (!string.IsNullOrEmpty(Store.LoadError))
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter"
+                     AllowClose="false" class="rz-mt-2">@Store.LoadError</RadzenAlert>
+    }
+    else if (Store.IsLoaded)
+    {
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2 rz-color-success">
+            Loaded <b>@Store.Stats!.TotalEntries.ToString("N0")</b> entries from
+            <b>@Store.Stats.FileCount</b> files &middot; @Store.LoadedPath
+        </RadzenText>
+    }
+</RadzenCard>
+
+@code {
+    private string _folder = "";
+    private string? _dropError;
+
+    protected override void OnInitialized()
+    {
+        _folder = Store.LoadedPath ?? Config["LogAnalyzer:DefaultLogFolder"] ?? "";
+        Store.Changed += OnChanged;
+    }
+
+    private void Load()
+    {
+        if (string.IsNullOrWhiteSpace(_folder)) return;
+        _ = Store.LoadAsync(_folder.Trim(), Store.IncludeDebug, null, CancellationToken.None);
+    }
+
+    private void Clear()
+    {
+        Store.Clear();
+        _dropError = null;
+    }
+
+    private async Task OnDropZoneSelected(InputFileChangeEventArgs e)
+    {
+        if (Store.IsLoading) return;
+
+        var files = e.GetMultipleFiles(100);
+        if (files is null || files.Count == 0) return;
+
+        var zipFiles = files.Where(f => f.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)).ToList();
+        var logFiles = files.Where(f => f.Name.EndsWith(".log", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (zipFiles.Count > 1 || (zipFiles.Count > 0 && logFiles.Count > 0))
+        {
+            _dropError = "Use one ZIP file or one/more LOG files, not both together.";
+            return;
+        }
+
+        if (zipFiles.Count == 1)
+        {
+            _dropError = null;
+            var zip = zipFiles[0];
+            const long maxZipBytes = 2L * 1024 * 1024 * 1024;
+            await using var stream = zip.OpenReadStream(maxZipBytes);
+            await Store.LoadFromZipAsync(stream, zip.Name, Store.IncludeDebug, CancellationToken.None);
+            return;
+        }
+
+        if (logFiles.Count > 0)
+        {
+            _dropError = null;
+            const long maxLogBytes = 500L * 1024 * 1024;
+            foreach (var file in logFiles)
+            {
+                await using var stream = file.OpenReadStream(maxLogBytes);
+                await Store.EnqueueFromFileAsync(stream, file.Name, Store.IncludeDebug, CancellationToken.None);
+            }
+            return;
+        }
+
+        _dropError = "Only .zip and .log files are supported.";
+    }
+
+    private async void OnChanged() => await InvokeAsync(StateHasChanged);
+    public void Dispose() => Store.Changed -= OnChanged;
+}

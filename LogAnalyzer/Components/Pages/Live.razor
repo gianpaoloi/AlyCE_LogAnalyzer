@@ -1,0 +1,259 @@
+@page "/live"
+@inject LogWatcher Watcher
+@inject IConfiguration Config
+@inject SessionState State
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>Live watch · AlyCE Log Analyzer</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H4">Live watch</RadzenText>
+<RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted rz-mb-2">
+    Tail a log file on a local or remote (UNC) path. New lines matching the filter appear in real time.
+</RadzenText>
+
+<RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+    <RadzenStack Gap="0.75rem">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+            <RadzenTextBox @bind-Value="State.LivePath" Placeholder="\\server\share\Logs\all_2026-06-30.log"
+                           Disabled="@Watcher.IsWatching" style="flex:1; min-width:320px" />
+            <RadzenCheckBox @bind-Value="State.LiveFromStart" Name="fs" Disabled="@Watcher.IsWatching" />
+            <RadzenLabel Text="from start" Component="fs" />
+            @if (Watcher.IsWatching)
+            {
+                <RadzenButton Text="Stop" Icon="stop" Click="Stop" ButtonStyle="ButtonStyle.Danger" />
+            }
+            else
+            {
+                <RadzenButton Text="Start watching" Icon="play_arrow" Click="Start" ButtonStyle="ButtonStyle.Primary" />
+            }
+            <RadzenButton Text="Clear" Icon="clear_all" Click="Clear" ButtonStyle="ButtonStyle.Light" />
+            <RadzenSplitButton Text="Download" Icon="download" Click="OnDownload" ButtonStyle="ButtonStyle.Success">
+                <ChildContent>
+                    <RadzenSplitButtonItem Text="CSV (.csv)" Value="csv" />
+                    <RadzenSplitButtonItem Text="Log lines (.log)" Value="json" />
+                </ChildContent>
+            </RadzenSplitButton>
+            <RadzenButton Icon="account_tree" Text="@(State.LiveShowLoggers ? "Hide loggers" : "Loggers")"
+                          Click="@(() => State.LiveShowLoggers = !State.LiveShowLoggers)" ButtonStyle="ButtonStyle.Secondary" />
+        </RadzenStack>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+            <RadzenTextBox @bind-Value="State.LiveText" Placeholder="text filter…" style="flex:1; min-width:220px" />
+            <RadzenDropDown @bind-Value="State.LiveColumns" Multiple="true" AllowClear="true" Chips="true"
+                            Placeholder="Add columns…" Data="@LogColumns.Optional"
+                            TextProperty="Title" ValueProperty="Key" TValue="IEnumerable<string>" Style="width:300px" />
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">Filter Level / Environment / Time / Message from the column headers</RadzenText>
+        </RadzenStack>
+    </RadzenStack>
+</RadzenCard>
+
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-2" Wrap="FlexWrap.Wrap">
+    @if (Watcher.IsWatching)
+    {
+        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="watching" />
+        <span class="mono">@Watcher.WatchedFile</span>
+    }
+    else
+    {
+        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="idle" />
+    }
+    <RadzenText TextStyle="TextStyle.Body2">· @Watcher.TotalEntries.ToString("N0") lines read · @_matched.Count.ToString("N0") buffered</RadzenText>
+    @if (Watcher.LastActivity is { } la)
+    {
+        <RadzenText TextStyle="TextStyle.Body2">· last @la.ToString("HH:mm:ss")</RadzenText>
+    }
+    @if (!string.IsNullOrEmpty(Watcher.LastError))
+    {
+        <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="@Watcher.LastError" />
+    }
+</RadzenStack>
+
+<div class="side-layout">
+    <div class="side-main">
+        <RadzenDataGrid Data="@Snapshot()" TItem="LogEntry" AllowPaging="true" PageSize="50"
+                        Density="Density.Compact" AllowSorting="true" AllowFiltering="true" FilterMode="FilterMode.Simple"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
+                        PagerHorizontalAlign="HorizontalAlign.Center" ShowPagingSummary="true">
+            <Columns>
+                <RadzenDataGridColumn TItem="LogEntry" Title="Time" Property="Time" Width="130px">
+                    <Template Context="e"><span class="mono">@e.Time.ToString("HH:mm:ss.fff")</span></Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="LogEntry" Title="Level" Property="Level" Width="200px" Filterable="false">
+                    <HeaderTemplate>
+                        <div class="col-filter">
+                            <span class="col-filter-title">Level</span>
+                            <RadzenDropDown @bind-Value="State.LiveLevels" @bind-Value:after="OnDisplayFilterChanged"
+                                            Multiple="true" AllowClear="true" Chips="true"
+                                            Placeholder="All levels" Data="@AllLevels" TValue="IEnumerable<string>" Style="width:100%" />
+                        </div>
+                    </HeaderTemplate>
+                    <Template Context="e"><LevelBadge Level="@e.Level" /></Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="LogEntry" Title="Environment" Property="Environment" Width="240px" Filterable="false">
+                    <HeaderTemplate>
+                        <div class="col-filter">
+                            <span class="col-filter-title">Environment</span>
+                            <RadzenDropDown @bind-Value="State.LiveEnvironments" @bind-Value:after="OnDisplayFilterChanged"
+                                            Multiple="true" AllowClear="true" Chips="true"
+                                            Placeholder="All environments" Data="@_envList" TValue="IEnumerable<string>" Style="width:100%" />
+                        </div>
+                    </HeaderTemplate>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="LogEntry" Title="Company" Property="Company" Width="220px" Filterable="false">
+                    <HeaderTemplate>
+                        <div class="col-filter">
+                            <span class="col-filter-title">Company</span>
+                            <RadzenDropDown @bind-Value="State.LiveCompanies" @bind-Value:after="OnDisplayFilterChanged"
+                                            Multiple="true" AllowClear="true" Chips="true"
+                                            Placeholder="All companies" Data="@_companyList" TValue="IEnumerable<string>" Style="width:100%" />
+                        </div>
+                    </HeaderTemplate>
+                    <Template Context="e"><span class="mono">@e.Company</span></Template>
+                </RadzenDataGridColumn>
+                @foreach (var col in LogColumns.Optional.Where(c => State.LiveColumns.Contains(c.Key)))
+                {
+                    <RadzenDataGridColumn TItem="LogEntry" Title="@col.Title" Width="@col.Width" Filterable="false" Sortable="false">
+                        <Template Context="e"><span class="mono">@col.Value(e)</span></Template>
+                    </RadzenDataGridColumn>
+                }
+                <RadzenDataGridColumn TItem="LogEntry" Title="Message" Property="Message">
+                    <Template Context="e">
+                        @e.ShortMessage
+                        @if (e.HasStackTrace)
+                        {
+                            <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="stack" class="rz-ml-1" />
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </div>
+    @if (State.LiveShowLoggers)
+    {
+        <div class="side-panel">
+            <RadzenCard Variant="Variant.Outlined">
+                <LoggerTree Loggers="@_loggerCounts" Selected="@State.LiveLoggerPrefix" SelectedChanged="OnLoggerSelected" />
+            </RadzenCard>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly string[] AllLevels = { "ERROR", "WARN", "INFO", "DEBUG" };
+    private const int MaxKept = 1000;
+
+    private readonly object _gate = new();
+    private readonly LinkedList<LogEntry> _matched = new(); // newest at front
+    // All loggers/environments seen this session (regardless of filter), to populate the tree and filters.
+    private readonly Dictionary<string, int> _loggerCounts = new(StringComparer.Ordinal);
+    private readonly SortedSet<string> _envSeen = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SortedSet<string> _companySeen = new(StringComparer.OrdinalIgnoreCase);
+    // Stable snapshots for the header combos; only rebuilt when a new value appears
+    // so the dropdown's selection isn't disturbed on every tail refresh.
+    private List<string> _envList = new();
+    private List<string> _companyList = new();
+
+    protected override void OnInitialized()
+    {
+        // Seed the default path only the first time (so a user-edited path survives navigation).
+        if (string.IsNullOrEmpty(State.LivePath))
+        {
+            var def = Config["LogAnalyzer:DefaultLogFolder"];
+            if (!string.IsNullOrEmpty(def)) State.LivePath = def!.TrimEnd('\\', '/') + "\\all_2026-06-30.log";
+        }
+        Watcher.EntriesAppended += OnEntries;
+        Watcher.StatusChanged += OnStatus;
+    }
+
+    private void OnEntries(IReadOnlyList<LogEntry> entries)
+    {
+        // Only the free-text filter gates the buffer; Level/Environment/logger are applied at
+        // display time (Snapshot) so changing a column filter re-filters already-buffered rows.
+        var text = State.LiveText;
+        var envChanged = false;
+        var companyChanged = false;
+        lock (_gate)
+        {
+            foreach (var e in entries)
+            {
+                if (!string.IsNullOrEmpty(e.Logger))
+                    _loggerCounts[e.Logger] = _loggerCounts.TryGetValue(e.Logger, out var n) ? n + 1 : 1;
+                if (!string.IsNullOrEmpty(e.Environment))
+                    envChanged |= _envSeen.Add(e.Environment);
+                if (!string.IsNullOrEmpty(e.Company))
+                    companyChanged |= _companySeen.Add(e.Company);
+
+                if (!string.IsNullOrWhiteSpace(text) && e.Message.IndexOf(text, StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
+                _matched.AddFirst(e);
+                while (_matched.Count > MaxKept) _matched.RemoveLast();
+            }
+            if (envChanged) _envList = _envSeen.ToList();
+            if (companyChanged) _companyList = _companySeen.ToList();
+        }
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    // Display-time filter: level combo + environment combo + logger tree prefix.
+    private List<LogEntry> Snapshot()
+    {
+        var levels = State.LiveLevels as ICollection<string> ?? State.LiveLevels.ToList();
+        var envs = State.LiveEnvironments as ICollection<string> ?? State.LiveEnvironments.ToList();
+        var companies = State.LiveCompanies as ICollection<string> ?? State.LiveCompanies.ToList();
+        var loggerPrefix = State.LiveLoggerPrefix;
+        lock (_gate)
+        {
+            IEnumerable<LogEntry> q = _matched;
+            if (levels.Count > 0) q = q.Where(e => levels.Contains(e.Level));
+            if (envs.Count > 0) q = q.Where(e => e.Environment != null && envs.Contains(e.Environment));
+            if (companies.Count > 0) q = q.Where(e => e.Company != null && companies.Contains(e.Company));
+            if (!string.IsNullOrEmpty(loggerPrefix)) q = q.Where(e => LogFilter.MatchesPrefix(e.Logger, loggerPrefix));
+            return q.ToList();
+        }
+    }
+
+    private void OnDisplayFilterChanged() => StateHasChanged();
+
+    // Export the currently filtered snapshot (CSV by default; .log = original JSON lines).
+    private async Task OnDownload(RadzenSplitButtonItem? item)
+    {
+        var rows = Snapshot();
+        if (rows.Count == 0) return;
+        var json = item?.Value == "json";
+        var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        var name = json ? $"live-logs-{stamp}.log" : $"live-logs-{stamp}.csv";
+        var bytes = json ? LogExport.ToJsonLines(rows) : LogExport.ToCsv(rows);
+
+        using var stream = new MemoryStream(bytes);
+        using var streamRef = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("downloadFileFromStream", name, streamRef);
+    }
+
+    private void OnLoggerSelected(string? prefix)
+    {
+        State.LiveLoggerPrefix = prefix;
+        StateHasChanged();
+    }
+
+    private void Start()
+    {
+        if (string.IsNullOrWhiteSpace(State.LivePath)) return;
+        Watcher.Start(State.LivePath.Trim(), State.LiveFromStart);
+    }
+
+    private void Stop() => Watcher.Stop();
+
+    private void Clear()
+    {
+        lock (_gate) _matched.Clear();
+    }
+
+    private async void OnStatus() => await InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Watcher.EntriesAppended -= OnEntries;
+        Watcher.StatusChanged -= OnStatus;
+        // Watcher is a singleton and keeps running so the tail survives navigation.
+    }
+}

@@ -1,0 +1,33 @@
+@* Detail view for a single log entry, shown inside a Radzen dialog. *@
+
+<RadzenStack Gap="0.75rem">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
+        <RadzenBadge BadgeStyle="@LevelStyle(Entry.Level)" Text="@Entry.Level" />
+        <RadzenText TextStyle="TextStyle.Body2" class="mono">@Entry.Time.ToString("yyyy-MM-dd HH:mm:ss.ffff")</RadzenText>
+    </RadzenStack>
+
+    <RadzenRow Gap="0.5rem">
+        <RadzenColumn Size="6"><b>Logger</b><br /><span class="mono">@Entry.Logger</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>Environment</b><br /><span class="mono">@(Entry.Environment ?? "—")</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>User</b><br /><span class="mono">@(Entry.Username ?? "—")</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>Company / CID</b><br /><span class="mono">@(Entry.Company ?? "—") / @(Entry.Cid ?? "—")</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>Thread</b><br /><span class="mono">@Entry.ThreadId</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>File</b><br /><span class="mono">@Entry.SourceFile</span></RadzenColumn>
+    </RadzenRow>
+
+    <RadzenText TextStyle="TextStyle.Overline">Message</RadzenText>
+    <pre class="detail-message">@Entry.PrettyMessage</pre>
+</RadzenStack>
+
+@code {
+    [Parameter] public LogEntry Entry { get; set; } = default!;
+
+    private static BadgeStyle LevelStyle(string level) => level.ToUpperInvariant() switch
+    {
+        "ERROR" or "FATAL" => BadgeStyle.Danger,
+        "WARN" or "WARNING" => BadgeStyle.Warning,
+        "INFO" => BadgeStyle.Info,
+        "DEBUG" => BadgeStyle.Light,
+        _ => BadgeStyle.Secondary,
+    };
+}

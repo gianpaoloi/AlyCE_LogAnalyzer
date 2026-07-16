@@ -1,0 +1,106 @@
+@page "/"
+@inject LogStore Store
+@implements IDisposable
+
+<PageTitle>Overview · AlyCE Log Analyzer</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H4">Overview</RadzenText>
+<LoadPanel />
+
+@if (!Store.IsLoaded)
+{
+    <RadzenText class="rz-color-muted">Point the box above at a folder of <code>*.log</code> files and press <b>Load</b>.</RadzenText>
+}
+else
+{
+    var s = Store.Stats!;
+    <RadzenRow Gap="1rem" class="rz-mb-3">
+        <RadzenColumn Size="6" SizeMD="2">@StatCard("Entries", s.TotalEntries, null)</RadzenColumn>
+        <RadzenColumn Size="6" SizeMD="2">@StatCard("Files", s.FileCount, null)</RadzenColumn>
+        <RadzenColumn Size="6" SizeMD="2">@StatCard("Environments", s.ByEnvironment.Count, null)</RadzenColumn>
+        <RadzenColumn Size="6" SizeMD="2">@StatCard("Loggers", s.ByLogger.Count, null)</RadzenColumn>
+        <RadzenColumn Size="6" SizeMD="2">@StatCard("Errors", ErrorCount, ErrorCount > 0 ? "rz-background-color-danger-light" : null)</RadzenColumn>
+        <RadzenColumn Size="6" SizeMD="2">@StatCard("Warnings", WarnCount, WarnCount > 0 ? "rz-background-color-warning-light" : null)</RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+        <b>Time span:</b> @Fmt(s.FirstTime) &rarr; @Fmt(s.LastTime)
+        @if (s.Span is { } sp)
+        {
+            <span class="rz-color-muted"> (@FormatSpan(sp))</span>
+        }
+    </RadzenCard>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenCard Variant="Variant.Outlined">
+                <RadzenText TextStyle="TextStyle.H6">By level</RadzenText>
+                <RadzenChart>
+                    <RadzenPieSeries Data="@_levelData" CategoryProperty="Label" ValueProperty="Value" Fills="@_levelColors" />
+                    <RadzenLegend Position="LegendPosition.Right" />
+                </RadzenChart>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenCard Variant="Variant.Outlined">
+                <RadzenText TextStyle="TextStyle.H6">Top environments</RadzenText>
+                <RadzenChart>
+                    <RadzenBarSeries Data="@_envData" CategoryProperty="Label" ValueProperty="Value" />
+                </RadzenChart>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard Variant="Variant.Outlined" class="rz-mt-3">
+        <RadzenText TextStyle="TextStyle.H6">Top loggers</RadzenText>
+        <RadzenChart>
+            <RadzenBarSeries Data="@_loggerData" CategoryProperty="Label" ValueProperty="Value" />
+        </RadzenChart>
+    </RadzenCard>
+}
+
+@code {
+    private record ChartPoint(string Label, double Value);
+
+    private List<ChartPoint> _levelData = new();
+    private string[] _levelColors = Array.Empty<string>();
+    private List<ChartPoint> _envData = new();
+    private List<ChartPoint> _loggerData = new();
+
+    private int ErrorCount => Get("ERROR") + Get("FATAL");
+    private int WarnCount => Get("WARN") + Get("WARNING");
+    private int Get(string level) => Store.Stats!.ByLevel.TryGetValue(level, out var n) ? n : 0;
+
+    protected override void OnInitialized()
+    {
+        Store.Changed += OnChanged;
+        if (Store.IsLoaded) Build();
+    }
+
+    private void Build()
+    {
+        var s = Store.Stats!;
+        var levels = s.ByLevel.OrderByDescending(kv => kv.Value).ToList();
+        _levelData = levels.Select(kv => new ChartPoint(kv.Key, kv.Value)).ToList();
+        _levelColors = levels.Select(kv => ChartColors.Level(kv.Key)).ToArray();
+        _envData = s.ByEnvironment.OrderByDescending(kv => kv.Value).Take(10)
+            .Select(kv => new ChartPoint(kv.Key, kv.Value)).ToList();
+        _loggerData = s.ByLogger.OrderByDescending(kv => kv.Value).Take(15)
+            .Select(kv => new ChartPoint(kv.Key, kv.Value)).ToList();
+    }
+
+    private RenderFragment StatCard(string label, int value, string? cssClass) => __builder =>
+    {
+        <RadzenCard Variant="Variant.Outlined" class="@($"rz-text-align-center {cssClass}")">
+            <RadzenText TextStyle="TextStyle.H4" class="rz-mb-0">@value.ToString("N0")</RadzenText>
+            <RadzenText TextStyle="TextStyle.Caption">@label</RadzenText>
+        </RadzenCard>
+    };
+
+    private async void OnChanged() => await InvokeAsync(() => { if (Store.IsLoaded) Build(); StateHasChanged(); });
+    public void Dispose() => Store.Changed -= OnChanged;
+
+    private static string Fmt(DateTime? d) => d is { } x ? x.ToString("yyyy-MM-dd HH:mm:ss") : "—";
+    private static string FormatSpan(TimeSpan t) =>
+        t.TotalDays >= 1 ? $"{t.TotalDays:0.#} d" : t.TotalHours >= 1 ? $"{t.TotalHours:0.#} h" : $"{t.TotalMinutes:0.#} min";
+}

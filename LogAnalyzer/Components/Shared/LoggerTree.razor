@@ -1,0 +1,112 @@
+@* Right-panel tree of logger namespaces (split on '.'). Selecting a node raises the full
+   dotted prefix so the parent can filter entries under that logger. *@
+
+<RadzenStack Gap="0.4rem">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-mb-0">Loggers</RadzenText>
+        @if (!string.IsNullOrEmpty(Selected))
+        {
+            <RadzenButton Text="clear" Icon="clear" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light" Click="Clear" />
+        }
+    </RadzenStack>
+
+    @if (!string.IsNullOrEmpty(Selected))
+    {
+        <RadzenBadge BadgeStyle="BadgeStyle.Info" class="logger-chip" Text="@Selected" />
+    }
+
+    @if (_roots.Count == 0)
+    {
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">No loggers yet.</RadzenText>
+    }
+    else
+    {
+        @* Rendered as explicit items (not data-bound) so every node starts Expanded. *@
+        <RadzenTree Change="OnChange" Style="width:100%">
+            @foreach (var node in _roots)
+            {
+                @RenderNode(node)
+            }
+        </RadzenTree>
+    }
+</RadzenStack>
+
+@code {
+    [Parameter] public IReadOnlyDictionary<string, int> Loggers { get; set; } = new Dictionary<string, int>();
+    [Parameter] public string? Selected { get; set; }
+    [Parameter] public EventCallback<string?> SelectedChanged { get; set; }
+
+    private List<LoggerNode> _roots = new();
+    private int _lastCount = -1;
+
+    protected override void OnParametersSet()
+    {
+        // Rebuild only when the set of loggers changes (cheap check via count).
+        if (Loggers.Count != _lastCount)
+        {
+            _roots = Build(Loggers);
+            _lastCount = Loggers.Count;
+        }
+    }
+
+    // Recursively renders a node and its children, expanded so the whole tree is open.
+    private RenderFragment RenderNode(LoggerNode node) => @<RadzenTreeItem Text="@node.Label" Value="@node"
+                                                                          Expanded="true" HasChildren="@(node.Children.Count > 0)">
+        @foreach (var child in node.Children)
+        {
+            @RenderNode(child)
+        }
+    </RadzenTreeItem>;
+
+    private async Task OnChange(TreeEventArgs args)
+    {
+        if (args.Value is LoggerNode node)
+            await SelectedChanged.InvokeAsync(node.FullPath);
+    }
+
+    private async Task Clear() => await SelectedChanged.InvokeAsync(null);
+
+    private static List<LoggerNode> Build(IReadOnlyDictionary<string, int> loggers)
+    {
+        var roots = new List<LoggerNode>();
+        var map = new Dictionary<string, LoggerNode>(StringComparer.Ordinal);
+
+        foreach (var (logger, count) in loggers)
+        {
+            if (string.IsNullOrEmpty(logger)) continue;
+            var segs = logger.Split('.');
+            var path = "";
+            var level = roots;
+            for (var i = 0; i < segs.Length; i++)
+            {
+                path = i == 0 ? segs[i] : path + "." + segs[i];
+                if (!map.TryGetValue(path, out var node))
+                {
+                    node = new LoggerNode { Name = segs[i], FullPath = path };
+                    map[path] = node;
+                    level.Add(node);
+                }
+                node.Count += count; // accumulates onto every ancestor
+                level = node.Children;
+            }
+        }
+
+        Sort(roots);
+        return roots;
+
+        static void Sort(List<LoggerNode> nodes)
+        {
+            nodes.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
+            foreach (var n in nodes) Sort(n.Children);
+        }
+    }
+
+    public sealed class LoggerNode
+    {
+        public string Name { get; set; } = "";
+        public string FullPath { get; set; } = "";
+        public int Count { get; set; }
+        public List<LoggerNode> Children { get; } = new();
+        public string Label => $"{Name} ({Count:N0})";
+    }
+}
