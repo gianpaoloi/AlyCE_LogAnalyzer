@@ -56,4 +56,8 @@
         <PackageReference Include="Radzen.Blazor" Version="11.0.5" />
     </ItemGroup>
 
+    <ItemGroup>
+        <None Update="README-HOW-TO.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+
 </Project>
