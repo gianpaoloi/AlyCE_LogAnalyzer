@@ -57,7 +57,11 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="README-HOW-TO.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+        <ProjectReference Include="..\LogAnalyzer.Core\LogAnalyzer.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\README-HOW-TO.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
 
 </Project>

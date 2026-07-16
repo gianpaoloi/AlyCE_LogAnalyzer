@@ -1,4 +1,5 @@
-﻿LogAnalyzer.Maui/.vs
-LogAnalyzer.Maui/.vscode
-LogAnalyzer.Maui/bin
-LogAnalyzer.Maui/obj
+﻿**/.vscode
+**/.vs
+.vscode
+**/bin/
+**/obj/
