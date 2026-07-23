@@ -8,7 +8,7 @@
 
 #define MyAppName      "AlyCE Log Analyzer"
 #define MyAppPublisher "TeamSystem"
-#define MyAppURL       "https://github.com/g-iannetta_TSGC24/AlyCE_LogAnalyzer"
+#define MyAppURL       "https://github.com/gianpaoloi/AlyCE_LogAnalyzer"
 #define MyAppExeName   "LogAnalyzer.Maui.exe"
 #define MyAppId        "com.teamsystem.alyce.loganalyzer"
 
