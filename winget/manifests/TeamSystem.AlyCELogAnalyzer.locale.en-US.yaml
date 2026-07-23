@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.9.0.schema.json
+# Winget locale manifest for TeamSystem.AlyCELogAnalyzer
+PackageIdentifier: TeamSystem.AlyCELogAnalyzer
+PackageVersion: 1.0.0
+PackageLocale: en-US
+Publisher: TeamSystem
+PublisherUrl: https://github.com/g-iannetta_TSGC24/AlyCE_LogAnalyzer
+PublisherSupportUrl: https://github.com/g-iannetta_TSGC24/AlyCE_LogAnalyzer/issues
+PackageName: AlyCE Log Analyzer
+PackageUrl: https://github.com/g-iannetta_TSGC24/AlyCE_LogAnalyzer
+License: Proprietary
+ShortDescription: Analyze and explore structured log files on Windows
+Description: |-
+  AlyCE Log Analyzer is a Windows desktop application (built with .NET MAUI + Blazor)
+  for parsing, browsing, and filtering structured log files.
+
+  Features:
+  - Load log files from a local folder or a ZIP archive
+  - Interactive filtering and search across all columns
+  - Real-time log tailing / live monitoring
+  - Export filtered results to CSV or original log format
+  - Dark theme UI optimized for extended viewing sessions
+Tags:
+  - log
+  - log-analyzer
+  - log-viewer
+  - diagnostics
+  - maui
+  - blazor
+ManifestType: defaultLocale
+ManifestVersion: 1.9.0

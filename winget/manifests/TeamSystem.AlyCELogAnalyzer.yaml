@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.9.0.schema.json
+# Winget version manifest for TeamSystem.AlyCELogAnalyzer
+#
+# HOW TO USE:
+#   After a GitHub Release is published, fill in the INSTALLER_URL and SHA256
+#   values in the .installer.yaml file (the CI workflow prints both in the
+#   Release notes), then submit all three YAML files to microsoft/winget-pkgs.
+#
+#   Submit path in winget-pkgs:
+#     manifests/t/TeamSystem/AlyCELogAnalyzer/{Version}/
+#
+PackageIdentifier: TeamSystem.AlyCELogAnalyzer
+PackageVersion: 1.0.0
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.9.0
