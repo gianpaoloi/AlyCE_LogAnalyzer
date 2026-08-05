@@ -16,6 +16,11 @@ A Windows desktop application for parsing, browsing, and filtering structured lo
 
 - Windows 10 version 17763 (1809) or later — x64
 - No .NET runtime required (self-contained)
+- **Microsoft Edge WebView2 Runtime** — hosts the app's UI. Bundled with Windows 11; the installer
+  downloads and installs it silently when missing (no admin rights needed). If you deploy the ZIP package
+  instead, install it from
+  [Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/) — the app says so on startup if it
+  can't find it.
 
 ---
 

@@ -59,3 +59,78 @@ Name: "{autodesktop}\{#MyAppName}";                      Filename: "{app}\{#MyAp
 Filename: "{app}\{#MyAppExeName}"; \
   Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; \
   Flags: nowait postinstall skipifsilent
+
+; ---------------------------------------------------------------------------
+; Microsoft Edge WebView2 Runtime
+;
+; The app's UI is Blazor in a WebView2, and that runtime is a separate OS
+; component: bundled with Windows 11, but frequently absent on Windows 10. If
+; it is missing the app cannot start, so Setup fetches the Evergreen
+; bootstrapper and runs it silently. PrepareToInstall is used (rather than a
+; [Run] entry) because it also executes during /SILENT and /VERYSILENT
+; installs, which is how winget installs the package.
+;
+; A failure here is reported but does not abort the install - the app then
+; explains the same thing on first launch.
+; ---------------------------------------------------------------------------
+[Code]
+const
+  WebView2ClientKey = 'Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+  WebView2BootstrapperUrl = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703';
+  WebView2BootstrapperFile = 'MicrosoftEdgeWebview2Setup.exe';
+
+{ True when the key holds a real version; an empty or all-zero "pv" is left behind by an uninstall. }
+function HasWebView2Version(RootKey: Integer; const SubKeyName: String): Boolean;
+var
+  Version: String;
+begin
+  Result := RegQueryStringValue(RootKey, SubKeyName, 'pv', Version) and
+            (Version <> '') and (Version <> '0.0.0.0');
+end;
+
+function WebView2Installed: Boolean;
+begin
+  Result := HasWebView2Version(HKLM, 'SOFTWARE\WOW6432Node\' + WebView2ClientKey) or
+            HasWebView2Version(HKLM, 'SOFTWARE\' + WebView2ClientKey) or
+            HasWebView2Version(HKCU, 'SOFTWARE\' + WebView2ClientKey);
+end;
+
+function OnDownloadProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
+begin
+  if ProgressMax <> 0 then
+    Log(Format('WebView2 bootstrapper: %d of %d bytes downloaded.', [Progress, ProgressMax]))
+  else
+    Log(Format('WebView2 bootstrapper: %d bytes downloaded.', [Progress]));
+  Result := True;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Result := '';
+  if WebView2Installed then
+    Exit;
+
+  try
+    DownloadTemporaryFile(WebView2BootstrapperUrl, WebView2BootstrapperFile, '', @OnDownloadProgress);
+  except
+    SuppressibleMsgBox(
+      'Setup could not download the Microsoft Edge WebView2 Runtime:' + #13#10#13#10 +
+      GetExceptionMessage + #13#10#13#10 +
+      'Installation will continue, but AlyCE Log Analyzer will not start until the runtime ' +
+      'is installed from https://developer.microsoft.com/microsoft-edge/webview2/',
+      mbError, MB_OK, IDOK);
+    Exit;
+  end;
+
+  { The bootstrapper installs per-user when not elevated, which suits this per-user setup. }
+  if not Exec(ExpandConstant('{tmp}\' + WebView2BootstrapperFile), '/silent /install', '',
+              SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+    SuppressibleMsgBox(
+      'The Microsoft Edge WebView2 Runtime could not be installed automatically (code ' +
+      IntToStr(ResultCode) + ').' + #13#10#13#10 +
+      'Installation will continue. If the app does not start, install the runtime from ' +
+      'https://developer.microsoft.com/microsoft-edge/webview2/',
+      mbError, MB_OK, IDOK);
+end;

@@ -16,6 +16,11 @@ public partial class App : MauiWinUIApplication
 	/// </summary>
 	public App()
 	{
+		// Checked before MAUI builds the BlazorWebView, so a machine without the WebView2
+		// Runtime gets a readable message instead of an unhandled WebView2 exception.
+		if (!WebView2Runtime.EnsureInstalledOrExplain())
+			Environment.Exit(1);
+
 		this.InitializeComponent();
 	}
 

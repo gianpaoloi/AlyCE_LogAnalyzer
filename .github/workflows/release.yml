@@ -124,6 +124,8 @@ jobs:
             - Windows 10 version 17763 (1809) or later
             - x64 processor
             - No .NET runtime required (self-contained)
+            - Microsoft Edge WebView2 Runtime — the installer adds it automatically when missing
+              (bundled with Windows 11; no admin rights required)
           files: LogAnalyzer.Maui/dist/AlyCE-LogAnalyzer-Setup-${{ steps.version.outputs.VERSION }}.exe
           draft: false
           prerelease: false

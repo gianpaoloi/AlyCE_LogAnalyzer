@@ -17,6 +17,21 @@ dotnet run   -f net10.0-windows10.0.19041.0
 Requires the **.NET MAUI** workload (`dotnet workload install maui-windows`) and the **WebView2
 Runtime** (preinstalled on Windows 11).
 
+## WebView2 Runtime (the "no compatible WebView2" failure)
+
+The UI is Blazor inside a `BlazorWebView`, so the app is dead without the Edge **WebView2 Runtime** — a
+separate OS component that ships with Windows 11 but is missing on plenty of Windows 10 images. Left
+unhandled, MAUI throws *"Couldn't find a compatible WebView2 Runtime installation to host WebViews"* before
+any window appears. Three layers now cover it:
+
+| Layer | Behaviour |
+|---|---|
+| `installer/setup.iss` → `PrepareToInstall` | Probes the Evergreen registry key; if absent, downloads the Microsoft bootstrapper and runs it `/silent /install`. Runs during **silent installs too** (that's why it isn't a `[Run]` entry), so `winget install` provisions it as well. A download or install failure warns but does not abort. |
+| `winget/manifests/…installer.yaml` | Declares `Microsoft.EdgeWebView2Runtime` under `Dependencies.PackageDependencies`, so winget can resolve it first. |
+| `Platforms/Windows/WebView2Runtime.cs` | Last resort for the ZIP/xcopy deployment: the WinUI `App` constructor probes the same registry key and, when missing, shows a native message box offering the download page, then exits cleanly instead of crashing. |
+
+The runtime installs **per-user without admin rights**, which matches this per-user setup.
+
 ## What it does
 
 Identical feature set to the server app:
@@ -51,8 +66,8 @@ Models, services and every page/component now live in **`LogAnalyzer.Core`** and
 - **`Components/Layout/`** — `MainLayout` (+ collapsible sidebar CSS), `NavMenu`.
 
 This project keeps only the MAUI shell (`MauiProgram.cs`, `MainPage.xaml`, `Components/Routes.razor`,
-`Components/_Imports.razor`) and its own **`wwwroot/`** — `app.css` (dark theme + component styles),
-`index.html`, `download.js`, `favicon.png`.
+`Components/_Imports.razor`, `Platforms/Windows/` incl. the WebView2 pre-flight check) and its own
+**`wwwroot/`** — `app.css` (dark theme + component styles), `index.html`, `download.js`, `favicon.png`.
 
 > `wwwroot/app.css` is **still a separate copy** from `../LogAnalyzer/wwwroot/app.css`: styles for shared
 > components (e.g. the `.lv-*` volume-chart and `.load-panel-*` rules) have to be added to both files.
@@ -136,6 +151,9 @@ the two hybrid-specific behaviors:
 
 1. The Radzen **dark theme** loads from the static CSS link in `index.html`.
 2. The **ZIP-upload** file picker and the **CSV/.log download** trigger the native WebView2 dialogs.
+
+To exercise the WebView2 pre-flight message on a machine that *has* the runtime, temporarily point
+`WebView2Runtime.ClientKey` at a non-existent GUID — the probe is registry-only, so no uninstall is needed.
 
 If either misbehaves in WebView2, the fallback is to switch those to native MAUI `FilePicker` /
 `FileSaver` (CommunityToolkit.Maui). Everything else mirrors the server app exactly.

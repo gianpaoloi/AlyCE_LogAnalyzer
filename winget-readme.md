@@ -10,7 +10,9 @@ This document describes how to publish and update the **AlyCE Log Analyzer** pac
 ## Prerequisites
 
 - The GitHub repository must be **public**
-- [Inno Setup 6](https://jrsoftware.org/isinfo.php) (for local builds only — CI installs it automatically)
+- [Inno Setup **6.1** or later](https://jrsoftware.org/isinfo.php) (for local builds only — CI installs it
+  automatically). 6.1 is the floor because `setup.iss` uses `DownloadTemporaryFile` to fetch the WebView2
+  Runtime bootstrapper.
 - A GitHub account to submit PRs to `microsoft/winget-pkgs`
 
 ---
@@ -103,6 +105,18 @@ The three manifest files are stored in this repository under `winget/manifests/`
 | Silent with progress | `/SILENT /SUPPRESSMSGBOXES /NORESTART /SP-` |
 
 > **Install scope:** per-user — installs to `%LOCALAPPDATA%\TeamSystem\AlyCE Log Analyzer`. No admin / UAC prompt required.
+
+### WebView2 Runtime dependency
+
+The app's UI runs in a WebView2, so the runtime must be present. It is handled twice over:
+
+- The manifest declares `Microsoft.EdgeWebView2Runtime` under `Dependencies.PackageDependencies`, so winget
+  can install it first.
+- `setup.iss` also probes for it in `PrepareToInstall` and silently installs the Microsoft bootstrapper when
+  missing. This path runs under `/VERYSILENT` too, so it covers the winget install regardless of how winget
+  treats the declared dependency.
+
+Both install **per-user**, so neither breaks the no-admin promise above.
 
 ---
 

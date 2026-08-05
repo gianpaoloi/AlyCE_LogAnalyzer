@@ -40,6 +40,12 @@ SYSTEM REQUIREMENTS
 • Windows 10 version 19041 or later (Windows 10 21H2 preferred or Windows 11)
 • Minimum 4 GB RAM recommended
 • .NET Runtime is included in this package - no additional installation needed
+• Microsoft Edge WebView2 Runtime - the app's interface runs inside it
+  - Already included in Windows 11 and on most updated Windows 10 machines
+  - The installer (Setup.exe) installs it automatically when missing
+  - With the ZIP package you may need it separately, free from Microsoft:
+    https://developer.microsoft.com/microsoft-edge/webview2/
+    (no administrator rights required)
 
 
 HOW TO USE
@@ -86,6 +92,17 @@ Application won't start:
   • Ensure you're running Windows 10.0.19041 or later
   • Try extracting to a folder with a shorter path
   • If issues persist, try running as Administrator
+
+'WebView2 Runtime required' message, or an error mentioning
+"Couldn't find a compatible WebView2 Runtime":
+  • The Microsoft Edge WebView2 Runtime is missing on this machine
+  • Answer 'Yes' to the message to open the download page, or get it from
+    https://developer.microsoft.com/microsoft-edge/webview2/
+    -> section "Evergreen Standalone Installer" (x64)
+  • It installs without administrator rights and needs no reboot
+  • Re-running Setup.exe also installs it automatically
+  • Corporate machines may block the download - ask IT for
+    "Microsoft Edge WebView2 Runtime", it is a standard Microsoft component
 
 Logs not loading:
   • Ensure .log files are in text format
