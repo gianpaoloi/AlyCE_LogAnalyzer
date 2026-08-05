@@ -44,7 +44,11 @@ else
 
     <div class="side-layout">
         <div class="side-main">
-            <LogVolumeChart Entries="@_filtered" @bind-Collapsed="State.ExplorerVolumeCollapsed" />
+            @* Fed the set filtered by everything except the time window, so the whole timeline
+               stays on screen and the selection can be widened or moved. *@
+            <LogVolumeChart Entries="@_chartSource" @bind-Collapsed="State.ExplorerVolumeCollapsed"
+                            Range="@State.ExplorerRange" RangeChanged="OnRangeChanged"
+                            ActiveLevels="@State.ExplorerLevels" LevelToggled="OnLevelToggled" />
 
             <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-2">@_filtered.Count.ToString("N0") entries — sort or use the per-column filter icons to refine; click a row for detail</RadzenText>
 
@@ -124,6 +128,11 @@ else
 
 @code {
     private RadzenDataGrid<LogEntry>? _grid;
+
+    /// <summary>Rows matching every filter except the chart's time window — what the chart plots.</summary>
+    private List<LogEntry> _chartSource = new();
+
+    /// <summary><see cref="_chartSource"/> narrowed to the selected time window — what the grid shows.</summary>
     private List<LogEntry> _filtered = new();
 
     // Cached distinct values for the header combos. Stable references so the
@@ -163,7 +172,37 @@ else
     private void Apply()
     {
         if (!Store.IsLoaded) return;
-        _filtered = Store.Query(BuildFilter()).ToList();
+        _chartSource = Store.Query(BuildFilter()).ToList();
+        ApplyRange();
+    }
+
+    /// <summary>Slices the already-filtered rows by the chart's window — no second full query.</summary>
+    private void ApplyRange() =>
+        _filtered = State.ExplorerRange is { } r
+            ? _chartSource.Where(e => r.Contains(e.Time)).ToList()
+            : _chartSource;
+
+    private void OnRangeChanged(TimeRange? range)
+    {
+        State.ExplorerRange = range;
+        ApplyRange();
+    }
+
+    // A legend click filters on every raw level that maps to the clicked series (so "warn"
+    // covers WARN and WARNING); clicking it again with all of them selected clears them.
+    private void OnLevelToggled(string seriesKey)
+    {
+        var matching = _levels.Where(l => LogVolumeChart.SeriesKey(l) == seriesKey).ToList();
+        if (matching.Count == 0) return;
+
+        var selected = State.ExplorerLevels.ToList();
+        if (matching.All(selected.Contains))
+            selected.RemoveAll(matching.Contains);
+        else
+            selected.AddRange(matching.Except(selected));
+
+        State.ExplorerLevels = selected;
+        Apply();
     }
 
     private void Reset()
@@ -172,6 +211,7 @@ else
         State.ExplorerEnvironments = new List<string>();
         State.ExplorerCompanies = new List<string>();
         State.ExplorerText = State.ExplorerLogger = State.ExplorerLoggerPrefix = null;
+        State.ExplorerRange = null;
         Apply();
     }
 

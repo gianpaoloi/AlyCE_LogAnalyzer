@@ -53,7 +53,7 @@ DOM while collapsed, so the drop zone and a half-typed folder path survive a col
 |------|--------------|
 | **Overview** | Load a folder / ZIP; totals (entries, files, environments, loggers, errors, warnings), time span, and breakdown charts by level / environment / logger. |
 | **Dashboard** | Log volume per hour stacked by level (SVG), errors & warnings per hour, level and logger breakdowns. |
-| **Explorer** | Searchable, paginated grid, topped by a **log volume time series** of the filtered set. Per-column combo filters, resizable columns, a hidable logger tree, column picker, and download of the filtered set. Click a row for full detail incl. formatted stack trace. |
+| **Explorer** | Searchable, paginated grid, topped by a **log volume time series** of the filtered set that doubles as a filter (drag a time window, click a level in the legend). Per-column combo filters, resizable columns, a hidable logger tree, column picker, and download of the filtered set. Click a row for full detail incl. formatted stack trace. |
 | **Triage** | Clusters similar ERROR/WARN messages into issue groups (guids/numbers/durations/quoted values masked), ordered by frequency, with first/last-seen, affected environments and a sample stack trace. |
 | **Live watch** | Tails a single file on a local or remote **UNC** path (`\\server\share\...`) and shows new matching lines in real time, with the same column filters, tree, column picker and download. |
 
@@ -84,11 +84,28 @@ so it narrows down with every search, level pick or logger-tree click.
 - **Automatic bucket size** – picked from a round-step ladder (1 s → 30 d) so the chart stays under ~180 bars
   whatever the time span; the chosen step is shown in the header (*"1h per bar"*). Empty buckets are kept, so
   the time axis stays linear and gaps are visible.
-- **Axes** – y ticks rounded up to a nice 1 / 2 / 2.5 / 5 × 10ⁿ maximum and abbreviated (`2.50 K`, `1.2M`);
-  ~10 time labels along the x axis.
-- **Legend** – per-level totals for the filtered set.
+- **Scale follows the volume** – the y axis is *not* a fixed ceiling. A round tick step
+  (1 / 2 / 2.5 / 5 × 10ⁿ, never below 1 entry) is chosen to split the busiest bucket into ~4 bands, and the
+  axis top is the first multiple of that step at or above the peak — so a 40-entry peak gives 10/20/30/40 and
+  a 930 K peak gives 250 K/500 K/750 K/1 M. The tallest bar always fills 70–100 % of the height.
+- **Legend** – per-level totals for the filtered set; **click an entry to filter by that level** (see below).
 - **Hover a bar** for its bucket start and per-level counts.
 - **Collapsible** – click the *Log volume (930K)* header; the state persists across navigation.
+
+### Filtering from the chart
+
+- **Drag across the bars** to filter the grid to that time window; a plain **click** picks the single bucket
+  under the cursor. Bars inside the window stay lit, the rest dim, and the window appears as a chip in the
+  header (`08/03 14:00:00 → 16:59:59`) with an **✕** to clear it. **Reset** clears it too.
+- The chart is deliberately fed the rows matching **every filter except the time window**, so selecting a
+  window zooms the *grid* but leaves the whole timeline on screen — you can widen, move or drop the selection
+  without first clearing it. Re-slicing on a drag reuses that already-filtered list instead of re-querying.
+- **Click a legend entry** to toggle that level: it selects every raw level mapping to the series (so *warn*
+  covers `WARN` and `WARNING`, *error* covers `ERROR` and `FATAL`) and lights up while active, driving the
+  same `ExplorerLevels` filter as the Level column header. Clicking it again removes those levels.
+- The window is stored as a single `TimeRange` in `SessionState.ExplorerRange` — one value, so a start without
+  an end can't happen. It is applied *after* `LogStore.Query`, as a slice of the chart's own row list, rather
+  than through `LogFilter.From` / `To`; that is what keeps the chart's timeline independent of the selection.
 
 It is a plain HTML/CSS component (no SVG, no JS), so it reflows with the container. Bucketing is two passes
 over the filtered set and only re-runs when the filtered list changes — on very large filtered sets (~1 M rows)
@@ -96,8 +113,9 @@ expect a short pause per filter change.
 
 ## Filters persist across navigation
 
-Filter state (levels, environments, companies, text, logger-tree selection, chosen columns, panel toggle, the
-load-panel and volume-chart collapsed states, plus the Live path / "from start") is held in a **scoped
+Filter state (levels, environments, companies, text, logger-tree selection, the volume chart's time window,
+chosen columns, panel toggle, the load-panel and volume-chart collapsed states, plus the Live path / "from
+start") is held in a **scoped
 `SessionState`** service, which in Blazor Server lives for
 the whole SignalR circuit — so filters survive moving between pages and return when you come back. They reset
 only on a full page reload / reconnect. Explorer and Live keep their own independent filter state.
@@ -127,7 +145,8 @@ server app and `LogAnalyzer.Maui` reference. This project only holds the web hos
 
 ```
 ../LogAnalyzer.Core/
-  Models/     LogEntry, LogFilter, LogStats/TimeBucket/MessageGroup, LogColumns (optional columns)
+  Models/     LogEntry, LogFilter, LogStats/TimeBucket/MessageGroup, LogColumns (optional columns),
+              TimeRange (chart selection)
   Services/   LogParser, MessageNormalizer, LogStore (dataset + folder/ZIP loading), LogWatcher (live tail),
               LogExport (CSV / JSON-lines), SessionState (per-circuit UI state), ChartColors
   Components/

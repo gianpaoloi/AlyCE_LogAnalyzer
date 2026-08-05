@@ -6,7 +6,7 @@ A Windows desktop application for parsing, browsing, and filtering structured lo
 
 - Load log files from a local folder or a ZIP archive — drag & drop supported
 - Interactive filtering and search across all columns
-- Log volume time series stacked by level, following the current filters
+- Log volume time series stacked by level — drag it to filter a time window
 - Real-time log tailing / live monitoring
 - Export filtered results to CSV or original log format
 - Collapsible load panel and side navigation to maximise screen space

@@ -24,6 +24,9 @@ public sealed class SessionState
     public bool ExplorerShowLoggers { get; set; }
     public bool ExplorerVolumeCollapsed { get; set; }
 
+    /// <summary>Time window picked on the volume chart. Null means "the whole span".</summary>
+    public TimeRange? ExplorerRange { get; set; }
+
     // ---- Live ----
     public IEnumerable<string> LiveLevels { get; set; } = new List<string>();
     public IEnumerable<string> LiveEnvironments { get; set; } = new List<string>();

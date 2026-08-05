@@ -69,6 +69,10 @@ HOW TO USE
    - The chart above the grid shows entries over time, stacked by level
    - It always reflects the filters currently applied
    - The bucket size adapts to the time range (shown as e.g. '1h per bar')
+   - The vertical scale follows the actual volumes - it is not a fixed maximum
+   - Drag across the bars to filter the grid to that time window
+     (a single click picks one bar; the x on the chip clears the window)
+   - Click a level in the legend to filter by that level
    - Hover a bar for the exact counts; click the header to collapse the chart
 
 5. EXPORTING:

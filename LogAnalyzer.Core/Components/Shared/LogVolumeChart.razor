@@ -1,13 +1,36 @@
 @* Grafana-style log volume panel: stacked bars per time bucket, auto bucket size,
-   level totals in the legend. Pure CSS/HTML (no SVG) so it scales with the container. *@
+   level totals in the legend. Pure CSS/HTML (no SVG) so it scales with the container.
+   Doubles as a filter: drag across the bars to pick a time window, click a legend
+   entry to toggle that level. *@
 
 <div class="lv-panel">
-    <div class="lv-head" @onclick="ToggleCollapsed" title="@(Collapsed ? "Expand chart" : "Collapse chart")">
-        <RadzenIcon Icon="@(Collapsed ? "chevron_right" : "expand_more")" />
-        <span class="lv-title">@Title (@Compact(_total))</span>
+    <div class="lv-head">
+        <span class="lv-head-toggle" @onclick="ToggleCollapsed"
+              title="@(Collapsed ? "Expand chart" : "Collapse chart")">
+            <RadzenIcon Icon="@(Collapsed ? "chevron_right" : "expand_more")" />
+            <span class="lv-title">@Title (@Compact(_total))</span>
+        </span>
+
+        @if (Range is { } r)
+        {
+            <span class="lv-range" title="Selected time window">
+                <RadzenIcon Icon="schedule" />
+                @r.ToString()
+                <span class="lv-range-clear" title="Clear time filter" @onclick="ClearRange">
+                    <RadzenIcon Icon="close" />
+                </span>
+            </span>
+        }
+
         @if (!Collapsed && _bucketLabel is not null)
         {
-            <span class="lv-bucket">@_bucketLabel per bar</span>
+            <span class="lv-bucket">
+                @if (Range is null)
+                {
+                    <span class="lv-hint">drag to filter a time window &middot; </span>
+                }
+                @_bucketLabel per bar
+            </span>
         }
     </div>
 
@@ -23,7 +46,7 @@
                 <div class="lv-yaxis">
                     @foreach (var t in _yTicks)
                     {
-                        <span class="lv-ytick" style="bottom:@Pct(t / _yMax)">@Compact((long)t)</span>
+                        <span class="lv-ytick" style="bottom:@Pct(t / _yMax)">@Compact((long)Math.Round(t))</span>
                     }
                 </div>
                 <div class="lv-plot">
@@ -35,10 +58,15 @@
                     {
                         <div class="lv-gridline-v" style="left:@Pct((i + 0.5) / _buckets.Count)"></div>
                     }
-                    <div class="lv-bars">
-                        @foreach (var b in _buckets)
+                    @* mouseleave also ends the drag, so releasing outside the plot can't leave it stuck *@
+                    <div class="lv-bars" @onmouseup="EndDrag" @onmouseleave="EndDrag">
+                        @for (var i = 0; i < _buckets.Count; i++)
                         {
-                            <div class="lv-bar" title="@Tooltip(b)">
+                            var idx = i;
+                            var b = _buckets[idx];
+                            <div class="lv-bar @BarClass(idx)" title="@Tooltip(b)"
+                                 @onmousedown="() => StartDrag(idx)" @onmousedown:preventDefault="true"
+                                 @onmouseenter="() => ExtendDrag(idx)">
                                 @* top-to-bottom markup, pushed to the baseline: error on top, debug at the bottom *@
                                 <span class="lv-seg" style="@Seg(b.Error, "ERROR")"></span>
                                 <span class="lv-seg" style="@Seg(b.Warn, "WARN")"></span>
@@ -59,12 +87,14 @@
             </div>
 
             <div class="lv-legend">
-                @foreach (var (name, level, count) in Series())
+                @foreach (var (name, key, count) in Series())
                 {
-                    <span class="lv-legend-item">
-                        <i style="background:@ChartColors.Level(level)"></i>@name
+                    <button type="button" class="lv-legend-item @(IsLevelActive(key) ? "lv-legend-on" : null)"
+                            title="@(IsLevelActive(key) ? $"Stop filtering by {name}" : $"Filter by {name}")"
+                            @onclick="() => LevelToggled.InvokeAsync(key)">
+                        <i style="background:@ChartColors.Level(key)"></i>@name
                         <span class="lv-legend-total">Total: @Compact(count)</span>
-                    </span>
+                    </button>
                 }
             </div>
         }
@@ -78,6 +108,30 @@
     /// <summary>Collapsed state; supports <c>@bind-Collapsed</c> so the caller can persist it.</summary>
     [Parameter] public bool Collapsed { get; set; }
     [Parameter] public EventCallback<bool> CollapsedChanged { get; set; }
+
+    /// <summary>
+    /// The selected time window, highlighted on the bars. Supports <c>@bind-Range</c>.
+    /// Feed <see cref="Entries"/> with the set filtered by everything *except* this window,
+    /// so the whole timeline stays visible and the selection can be moved or widened.
+    /// </summary>
+    [Parameter] public TimeRange? Range { get; set; }
+    [Parameter] public EventCallback<TimeRange?> RangeChanged { get; set; }
+
+    /// <summary>Levels currently filtered on, used to light up the matching legend entries.</summary>
+    [Parameter] public IEnumerable<string>? ActiveLevels { get; set; }
+
+    /// <summary>Raised with a series key (<c>INFO</c>, <c>WARN</c>, …) when a legend entry is clicked.</summary>
+    [Parameter] public EventCallback<string> LevelToggled { get; set; }
+
+    /// <summary>Maps a raw level string onto the chart's five stacked series.</summary>
+    public static string SeriesKey(string level) => level.ToUpperInvariant() switch
+    {
+        "DEBUG" => "DEBUG",
+        "INFO" => "INFO",
+        "WARN" or "WARNING" => "WARN",
+        "ERROR" or "FATAL" => "ERROR",
+        _ => "OTHER",
+    };
 
     private sealed class Bucket
     {
@@ -97,6 +151,7 @@
     };
     private const int MaxBars = 180;
     private const int MaxXTicks = 10;
+    private const int YTickTarget = 4;
 
     private List<Bucket> _buckets = new();
     private List<int> _xTicks = new();
@@ -105,7 +160,23 @@
     private long _total;
     private string? _bucketLabel;
     private string _tickFormat = "MM/dd HH:mm";
+    private TimeSpan _step = TimeSpan.FromHours(1);
     private IReadOnlyList<LogEntry>? _built;
+
+    // In-progress drag selection (bar indices, either order).
+    private int? _dragFrom;
+    private int? _dragTo;
+    private bool _skipRender;
+
+    // Every bar listens for mouseenter so a drag can track the cursor, which means merely
+    // hovering the chart raises ~one event per bar. Those that change nothing skip the
+    // re-render instead of diffing all the bars again.
+    protected override bool ShouldRender()
+    {
+        if (!_skipRender) return true;
+        _skipRender = false;
+        return false;
+    }
 
     protected override void OnParametersSet()
     {
@@ -126,6 +197,7 @@
         _yMax = 1;
         _total = Entries.Count;
         _bucketLabel = null;
+        _dragFrom = _dragTo = null;
 
         // Two cheap passes over the (potentially huge) filtered set: range, then fill.
         DateTime first = DateTime.MaxValue, last = DateTime.MinValue;
@@ -139,31 +211,35 @@
         }
         if (timed == 0) return;
 
-        var step = Steps.FirstOrDefault(s => (last - first).TotalSeconds / s.TotalSeconds < MaxBars, Steps[^1]);
-        _bucketLabel = Describe(step);
-        _tickFormat = step >= TimeSpan.FromDays(1) ? "MM/dd" : "MM/dd HH:mm";
+        _step = Steps.FirstOrDefault(s => (last - first).TotalSeconds / s.TotalSeconds < MaxBars, Steps[^1]);
+        _bucketLabel = Describe(_step);
+        _tickFormat = _step >= TimeSpan.FromDays(1) ? "MM/dd" : "MM/dd HH:mm";
 
-        var origin = Floor(first, step);
-        var count = (int)((Floor(last, step) - origin).Ticks / step.Ticks) + 1;
+        var origin = Floor(first, _step);
+        var count = (int)((Floor(last, _step) - origin).Ticks / _step.Ticks) + 1;
         for (var i = 0; i < count; i++)
-            _buckets.Add(new Bucket { Start = origin + i * step });
+            _buckets.Add(new Bucket { Start = origin + i * _step });
 
         foreach (var e in Entries)
         {
             if (e.Time == default) continue;
-            var b = _buckets[(int)((Floor(e.Time, step) - origin).Ticks / step.Ticks)];
-            switch (e.Level.ToUpperInvariant())
+            var b = _buckets[(int)((Floor(e.Time, _step) - origin).Ticks / _step.Ticks)];
+            switch (SeriesKey(e.Level))
             {
                 case "DEBUG": b.Debug++; break;
                 case "INFO": b.Info++; break;
-                case "WARN": case "WARNING": b.Warn++; break;
-                case "ERROR": case "FATAL": b.Error++; break;
+                case "WARN": b.Warn++; break;
+                case "ERROR": b.Error++; break;
                 default: b.Other++; break;
             }
         }
 
-        _yMax = NiceMax(_buckets.Max(b => b.Total));
-        _yTicks = new[] { 0.25, 0.5, 0.75, 1.0 }.Select(f => f * _yMax).ToArray();
+        // Scale follows the data: a round tick step, then the axis top is the first
+        // multiple of it at or above the busiest bucket — never a fixed ceiling.
+        var peak = _buckets.Max(b => b.Total);
+        var tick = NiceTick(peak);
+        _yMax = Math.Max(tick, Math.Ceiling(peak / tick) * tick);
+        _yTicks = Enumerable.Range(1, (int)Math.Round(_yMax / tick)).Select(i => i * tick).ToArray();
 
         var every = Math.Max(1, (int)Math.Ceiling(_buckets.Count / (double)MaxXTicks));
         for (var i = 0; i < _buckets.Count; i += every) _xTicks.Add(i);
@@ -171,14 +247,18 @@
 
     private static DateTime Floor(DateTime t, TimeSpan step) => new(t.Ticks - (t.Ticks % step.Ticks), t.Kind);
 
-    /// <summary>Rounds up to the next 1 / 2 / 2.5 / 5 / 10 × 10ⁿ so the y ticks stay readable.</summary>
-    private static double NiceMax(double v)
+    /// <summary>
+    /// Gap between y ticks: a round 1 / 2 / 2.5 / 5 / 10 × 10ⁿ value that splits the peak into
+    /// roughly <see cref="YTickTarget"/> bands. Never below 1, since bars count whole entries.
+    /// </summary>
+    private static double NiceTick(double peak)
     {
-        if (v <= 0) return 1;
-        var mag = Math.Pow(10, Math.Floor(Math.Log10(v)));
-        var norm = v / mag;
+        if (peak <= 0) return 1;
+        var raw = peak / YTickTarget;
+        var mag = Math.Pow(10, Math.Floor(Math.Log10(raw)));
+        var norm = raw / mag;
         var nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
-        return nice * mag;
+        return Math.Max(1, nice * mag);
     }
 
     private static string Describe(TimeSpan s) =>
@@ -197,9 +277,9 @@
         ? "display:none"
         : $"height:{Pct(count / _yMax)};min-height:1px;background:{ChartColors.Level(level)}";
 
-    private IEnumerable<(string Name, string Level, long Count)> Series()
+    private IEnumerable<(string Name, string Key, long Count)> Series()
     {
-        var rows = new (string Name, string Level, long Count)[]
+        var rows = new (string Name, string Key, long Count)[]
         {
             ("debug", "DEBUG", (long)_buckets.Sum(b => b.Debug)),
             ("info", "INFO", (long)_buckets.Sum(b => b.Info)),
@@ -210,6 +290,9 @@
         return rows.Where(r => r.Count > 0);
     }
 
+    private bool IsLevelActive(string seriesKey) =>
+        ActiveLevels is not null && ActiveLevels.Any(l => SeriesKey(l) == seriesKey);
+
     private string Tooltip(Bucket b)
     {
         var parts = new List<string>();
@@ -219,7 +302,47 @@
         if (b.Error > 0) parts.Add($"error {b.Error:N0}");
         if (b.Other > 0) parts.Add($"other {b.Other:N0}");
         var detail = parts.Count > 0 ? $" ({string.Join(", ", parts)})" : "";
-        return $"{b.Start:yyyy-MM-dd HH:mm:ss} · {b.Total:N0} entries{detail}";
+        return $"{b.Start:yyyy-MM-dd HH:mm:ss} · {b.Total:N0} entries{detail} — drag to filter";
+    }
+
+    /// <summary>Highlight for a bar: the live drag wins, otherwise the committed window.</summary>
+    private string? BarClass(int i)
+    {
+        if (_dragFrom is { } a && _dragTo is { } z)
+            return i >= Math.Min(a, z) && i <= Math.Max(a, z) ? "lv-bar-sel" : "lv-bar-dim";
+
+        if (Range is { } r)
+            return r.Overlaps(_buckets[i].Start, _step) ? "lv-bar-sel" : "lv-bar-dim";
+
+        return null;
+    }
+
+    private void StartDrag(int i) { _dragFrom = i; _dragTo = i; }
+
+    private void ExtendDrag(int i)
+    {
+        if (_dragFrom is null || _dragTo == i) { _skipRender = true; return; }
+        _dragTo = i;
+    }
+
+    /// <summary>Commits the drag as a time window. A plain click selects the single bucket under the cursor.</summary>
+    private async Task EndDrag()
+    {
+        if (_dragFrom is not { } a || _dragTo is not { } z) { _skipRender = true; return; }
+        _dragFrom = _dragTo = null;
+
+        var (lo, hi) = (Math.Min(a, z), Math.Max(a, z));
+        var from = _buckets[lo].Start;
+        var to = _buckets[hi].Start + _step - TimeSpan.FromTicks(1);
+
+        Range = new TimeRange(from, to);
+        await RangeChanged.InvokeAsync(Range);
+    }
+
+    private async Task ClearRange()
+    {
+        Range = null;
+        await RangeChanged.InvokeAsync(null);
     }
 
     private Task ToggleCollapsed()

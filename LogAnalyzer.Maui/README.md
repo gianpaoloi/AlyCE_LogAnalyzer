@@ -30,7 +30,8 @@ Identical feature set to the server app:
   **Add columns…** picker, resizable columns, a hidable **fully-expanded logger tree**, and
   **Download** of the filtered rows (CSV or original `.log`).
 - Explorer: a collapsible **log volume time series** over the filtered rows — stacked by level, with an
-  automatic bucket size and per-level totals in the legend.
+  automatic bucket size, a y axis scaled to the actual volume, and per-level totals in the legend. It is also
+  a filter: **drag across the bars** to pick a time window, **click a legend entry** to toggle that level.
 - Filters and panel states persist across navigation (`SessionState`, scoped per WebView).
 - Dark navy/purple theme (Radzen `material-dark`, re-mapped in `app.css`).
 - Live tailing of a local/UNC file.
@@ -41,7 +42,7 @@ Identical feature set to the server app:
 Models, services and every page/component now live in **`LogAnalyzer.Core`** and are referenced by both hosts
 — they are no longer copied per project, so a change lands in the server app and here at once:
 
-- **`Models/`** — `LogEntry`, `LogFilter`, `LogColumns`, `Stats`.
+- **`Models/`** — `LogEntry`, `LogFilter`, `LogColumns`, `Stats`, `TimeRange`.
 - **`Services/`** — `LogParser`, `LogStore`, `LogWatcher`, `LogExport`, `MessageNormalizer`,
   `SessionState`, `ChartColors`.
 - **`Components/Pages/`** — `Home` (Overview), `Dashboard`, `Explorer`, `Triage`, `Live`, `QuickStart`.
