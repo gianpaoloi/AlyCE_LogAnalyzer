@@ -22,24 +22,39 @@ Runtime** (preinstalled on Windows 11).
 Identical feature set to the server app:
 
 - **Overview / Dashboard / Explorer / Triage / Live watch** pages.
-- Load logs from a **folder / UNC path** or by **uploading a ZIP** of `.log` files.
+- Load logs from a **folder / UNC path**, or by dropping / picking `.log` files or a ZIP of them. The load
+  panel **collapses** into a one-line summary via its *Load files* header, on every page that shows it.
+- A **spinner with the current phase** (looking for files → parsing *n/m* files → sorting & computing stats)
+  while a load is in flight, next to the Load button and in place of the page body.
 - Explorer & Live: fixed columns incl. **Company**, per-column **combo filters** in the headers,
   **Add columns…** picker, resizable columns, a hidable **fully-expanded logger tree**, and
   **Download** of the filtered rows (CSV or original `.log`).
-- Filters persist across navigation (`SessionState`, scoped per WebView).
+- Explorer: a collapsible **log volume time series** over the filtered rows — stacked by level, with an
+  automatic bucket size and per-level totals in the legend.
+- Filters and panel states persist across navigation (`SessionState`, scoped per WebView).
 - Dark navy/purple theme (Radzen `material-dark`, re-mapped in `app.css`).
 - Live tailing of a local/UNC file.
 
 ## How this app was built (port from the server project)
 
-### Reused byte-for-byte from `../LogAnalyzer`
+### Shared through the `../LogAnalyzer.Core` project reference
+Models, services and every page/component now live in **`LogAnalyzer.Core`** and are referenced by both hosts
+— they are no longer copied per project, so a change lands in the server app and here at once:
+
 - **`Models/`** — `LogEntry`, `LogFilter`, `LogColumns`, `Stats`.
 - **`Services/`** — `LogParser`, `LogStore`, `LogWatcher`, `LogExport`, `MessageNormalizer`,
   `SessionState`, `ChartColors`.
-- **`Components/Pages/`** — `Home` (Overview), `Dashboard`, `Explorer`, `Triage`, `Live`.
-- **`Components/Shared/`** — `LoadPanel`, `LevelBadge`, `LogDetail`, `LoggerTree`.
+- **`Components/Pages/`** — `Home` (Overview), `Dashboard`, `Explorer`, `Triage`, `Live`, `QuickStart`.
+- **`Components/Shared/`** — `LoadPanel` (collapsible header), `LoadProgress` (spinner + load phase),
+  `LogVolumeChart`, `LevelBadge`, `LogDetail`, `LoggerTree`.
 - **`Components/Layout/`** — `MainLayout` (+ collapsible sidebar CSS), `NavMenu`.
-- **`wwwroot/`** — `app.css` (dark theme), `download.js`, `favicon.png`.
+
+This project keeps only the MAUI shell (`MauiProgram.cs`, `MainPage.xaml`, `Components/Routes.razor`,
+`Components/_Imports.razor`) and its own **`wwwroot/`** — `app.css` (dark theme + component styles),
+`index.html`, `download.js`, `favicon.png`.
+
+> `wwwroot/app.css` is **still a separate copy** from `../LogAnalyzer/wwwroot/app.css`: styles for shared
+> components (e.g. the `.lv-*` volume-chart and `.load-panel-*` rules) have to be added to both files.
 
 ### Host shell — what changed vs the server project
 

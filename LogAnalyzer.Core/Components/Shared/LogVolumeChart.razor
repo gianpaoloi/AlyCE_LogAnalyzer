@@ -1,0 +1,230 @@
+@* Grafana-style log volume panel: stacked bars per time bucket, auto bucket size,
+   level totals in the legend. Pure CSS/HTML (no SVG) so it scales with the container. *@
+
+<div class="lv-panel">
+    <div class="lv-head" @onclick="ToggleCollapsed" title="@(Collapsed ? "Expand chart" : "Collapse chart")">
+        <RadzenIcon Icon="@(Collapsed ? "chevron_right" : "expand_more")" />
+        <span class="lv-title">@Title (@Compact(_total))</span>
+        @if (!Collapsed && _bucketLabel is not null)
+        {
+            <span class="lv-bucket">@_bucketLabel per bar</span>
+        }
+    </div>
+
+    @if (!Collapsed)
+    {
+        @if (_buckets.Count == 0)
+        {
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-m-0">No timestamped entries.</RadzenText>
+        }
+        else
+        {
+            <div class="lv-body">
+                <div class="lv-yaxis">
+                    @foreach (var t in _yTicks)
+                    {
+                        <span class="lv-ytick" style="bottom:@Pct(t / _yMax)">@Compact((long)t)</span>
+                    }
+                </div>
+                <div class="lv-plot">
+                    @foreach (var t in _yTicks)
+                    {
+                        <div class="lv-gridline" style="bottom:@Pct(t / _yMax)"></div>
+                    }
+                    @foreach (var i in _xTicks)
+                    {
+                        <div class="lv-gridline-v" style="left:@Pct((i + 0.5) / _buckets.Count)"></div>
+                    }
+                    <div class="lv-bars">
+                        @foreach (var b in _buckets)
+                        {
+                            <div class="lv-bar" title="@Tooltip(b)">
+                                @* top-to-bottom markup, pushed to the baseline: error on top, debug at the bottom *@
+                                <span class="lv-seg" style="@Seg(b.Error, "ERROR")"></span>
+                                <span class="lv-seg" style="@Seg(b.Warn, "WARN")"></span>
+                                <span class="lv-seg" style="@Seg(b.Info, "INFO")"></span>
+                                <span class="lv-seg" style="@Seg(b.Other, "OTHER")"></span>
+                                <span class="lv-seg" style="@Seg(b.Debug, "DEBUG")"></span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="lv-xaxis">
+                @foreach (var i in _xTicks)
+                {
+                    <span class="lv-xtick" style="left:@Pct((i + 0.5) / _buckets.Count)">@_buckets[i].Start.ToString(_tickFormat)</span>
+                }
+            </div>
+
+            <div class="lv-legend">
+                @foreach (var (name, level, count) in Series())
+                {
+                    <span class="lv-legend-item">
+                        <i style="background:@ChartColors.Level(level)"></i>@name
+                        <span class="lv-legend-total">Total: @Compact(count)</span>
+                    </span>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<LogEntry> Entries { get; set; } = Array.Empty<LogEntry>();
+    [Parameter] public string Title { get; set; } = "Log volume";
+
+    /// <summary>Collapsed state; supports <c>@bind-Collapsed</c> so the caller can persist it.</summary>
+    [Parameter] public bool Collapsed { get; set; }
+    [Parameter] public EventCallback<bool> CollapsedChanged { get; set; }
+
+    private sealed class Bucket
+    {
+        public DateTime Start;
+        public double Debug, Info, Warn, Error, Other;
+        public double Total => Debug + Info + Warn + Error + Other;
+    }
+
+    // Bucket sizes offered, smallest first — the first one that keeps the bar count
+    // under MaxBars wins, so the axis always uses a round, human-readable step.
+    private static readonly TimeSpan[] Steps =
+    {
+        TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30),
+        TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(30),
+        TimeSpan.FromHours(1), TimeSpan.FromHours(3), TimeSpan.FromHours(6), TimeSpan.FromHours(12),
+        TimeSpan.FromDays(1), TimeSpan.FromDays(7), TimeSpan.FromDays(30),
+    };
+    private const int MaxBars = 180;
+    private const int MaxXTicks = 10;
+
+    private List<Bucket> _buckets = new();
+    private List<int> _xTicks = new();
+    private double[] _yTicks = Array.Empty<double>();
+    private double _yMax = 1;
+    private long _total;
+    private string? _bucketLabel;
+    private string _tickFormat = "MM/dd HH:mm";
+    private IReadOnlyList<LogEntry>? _built;
+
+    protected override void OnParametersSet()
+    {
+        // Explorer hands us a fresh list on every filter change, so a reference
+        // check is enough to avoid re-bucketing hundreds of thousands of entries.
+        if (!ReferenceEquals(_built, Entries))
+        {
+            _built = Entries;
+            Build();
+        }
+    }
+
+    private void Build()
+    {
+        _buckets = new List<Bucket>();
+        _xTicks = new List<int>();
+        _yTicks = Array.Empty<double>();
+        _yMax = 1;
+        _total = Entries.Count;
+        _bucketLabel = null;
+
+        // Two cheap passes over the (potentially huge) filtered set: range, then fill.
+        DateTime first = DateTime.MaxValue, last = DateTime.MinValue;
+        var timed = 0;
+        foreach (var e in Entries)
+        {
+            if (e.Time == default) continue;
+            timed++;
+            if (e.Time < first) first = e.Time;
+            if (e.Time > last) last = e.Time;
+        }
+        if (timed == 0) return;
+
+        var step = Steps.FirstOrDefault(s => (last - first).TotalSeconds / s.TotalSeconds < MaxBars, Steps[^1]);
+        _bucketLabel = Describe(step);
+        _tickFormat = step >= TimeSpan.FromDays(1) ? "MM/dd" : "MM/dd HH:mm";
+
+        var origin = Floor(first, step);
+        var count = (int)((Floor(last, step) - origin).Ticks / step.Ticks) + 1;
+        for (var i = 0; i < count; i++)
+            _buckets.Add(new Bucket { Start = origin + i * step });
+
+        foreach (var e in Entries)
+        {
+            if (e.Time == default) continue;
+            var b = _buckets[(int)((Floor(e.Time, step) - origin).Ticks / step.Ticks)];
+            switch (e.Level.ToUpperInvariant())
+            {
+                case "DEBUG": b.Debug++; break;
+                case "INFO": b.Info++; break;
+                case "WARN": case "WARNING": b.Warn++; break;
+                case "ERROR": case "FATAL": b.Error++; break;
+                default: b.Other++; break;
+            }
+        }
+
+        _yMax = NiceMax(_buckets.Max(b => b.Total));
+        _yTicks = new[] { 0.25, 0.5, 0.75, 1.0 }.Select(f => f * _yMax).ToArray();
+
+        var every = Math.Max(1, (int)Math.Ceiling(_buckets.Count / (double)MaxXTicks));
+        for (var i = 0; i < _buckets.Count; i += every) _xTicks.Add(i);
+    }
+
+    private static DateTime Floor(DateTime t, TimeSpan step) => new(t.Ticks - (t.Ticks % step.Ticks), t.Kind);
+
+    /// <summary>Rounds up to the next 1 / 2 / 2.5 / 5 / 10 × 10ⁿ so the y ticks stay readable.</summary>
+    private static double NiceMax(double v)
+    {
+        if (v <= 0) return 1;
+        var mag = Math.Pow(10, Math.Floor(Math.Log10(v)));
+        var norm = v / mag;
+        var nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+        return nice * mag;
+    }
+
+    private static string Describe(TimeSpan s) =>
+        s.TotalDays >= 1 ? $"{s.TotalDays:0}d" :
+        s.TotalHours >= 1 ? $"{s.TotalHours:0}h" :
+        s.TotalMinutes >= 1 ? $"{s.TotalMinutes:0}m" : $"{s.TotalSeconds:0}s";
+
+    private static string Compact(long v) =>
+        v >= 1_000_000 ? $"{v / 1_000_000.0:0.##}M" :
+        v >= 1_000 ? $"{v / 1_000.0:0.##}K" : v.ToString("N0");
+
+    private static string Pct(double f) => $"{Math.Clamp(f, 0, 1) * 100:0.###}%";
+
+    /// <summary>Segment style; a non-empty segment always keeps a visible sliver (like Grafana).</summary>
+    private string Seg(double count, string level) => count <= 0
+        ? "display:none"
+        : $"height:{Pct(count / _yMax)};min-height:1px;background:{ChartColors.Level(level)}";
+
+    private IEnumerable<(string Name, string Level, long Count)> Series()
+    {
+        var rows = new (string Name, string Level, long Count)[]
+        {
+            ("debug", "DEBUG", (long)_buckets.Sum(b => b.Debug)),
+            ("info", "INFO", (long)_buckets.Sum(b => b.Info)),
+            ("warn", "WARN", (long)_buckets.Sum(b => b.Warn)),
+            ("error", "ERROR", (long)_buckets.Sum(b => b.Error)),
+            ("other", "OTHER", (long)_buckets.Sum(b => b.Other)),
+        };
+        return rows.Where(r => r.Count > 0);
+    }
+
+    private string Tooltip(Bucket b)
+    {
+        var parts = new List<string>();
+        if (b.Debug > 0) parts.Add($"debug {b.Debug:N0}");
+        if (b.Info > 0) parts.Add($"info {b.Info:N0}");
+        if (b.Warn > 0) parts.Add($"warn {b.Warn:N0}");
+        if (b.Error > 0) parts.Add($"error {b.Error:N0}");
+        if (b.Other > 0) parts.Add($"other {b.Other:N0}");
+        var detail = parts.Count > 0 ? $" ({string.Join(", ", parts)})" : "";
+        return $"{b.Start:yyyy-MM-dd HH:mm:ss} · {b.Total:N0} entries{detail}";
+    }
+
+    private Task ToggleCollapsed()
+    {
+        Collapsed = !Collapsed;
+        return CollapsedChanged.InvokeAsync(Collapsed);
+    }
+}

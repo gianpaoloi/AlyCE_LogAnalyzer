@@ -15,14 +15,37 @@ Then open the URL printed in the console (e.g. `http://localhost:5134`).
 
 ## Loading logs
 
-There are two ways to load a dataset (from the panel at the top of the Overview / Explorer pages):
+There are two ways to load a dataset (from the panel at the top of the Overview / Dashboard / Explorer /
+Triage pages):
 
 - **Folder** – type a local or UNC path and click **Load** / **Reload**. The default folder is set in
   `appsettings.json` → `LogAnalyzer:DefaultLogFolder`.
-- **Upload ZIP** – click **Upload ZIP** and pick a `.zip`; every `.log` entry inside it (including files in
-  sub-folders) is parsed. Useful when the logs aren't on a reachable folder/UNC share. Upload cap: 2 GB.
+- **Drop zone** – click it to pick `.log` / `.zip` files, or drag them onto it. For a ZIP, every `.log` entry
+  inside it (including files in sub-folders) is parsed. Useful when the logs aren't on a reachable
+  folder/UNC share. Caps: 2 GB per ZIP, 500 MB per `.log`, 100 files per drop. One ZIP *or* one-or-more
+  `.log` files per drop — mixing the two is rejected.
 
-The **include DEBUG** checkbox applies to both. Loading runs in the background with a live progress bar.
+The **include DEBUG** checkbox applies to both. **Clear** drops the loaded dataset.
+
+Loading runs in the background and reports progress in three places — a **spinner with the current phase**
+where the Load button sits (or in the collapsed header), a determinate **progress bar** under the panel, and
+the same spinner in place of the page body until the dataset is ready. The phase text names what the store is
+actually doing, since file counters alone would look stalled:
+
+| Phase | Shown as |
+|---|---|
+| Enumerating the folder / ZIP | *Looking for log files…* |
+| Parsing | *Parsing… 7 / 31 files · 412,908 entries* |
+| Post-parse sort + statistics | *Sorting and computing statistics…* |
+
+The drop zone dims and stops accepting input while a load is in flight (drops were already ignored — now it
+says so).
+
+The panel is **collapsible on every page that shows it** — click the *Load files* header to fold it away and
+give the grid / charts more room. While collapsed the header keeps a one-line summary (entries, files and
+source path, or the load progress). The collapsed state is shared by all pages and persists across navigation
+like the filters, so folding it once keeps it folded everywhere until a full page reload. The body stays in the
+DOM while collapsed, so the drop zone and a half-typed folder path survive a collapse/expand round-trip.
 
 ## Pages
 
@@ -30,7 +53,7 @@ The **include DEBUG** checkbox applies to both. Loading runs in the background w
 |------|--------------|
 | **Overview** | Load a folder / ZIP; totals (entries, files, environments, loggers, errors, warnings), time span, and breakdown charts by level / environment / logger. |
 | **Dashboard** | Log volume per hour stacked by level (SVG), errors & warnings per hour, level and logger breakdowns. |
-| **Explorer** | Searchable, paginated grid. Per-column combo filters, resizable columns, a hidable logger tree, column picker, and download of the filtered set. Click a row for full detail incl. formatted stack trace. |
+| **Explorer** | Searchable, paginated grid, topped by a **log volume time series** of the filtered set. Per-column combo filters, resizable columns, a hidable logger tree, column picker, and download of the filtered set. Click a row for full detail incl. formatted stack trace. |
 | **Triage** | Clusters similar ERROR/WARN messages into issue groups (guids/numbers/durations/quoted values masked), ordered by frequency, with first/last-seen, affected environments and a sample stack trace. |
 | **Live watch** | Tails a single file on a local or remote **UNC** path (`\\server\share\...`) and shows new matching lines in real time, with the same column filters, tree, column picker and download. |
 
@@ -50,10 +73,32 @@ The **include DEBUG** checkbox applies to both. Loading runs in the background w
   - **CSV** (`.csv`, UTF-8 + BOM for Excel; message stack-trace `\CRLF` markers become real newlines), or
   - **Log lines** (`.log`, original JSON-lines format, so the subset can be re-loaded).
 
+## Log volume chart (Explorer)
+
+Above the grid, `LogVolumeChart` draws a Grafana-style volume time series of the **currently filtered** rows —
+so it narrows down with every search, level pick or logger-tree click.
+
+- **Stacked bars per time bucket** – debug / info / warn / error bottom-to-top, using the same
+  `ChartColors.Level` palette as the badges and dashboard. Levels outside the known set (the parser stores
+  `UNKNOWN` when the field is missing) land in an **other** series, so the bars always add up to the row count.
+- **Automatic bucket size** – picked from a round-step ladder (1 s → 30 d) so the chart stays under ~180 bars
+  whatever the time span; the chosen step is shown in the header (*"1h per bar"*). Empty buckets are kept, so
+  the time axis stays linear and gaps are visible.
+- **Axes** – y ticks rounded up to a nice 1 / 2 / 2.5 / 5 × 10ⁿ maximum and abbreviated (`2.50 K`, `1.2M`);
+  ~10 time labels along the x axis.
+- **Legend** – per-level totals for the filtered set.
+- **Hover a bar** for its bucket start and per-level counts.
+- **Collapsible** – click the *Log volume (930K)* header; the state persists across navigation.
+
+It is a plain HTML/CSS component (no SVG, no JS), so it reflows with the container. Bucketing is two passes
+over the filtered set and only re-runs when the filtered list changes — on very large filtered sets (~1 M rows)
+expect a short pause per filter change.
+
 ## Filters persist across navigation
 
-Filter state (levels, environments, companies, text, logger-tree selection, chosen columns, panel toggle, plus
-the Live path / "from start") is held in a **scoped `SessionState`** service, which in Blazor Server lives for
+Filter state (levels, environments, companies, text, logger-tree selection, chosen columns, panel toggle, the
+load-panel and volume-chart collapsed states, plus the Live path / "from start") is held in a **scoped
+`SessionState`** service, which in Blazor Server lives for
 the whole SignalR circuit — so filters survive moving between pages and return when you come back. They reset
 only on a full page reload / reconnect. Explorer and Live keep their own independent filter state.
 
@@ -76,13 +121,23 @@ only on a full page reload / reconnect. Explorer and Live keep their own indepen
 
 ## Layout
 
+Models, services and all UI components live in the shared **`LogAnalyzer.Core`** project, which both this
+server app and `LogAnalyzer.Maui` reference. This project only holds the web host shell (`Program.cs`,
+`App.razor`, `Routes.razor`, the error page) and its own `wwwroot`.
+
 ```
-Models/     LogEntry, LogFilter, LogStats/TimeBucket/MessageGroup, LogColumns (optional columns)
-Services/   LogParser, MessageNormalizer, LogStore (dataset + folder/ZIP loading), LogWatcher (live tail),
-            LogExport (CSV / JSON-lines), SessionState (per-circuit filter state), ChartColors
-Components/
-  Pages/    Home(Overview), Dashboard, Explorer, Triage, Live
-  Shared/   LoadPanel, LevelBadge, BarChart, LoggerTree, LogDetail
-  Layout/   MainLayout (collapsible sidebar), NavMenu
-wwwroot/    app.css (dark theme + component styles), download.js (file download interop)
+../LogAnalyzer.Core/
+  Models/     LogEntry, LogFilter, LogStats/TimeBucket/MessageGroup, LogColumns (optional columns)
+  Services/   LogParser, MessageNormalizer, LogStore (dataset + folder/ZIP loading), LogWatcher (live tail),
+              LogExport (CSV / JSON-lines), SessionState (per-circuit UI state), ChartColors
+  Components/
+    Pages/    Home(Overview), Dashboard, Explorer, Triage, Live, QuickStart, NotFound
+    Shared/   LoadPanel (collapsible header), LoadProgress (spinner + phase), LogVolumeChart,
+              LevelBadge, LoggerTree, LogDetail
+    Layout/   MainLayout (collapsible sidebar), NavMenu
+Components/ App.razor, Routes.razor, Pages/Error.razor (host shell only)
+wwwroot/    app.css (dark theme + component styles), download.js (download + drop-zone interop)
 ```
+
+> `wwwroot/app.css` is duplicated in `LogAnalyzer.Maui/wwwroot/app.css` — component styles (e.g. the
+> `.lv-*` volume-chart and `.load-panel-*` rules) must be added to **both** copies.

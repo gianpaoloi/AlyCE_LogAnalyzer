@@ -3,8 +3,36 @@
 @inject LogStore Store
 @inject IConfiguration Config
 @inject IJSRuntime JS
+@inject SessionState State
 
 <RadzenCard class="rz-mb-3" Variant="Variant.Outlined">
+    <div class="load-panel-header @(Collapsed ? "" : "rz-mb-2")" @onclick="Toggle"
+         title="@(Collapsed ? "Expand load files" : "Collapse load files")">
+        <RadzenIcon Icon="@(Collapsed ? "expand_more" : "expand_less")" />
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0"><b>Load files</b></RadzenText>
+        @if (Collapsed)
+        {
+            @if (Store.IsLoading)
+            {
+                <LoadProgress Compact="true" />
+            }
+            else if (Store.IsLoaded)
+            {
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
+                    @Store.Stats!.TotalEntries.ToString("N0") entries &middot;
+                    @Store.Stats.FileCount files &middot; @Store.LoadedPath
+                </RadzenText>
+            }
+            else
+            {
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">nothing loaded</RadzenText>
+            }
+        }
+    </div>
+
+    @* Kept in the DOM while collapsed so the drop zone's JS registration and the
+       typed folder path survive a collapse/expand round-trip. *@
+    <div class="@(Collapsed ? "load-panel-body-hidden" : null)">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
         <RadzenText TextStyle="TextStyle.Body2" class="rz-mr-1"><b>Log folder</b></RadzenText>
         <RadzenTextBox @bind-Value="_folder" Placeholder="C:\path\to\Logs or \\server\share\Logs"
@@ -13,9 +41,7 @@
         <RadzenLabel Text="include DEBUG" Component="dbg" title="Including DEBUG uses much more memory" />
         @if (Store.IsLoading)
         {
-            <RadzenText TextStyle="TextStyle.Body2" class="rz-color-info">
-                Loading&#x2026; @Store.FilesProcessed / @Store.FilesTotal files &middot; @Store.EntriesParsed.ToString("N0") entries
-            </RadzenText>
+            <LoadProgress />
         }
         else
         {
@@ -27,10 +53,22 @@
         }
     </RadzenStack>
 
-    <div class="drop-zone rz-mt-2" @ref="_dropZoneRef">
+    @* The zone stays rendered while loading (it holds the JS drop registration) but ignores
+       input — the busy class makes that visible instead of silently swallowing a drop. *@
+    <div class="drop-zone rz-mt-2 @(Store.IsLoading ? "drop-zone-busy" : null)" @ref="_dropZoneRef">
         <InputFile id="@_inputId" class="drop-zone-input" OnChange="OnDropZoneSelected" accept=".log,.zip" multiple />
-        <RadzenIcon Icon="move_to_inbox" />
-        <span>Click to load log Files, zip in the app or Drop it</span>
+        @if (Store.IsLoading)
+        {
+            <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" ShowValue="false"
+                                       Size="ProgressBarCircularSize.Small"
+                                       ProgressBarStyle="ProgressBarStyle.Info" />
+            <span>Loading logs&#x2026;</span>
+        }
+        else
+        {
+            <RadzenIcon Icon="move_to_inbox" />
+            <span>Click to load log Files, zip in the app or Drop it</span>
+        }
     </div>
     @if (!string.IsNullOrWhiteSpace(_dropError))
     {
@@ -54,9 +92,16 @@
             <b>@Store.Stats.FileCount</b> files &middot; @Store.LoadedPath
         </RadzenText>
     }
+    </div>
 </RadzenCard>
 
 @code {
+    // Collapsed state is shared by every page hosting the panel (and kept in SessionState),
+    // so folding it away on one page keeps it folded when navigating to another.
+    private bool Collapsed => State.LoadPanelCollapsed;
+
+    private void Toggle() => State.LoadPanelCollapsed = !State.LoadPanelCollapsed;
+
     private string _folder = "";
     private string? _dropError;
     private ElementReference _dropZoneRef;

@@ -25,12 +25,14 @@ FOLDER STRUCTURE
 FEATURES
 --------
 ✓ Analyze and parse log files from your filesystem
-✓ Browse logs by folder or upload as ZIP files
+✓ Browse logs by folder, or drag & drop .log / .zip files onto the app
 ✓ Interactive filtering and search across all columns
+✓ Log volume chart over time, stacked by level and driven by your filters
 ✓ Real-time log monitoring and live tailing
 ✓ Export filtered logs to CSV or original format
 ✓ Dark theme interface for extended viewing
 ✓ Column management - add/remove/resize as needed
+✓ Collapsible 'Load files' panel to free up screen space
 
 
 SYSTEM REQUIREMENTS
@@ -44,9 +46,13 @@ HOW TO USE
 ----------
 
 1. LOADING LOGS:
-   - Click 'Load Logs' and select a folder containing .log files
-   - OR upload a ZIP file containing .log files
+   - Type a folder path (local or \\server\share) and click 'Load'
+   - OR drag .log files / a ZIP onto the drop zone, or click it to pick them
    - Logs will be parsed and indexed automatically
+   - Tick 'include DEBUG' to load debug lines too (uses much more memory)
+   - A spinner and a progress bar show the current phase while loading
+     ('parsing 7 / 31 files', then 'sorting and computing statistics')
+   - Click the 'Load files' header to collapse the panel once you are done
 
 2. VIEWING LOGS:
    - Explorer tab: Browse all logs with advanced filtering
@@ -59,7 +65,13 @@ HOW TO USE
    - Multiple filters combine automatically
    - Filters persist when switching tabs
 
-4. EXPORTING:
+4. LOG VOLUME CHART (Explorer):
+   - The chart above the grid shows entries over time, stacked by level
+   - It always reflects the filters currently applied
+   - The bucket size adapts to the time range (shown as e.g. '1h per bar')
+   - Hover a bar for the exact counts; click the header to collapse the chart
+
+5. EXPORTING:
    - Use Download button to export filtered results as CSV or original .log files
 
 

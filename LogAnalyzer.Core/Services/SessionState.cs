@@ -9,6 +9,10 @@ namespace LogAnalyzer.Services;
 /// </summary>
 public sealed class SessionState
 {
+    // ---- Shared ----
+    /// <summary>Collapsed state of the load-files panel, on the pages that allow collapsing it.</summary>
+    public bool LoadPanelCollapsed { get; set; }
+
     // ---- Explorer ----
     public IEnumerable<string> ExplorerLevels { get; set; } = new List<string>();
     public IEnumerable<string> ExplorerEnvironments { get; set; } = new List<string>();
@@ -18,6 +22,7 @@ public sealed class SessionState
     public string? ExplorerLoggerPrefix { get; set; }
     public IEnumerable<string> ExplorerColumns { get; set; } = LogColumns.DefaultKeys;
     public bool ExplorerShowLoggers { get; set; }
+    public bool ExplorerVolumeCollapsed { get; set; }
 
     // ---- Live ----
     public IEnumerable<string> LiveLevels { get; set; } = new List<string>();

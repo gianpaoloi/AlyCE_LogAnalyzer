@@ -7,7 +7,11 @@
 <RadzenText TextStyle="TextStyle.H4">Dashboard</RadzenText>
 <LoadPanel />
 
-@if (!Store.IsLoaded)
+@if (Store.IsLoading)
+{
+    <div class="load-busy-block"><LoadProgress /></div>
+}
+else if (!Store.IsLoaded)
 {
     <RadzenText class="rz-color-muted">Load a log folder to see charts.</RadzenText>
 }

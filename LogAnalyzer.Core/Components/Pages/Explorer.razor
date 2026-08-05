@@ -10,7 +10,11 @@
 <RadzenText TextStyle="TextStyle.H4">Explorer</RadzenText>
 <LoadPanel />
 
-@if (!Store.IsLoaded)
+@if (Store.IsLoading)
+{
+    <div class="load-busy-block"><LoadProgress /></div>
+}
+else if (!Store.IsLoaded)
 {
     <RadzenText class="rz-color-muted">Load a log folder to search entries.</RadzenText>
 }
@@ -40,6 +44,8 @@ else
 
     <div class="side-layout">
         <div class="side-main">
+            <LogVolumeChart Entries="@_filtered" @bind-Collapsed="State.ExplorerVolumeCollapsed" />
+
             <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-2">@_filtered.Count.ToString("N0") entries — sort or use the per-column filter icons to refine; click a row for detail</RadzenText>
 
             <RadzenDataGrid @ref="_grid" Data="@_filtered" TItem="LogEntry" AllowPaging="true" PageSize="50"

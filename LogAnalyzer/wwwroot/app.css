@@ -212,6 +212,41 @@ h2 { font-size: 1.05rem; margin: 0 0 .6rem; color: var(--txt); }
 .live-dot { width: 9px; height: 9px; border-radius: 50%; background: #00e58f; display: inline-block; animation: pulse 1.3s infinite; }
 @keyframes pulse { 0% { opacity: 1; } 50% { opacity: .3; } 100% { opacity: 1; } }
 
+/* loading spinner + phase text */
+.load-busy { display: inline-flex; align-items: center; gap: .5rem; }
+.load-busy-text { font-size: .82rem; color: var(--fluobrand); font-variant-numeric: tabular-nums; }
+.load-busy-block { display: flex; align-items: center; justify-content: center; gap: .6rem; padding: 2.5rem 1rem; }
+.load-busy-block .load-busy-text { font-size: .9rem; }
+.drop-zone-busy { pointer-events: none; opacity: .7; border-style: solid; }
+
+/* log volume panel (Grafana-style stacked bars) */
+.lv-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: .5rem .7rem .6rem; margin-bottom: .75rem; }
+.lv-head { display: flex; align-items: center; gap: .4rem; cursor: pointer; user-select: none; }
+.lv-head:hover .lv-title { color: var(--brand); }
+.lv-title { font-size: .85rem; font-weight: 600; color: var(--txt); }
+.lv-bucket { margin-left: auto; font-size: .72rem; color: var(--muted); }
+.lv-body { display: flex; gap: .35rem; height: 130px; margin-top: .4rem; }
+.lv-yaxis { position: relative; width: 46px; flex: 0 0 46px; }
+.lv-ytick { position: absolute; right: 0; transform: translateY(50%); font-size: .68rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lv-plot { position: relative; flex: 1; min-width: 0; border-bottom: 1px solid var(--border-strong); }
+.lv-gridline { position: absolute; left: 0; right: 0; height: 1px; background: var(--border); }
+.lv-gridline-v { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); }
+.lv-bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 1px; }
+.lv-bar { flex: 1 1 0; min-width: 1px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
+.lv-bar:hover { background: rgba(255,255,255,.06); }
+.lv-seg { display: block; width: 100%; }
+.lv-xaxis { position: relative; height: 1.1rem; margin-left: calc(46px + .35rem); }
+.lv-xtick { position: absolute; top: .15rem; transform: translateX(-50%); font-size: .68rem; color: var(--muted); white-space: nowrap; }
+.lv-legend { display: flex; flex-wrap: wrap; gap: .2rem 1.1rem; font-size: .72rem; color: var(--txt); }
+.lv-legend-item { display: inline-flex; align-items: center; gap: .3rem; }
+.lv-legend-item i { width: 11px; height: 3px; border-radius: 2px; display: inline-block; }
+.lv-legend-total { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* collapsible load-files panel */
+.load-panel-header { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; cursor: pointer; user-select: none; }
+.load-panel-header:hover { color: var(--brand); }
+.load-panel-body-hidden { display: none; }
+
 /* side layout: main content + hidable right panel (logger tree) */
 .side-layout { display: flex; gap: 1rem; align-items: flex-start; }
 .side-main { flex: 1; min-width: 0; }

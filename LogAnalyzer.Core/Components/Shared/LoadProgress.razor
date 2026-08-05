@@ -1,0 +1,34 @@
+@* Spinner + phase text for an in-flight load. Renders nothing when the store is idle,
+   so callers can drop it in without wrapping it in their own IsLoading check. *@
+@inject LogStore Store
+
+@if (Store.IsLoading)
+{
+    <span class="load-busy">
+        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" ShowValue="false"
+                                   Size="ProgressBarCircularSize.ExtraSmall"
+                                   ProgressBarStyle="ProgressBarStyle.Info" />
+        <span class="load-busy-text">@Phase</span>
+    </span>
+}
+
+@code {
+    /// <summary>Shorter wording, for tight spots like the collapsed panel header.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    /// <summary>
+    /// The store only reports file counts, so the two silent phases — discovering the files and
+    /// the post-parse sort + stats pass — get their own wording instead of a stalled counter.
+    /// </summary>
+    private string Phase
+    {
+        get
+        {
+            if (Store.FilesTotal == 0) return "Looking for log files…";
+            if (Store.FilesProcessed >= Store.FilesTotal) return "Sorting and computing statistics…";
+            return Compact
+                ? $"Loading… {Store.FilesProcessed} / {Store.FilesTotal} files"
+                : $"Parsing… {Store.FilesProcessed} / {Store.FilesTotal} files · {Store.EntriesParsed:N0} entries";
+        }
+    }
+}
