@@ -12,122 +12,6 @@ window.downloadFileFromStream = async (fileName, contentStreamReference) => {
     URL.revokeObjectURL(url);
 };
 
-// Wires a visual drop zone to hidden <input type="file"> controls used by Blazor InputFile.
-window.registerLogDropZone = (dropZone, zipInputId, logInputId) => {
-    if (!dropZone || dropZone.__logDropHandlers) return;
-
-    const zipInput = document.getElementById(zipInputId);
-    const logInput = document.getElementById(logInputId);
-    if (!dropZone || !zipInput || !logInput) return;
-
-    const setDropActive = (active) => {
-        dropZone.classList.toggle('drag-over', active);
-    };
-
-    const setDropError = () => {
-        dropZone.classList.remove('drag-over');
-        dropZone.classList.add('drop-error');
-        window.setTimeout(() => dropZone.classList.remove('drop-error'), 1200);
-    };
-
-    const setFiles = (input, files) => {
-        if (!files || files.length === 0) return false;
-        const transfer = new DataTransfer();
-        for (const file of files) {
-            transfer.items.add(file);
-        }
-
-        try {
-            input.files = transfer.files;
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-            return true;
-        } catch {
-            return false;
-        }
-    };
-
-    const getDroppedFiles = (event) => {
-        const dt = event.dataTransfer;
-        if (!dt) return [];
-        if (dt.items && dt.items.length > 0) {
-            const files = [];
-            for (const item of dt.items) {
-                if (item.kind === 'file') {
-                    const file = item.getAsFile();
-                    if (file) files.push(file);
-                }
-            }
-            return files;
-        }
-        return Array.from(dt.files || []);
-    };
-
-    const onDrag = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        setDropActive(true);
-    };
-
-    const onLeave = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        setDropActive(false);
-    };
-
-    const onDrop = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        setDropActive(false);
-
-        const dropped = getDroppedFiles(event);
-        if (dropped.length === 0) {
-            setDropError();
-            return;
-        }
-
-        const zipFiles = dropped.filter((f) => f.name.toLowerCase().endsWith('.zip'));
-        const logFiles = dropped.filter((f) => f.name.toLowerCase().endsWith('.log'));
-
-        // Supported inputs: either one ZIP or one/many .log files.
-        if (zipFiles.length > 1 || (zipFiles.length > 0 && logFiles.length > 0)) {
-            setDropError();
-            return;
-        }
-
-        if (zipFiles.length > 0) {
-            if (!setFiles(zipInput, [zipFiles[0]])) setDropError();
-            return;
-        }
-
-        if (logFiles.length > 0) {
-            if (!setFiles(logInput, logFiles)) setDropError();
-            return;
-        }
-
-        setDropError();
-    };
-
-    dropZone.addEventListener('dragenter', onDrag);
-    dropZone.addEventListener('dragover', onDrag);
-    dropZone.addEventListener('dragleave', onLeave);
-    dropZone.addEventListener('drop', onDrop);
-
-    dropZone.__logDropHandlers = { onDrag, onLeave, onDrop };
-};
-
-window.unregisterLogDropZone = (dropZone) => {
-    if (!dropZone || !dropZone.__logDropHandlers) return;
-
-    const { onDrag, onLeave, onDrop } = dropZone.__logDropHandlers;
-    dropZone.removeEventListener('dragenter', onDrag);
-    dropZone.removeEventListener('dragover', onDrag);
-    dropZone.removeEventListener('dragleave', onLeave);
-    dropZone.removeEventListener('drop', onDrop);
-    dropZone.classList.remove('drag-over');
-    dropZone.classList.remove('drop-error');
-    delete dropZone.__logDropHandlers;
-};
-
 window.copyTextToClipboard = async (text) => {
     if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text ?? '');
@@ -156,22 +40,17 @@ window.registerNativeDropInput = (dropZone, inputId) => {
     const input = document.getElementById(inputId);
     if (!input) return;
 
-    const setDropActive = (active) => {
-        dropZone.classList.toggle('drag-over', active);
-    };
+    const setDropActive = (active) => dropZone.classList.toggle('drag-over', active);
 
     const assignFiles = (files) => {
         if (!files || files.length === 0) return false;
-
         try {
             const transfer = new DataTransfer();
             for (const file of files) transfer.items.add(file);
             input.files = transfer.files;
             input.dispatchEvent(new Event('change', { bubbles: true }));
             return true;
-        } catch {
-            return false;
-        }
+        } catch { return false; }
     };
 
     const extractFiles = (event) => {
@@ -180,35 +59,18 @@ window.registerNativeDropInput = (dropZone, inputId) => {
         if (dt.items && dt.items.length > 0) {
             const files = [];
             for (const item of dt.items) {
-                if (item.kind === 'file') {
-                    const f = item.getAsFile();
-                    if (f) files.push(f);
-                }
+                if (item.kind === 'file') { const f = item.getAsFile(); if (f) files.push(f); }
             }
             return files;
         }
         return Array.from(dt.files || []);
     };
 
-    const onDragOver = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        setDropActive(true);
-    };
-
-    const onDragLeave = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        setDropActive(false);
-    };
-
-    const onDrop = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        setDropActive(false);
-
-        const files = extractFiles(event);
-        assignFiles(files);
+    const onDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setDropActive(true); };
+    const onDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setDropActive(false); };
+    const onDrop = (e) => {
+        e.preventDefault(); e.stopPropagation(); setDropActive(false);
+        assignFiles(extractFiles(e));
     };
 
     dropZone.addEventListener('dragenter', onDragOver);
@@ -220,7 +82,6 @@ window.registerNativeDropInput = (dropZone, inputId) => {
 
 window.unregisterNativeDropInput = (dropZone) => {
     if (!dropZone || !dropZone.__nativeDropHandlers) return;
-
     const { onDragOver, onDragLeave, onDrop } = dropZone.__nativeDropHandlers;
     dropZone.removeEventListener('dragenter', onDragOver);
     dropZone.removeEventListener('dragover', onDragOver);
@@ -228,4 +89,23 @@ window.unregisterNativeDropInput = (dropZone) => {
     dropZone.removeEventListener('drop', onDrop);
     dropZone.classList.remove('drag-over');
     delete dropZone.__nativeDropHandlers;
+};
+
+// Recently used paths for the folder / live-file boxes (see PathHistory).
+// Kept in localStorage so they survive a restart; failures are swallowed because
+// history is a convenience and private-mode / policy can block storage.
+window.pathHistoryLoad = (key) => {
+    try {
+        const raw = localStorage.getItem(key);
+        const list = raw ? JSON.parse(raw) : [];
+        return Array.isArray(list) ? list.filter(v => typeof v === 'string') : [];
+    } catch {
+        return [];
+    }
+};
+
+window.pathHistorySave = (key, values) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(values ?? []));
+    } catch { }
 };

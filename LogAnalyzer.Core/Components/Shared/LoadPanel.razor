@@ -4,6 +4,7 @@
 @inject IConfiguration Config
 @inject IJSRuntime JS
 @inject SessionState State
+@inject PathHistory History
 
 <RadzenCard class="rz-mb-3" Variant="Variant.Outlined">
     <div class="collapse-header @(Collapsed ? "" : "rz-mb-2")" @onclick="Toggle"
@@ -35,8 +36,14 @@
     <div class="@(Collapsed ? "collapse-hidden" : null)">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
         <RadzenText TextStyle="TextStyle.Body2" class="rz-mr-1"><b>Log folder</b></RadzenText>
-        <RadzenTextBox @bind-Value="_folder" Placeholder="C:\path\to\Logs or \\server\share\Logs"
-                       Disabled="@Store.IsLoading" style="flex:1; min-width:280px" />
+        @* Free-text box that also suggests previously loaded folders (see PathHistory). *@
+        <RadzenAutoComplete @bind-Value="_folder" Data="@_recentFolders"
+                            Placeholder="C:\path\to\Logs or \\server\share\Logs"
+                            OpenOnFocus="true" MinLength="0"
+                            FilterOperator="StringFilterOperator.Contains"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            Disabled="@Store.IsLoading" style="flex:1; min-width:280px"
+                            title="Type a path, or pick one you used before" />
         <RadzenCheckBox @bind-Value="Store.IncludeDebug" Name="dbg" Disabled="@Store.IsLoading" />
         <RadzenLabel Text="include DEBUG" Component="dbg" title="Including DEBUG uses much more memory" />
         @if (Store.IsLoading)
@@ -107,6 +114,7 @@
     private ElementReference _dropZoneRef;
     private readonly string _inputId = $"drop-input-{Guid.NewGuid():N}";
     private bool _jsRegistered;
+    private List<string> _recentFolders = new();
 
     protected override void OnInitialized()
     {
@@ -124,13 +132,21 @@
                 _jsRegistered = true;
             }
             catch { /* JS not yet available during pre-render */ }
+
+            // localStorage is only reachable once the component is interactive.
+            _recentFolders = await History.GetAsync(PathHistory.LogFolderKey);
+            if (_recentFolders.Count > 0) StateHasChanged();
         }
     }
 
-    private void Load()
+    // Remembered only after a load succeeds, so typos don't end up in the suggestions.
+    private async Task Load()
     {
         if (string.IsNullOrWhiteSpace(_folder)) return;
-        _ = Store.LoadAsync(_folder.Trim(), Store.IncludeDebug, null, CancellationToken.None);
+        var folder = _folder.Trim();
+        await Store.LoadAsync(folder, Store.IncludeDebug, null, CancellationToken.None);
+        if (string.IsNullOrEmpty(Store.LoadError))
+            _recentFolders = await History.AddAsync(PathHistory.LogFolderKey, folder);
     }
 
     private void Clear()

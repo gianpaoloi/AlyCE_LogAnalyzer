@@ -16,6 +16,8 @@ builder.Services.AddSingleton<LogStore>();
 builder.Services.AddSingleton<LogWatcher>();
 // Per-circuit UI state so filters persist across page navigation.
 builder.Services.AddScoped<SessionState>();
+// Recently used paths, persisted in the browser's localStorage.
+builder.Services.AddScoped<PathHistory>();
 
 // Allow big SignalR payloads (large filtered tables pushed to the browser).
 builder.Services.Configure<Microsoft.AspNetCore.SignalR.HubOptions>(o =>

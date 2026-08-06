@@ -3,6 +3,7 @@
 @inject IConfiguration Config
 @inject SessionState State
 @inject DialogService DialogService
+@inject PathHistory History
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -28,8 +29,14 @@
     <div class="@(State.LiveSettingsCollapsed ? "collapse-hidden" : null)">
     <RadzenStack Gap="0.75rem">
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
-            <RadzenTextBox @bind-Value="State.LivePath" Placeholder="\\server\share\Logs\all_2026-06-30.log"
-                           Disabled="@Watcher.IsWatching" style="flex:1; min-width:320px" />
+            @* Free-text box that also suggests previously watched files (see PathHistory). *@
+            <RadzenAutoComplete @bind-Value="State.LivePath" Data="@_recentFiles"
+                                Placeholder="\\server\share\Logs\all_2026-06-30.log"
+                                OpenOnFocus="true" MinLength="0"
+                                FilterOperator="StringFilterOperator.Contains"
+                                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                Disabled="@Watcher.IsWatching" style="flex:1; min-width:320px"
+                                title="Type a path, or pick one you watched before" />
             <RadzenCheckBox @bind-Value="State.LiveFromStart" Name="fs" Disabled="@Watcher.IsWatching" />
             <RadzenLabel Text="from start" Component="fs" />
             @if (Watcher.IsWatching)
@@ -168,6 +175,7 @@
     // so the dropdown's selection isn't disturbed on every tail refresh.
     private List<string> _envList = new();
     private List<string> _companyList = new();
+    private List<string> _recentFiles = new();
 
     protected override void OnInitialized()
     {
@@ -179,6 +187,14 @@
         }
         Watcher.EntriesAppended += OnEntries;
         Watcher.StatusChanged += OnStatus;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // localStorage is only reachable once the component is interactive.
+        if (!firstRender) return;
+        _recentFiles = await History.GetAsync(PathHistory.LiveFileKey);
+        if (_recentFiles.Count > 0) StateHasChanged();
     }
 
     private void OnEntries(IReadOnlyList<LogEntry> entries)
@@ -272,10 +288,15 @@
         StateHasChanged();
     }
 
-    private void Start()
+    private async Task Start()
     {
         if (string.IsNullOrWhiteSpace(State.LivePath)) return;
-        Watcher.Start(State.LivePath.Trim(), State.LiveFromStart);
+        var path = State.LivePath.Trim();
+        Watcher.Start(path, State.LiveFromStart);
+
+        // Only remember a path that actually resolves, so typos stay out of the suggestions.
+        if (File.Exists(path))
+            _recentFiles = await History.AddAsync(PathHistory.LiveFileKey, path);
     }
 
     private void Stop() => Watcher.Stop();

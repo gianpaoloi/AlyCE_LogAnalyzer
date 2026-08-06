@@ -90,3 +90,22 @@ window.unregisterNativeDropInput = (dropZone) => {
     dropZone.classList.remove('drag-over');
     delete dropZone.__nativeDropHandlers;
 };
+
+// Recently used paths for the folder / live-file boxes (see PathHistory).
+// Kept in localStorage so they survive a restart; failures are swallowed because
+// history is a convenience and private-mode / policy can block storage.
+window.pathHistoryLoad = (key) => {
+    try {
+        const raw = localStorage.getItem(key);
+        const list = raw ? JSON.parse(raw) : [];
+        return Array.isArray(list) ? list.filter(v => typeof v === 'string') : [];
+    } catch {
+        return [];
+    }
+};
+
+window.pathHistorySave = (key, values) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(values ?? []));
+    } catch { }
+};

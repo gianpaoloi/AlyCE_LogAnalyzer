@@ -19,7 +19,8 @@ There are two ways to load a dataset (from the panel at the top of the Overview 
 Triage pages):
 
 - **Folder** – type a local or UNC path and click **Load** / **Reload**. The default folder is set in
-  `appsettings.json` → `LogAnalyzer:DefaultLogFolder`.
+  `appsettings.json` → `LogAnalyzer:DefaultLogFolder`. The box is a `RadzenAutoComplete` that **suggests
+  folders you loaded before** (see *Path history* below).
 - **Drop zone** – click it to pick `.log` / `.zip` files, or drag them onto it. For a ZIP, every `.log` entry
   inside it (including files in sub-folders) is parsed. Useful when the logs aren't on a reachable
   folder/UNC share. Caps: 2 GB per ZIP, 500 MB per `.log`, 100 files per drop. One ZIP *or* one-or-more
@@ -51,6 +52,26 @@ DOM while collapsed, so the drop zone and a half-typed folder path survive a col
 card collapses the same way — same `.collapse-header` / `.collapse-hidden` styling, its own
 `SessionState.LiveSettingsCollapsed` flag, and a summary showing the watched file name plus the active text
 filter.
+
+## Path history
+
+Both path boxes — the **log folder** on the load panel and the **file** on Live watch — are autocompletes
+that suggest paths already used on this machine. Click into an empty box to see the full list
+(`OpenOnFocus`, `MinLength="0"`), or keep typing to filter it (case-insensitive *contains*).
+
+- A path is recorded **only once it works** — after a load finishes without error, and for Live watch only if
+  `File.Exists`. Typos never reach the suggestions.
+- Most recent first, de-duplicated case-insensitively (Windows paths), capped at 12 entries.
+- Stored by `Services/PathHistory.cs` in the browser's **localStorage** under `alyce.pathHistory.*`, via the
+  `pathHistoryLoad` / `pathHistorySave` helpers in `download.js`. `SessionState` was the wrong home for this:
+  it only lives for the circuit, and history has to survive an app restart. localStorage also keeps it
+  per user and behaves identically in the MAUI WebView.
+- Every interop call is wrapped — pre-render, a dropped circuit, or storage blocked by policy just means no
+  suggestions, never a failed load.
+
+> Windows' own shell MRU list isn't reachable from inside a WebView, so this is the app's own history. A
+> native folder picker would be possible in the MAUI host only (the server host would open the dialog on the
+> wrong machine).
 
 ## Pages
 
@@ -156,14 +177,16 @@ server app and `LogAnalyzer.Maui` reference. This project only holds the web hos
   Models/     LogEntry, LogFilter, LogStats/TimeBucket/MessageGroup, LogColumns (optional columns),
               TimeRange (chart selection)
   Services/   LogParser, MessageNormalizer, LogStore (dataset + folder/ZIP loading), LogWatcher (live tail),
-              LogExport (CSV / JSON-lines), SessionState (per-circuit UI state), ChartColors
+              LogExport (CSV / JSON-lines), SessionState (per-circuit UI state),
+              PathHistory (recent paths in localStorage), ChartColors
   Components/
     Pages/    Home(Overview), Dashboard, Explorer, Triage, Live, QuickStart, NotFound
     Shared/   LoadPanel (collapsible header), LoadProgress (spinner + phase), LogVolumeChart,
               LevelBadge, LoggerTree, LogDetail
     Layout/   MainLayout (collapsible sidebar), NavMenu
 Components/ App.razor, Routes.razor, Pages/Error.razor (host shell only)
-wwwroot/    app.css (dark theme + component styles), download.js (download + drop-zone interop)
+wwwroot/    app.css (dark theme + component styles),
+            download.js (download, clipboard, drop-zone and path-history interop)
 ```
 
 > `wwwroot/app.css` is duplicated in `LogAnalyzer.Maui/wwwroot/app.css` — component styles (e.g. the

@@ -40,6 +40,8 @@ Identical feature set to the server app:
 - Load logs from a **folder / UNC path**, or by dropping / picking `.log` files or a ZIP of them. The load
   panel **collapses** into a one-line summary via its *Load files* header, on every page that shows it;
   Live watch's *Watch settings* card collapses the same way.
+- Both path boxes **remember the paths you used** (autocomplete, most recent first) — kept in the WebView's
+  localStorage by `PathHistory`, so they survive restarts.
 - A **spinner with the current phase** (looking for files → parsing *n/m* files → sorting & computing stats)
   while a load is in flight, next to the Load button and in place of the page body.
 - Explorer & Live: fixed columns incl. **Company**, per-column **combo filters** in the headers,
@@ -60,7 +62,7 @@ Models, services and every page/component now live in **`LogAnalyzer.Core`** and
 
 - **`Models/`** — `LogEntry`, `LogFilter`, `LogColumns`, `Stats`, `TimeRange`.
 - **`Services/`** — `LogParser`, `LogStore`, `LogWatcher`, `LogExport`, `MessageNormalizer`,
-  `SessionState`, `ChartColors`.
+  `SessionState`, `PathHistory`, `ChartColors`.
 - **`Components/Pages/`** — `Home` (Overview), `Dashboard`, `Explorer`, `Triage`, `Live`, `QuickStart`.
 - **`Components/Shared/`** — `LoadPanel` (collapsible header), `LoadProgress` (spinner + load phase),
   `LogVolumeChart`, `LevelBadge`, `LogDetail`, `LoggerTree`.

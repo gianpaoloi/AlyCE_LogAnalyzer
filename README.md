@@ -5,6 +5,7 @@ A Windows desktop application for parsing, browsing, and filtering structured lo
 ## Features
 
 - Load log files from a local folder or a ZIP archive — drag & drop supported
+- Path boxes remember previously used folders and files
 - Interactive filtering and search across all columns
 - Log volume time series stacked by level — drag it to filter a time window
 - Real-time log tailing / live monitoring

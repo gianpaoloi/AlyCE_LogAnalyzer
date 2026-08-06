@@ -32,6 +32,7 @@ FEATURES
 ✓ Export filtered logs to CSV or original format
 ✓ Dark theme interface for extended viewing
 ✓ Column management - add/remove/resize as needed
+✓ Path boxes remember the folders and files you used before
 ✓ Click any row for the full entry detail, with copy-to-clipboard
 ✓ Collapsible 'Load files' and 'Watch settings' panels to free up space
 
@@ -54,6 +55,8 @@ HOW TO USE
 
 1. LOADING LOGS:
    - Type a folder path (local or \\server\share) and click 'Load'
+   - Click the empty path box to pick a folder you already used
+     (the last 12 working paths are remembered between sessions)
    - OR drag .log files / a ZIP onto the drop zone, or click it to pick them
    - Logs will be parsed and indexed automatically
    - Tick 'include DEBUG' to load debug lines too (uses much more memory)

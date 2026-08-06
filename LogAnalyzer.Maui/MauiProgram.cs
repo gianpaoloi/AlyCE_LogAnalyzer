@@ -29,6 +29,8 @@ public static class MauiProgram
 			builder.Services.AddSingleton<LogStore>();
 			builder.Services.AddSingleton<LogWatcher>();
 			builder.Services.AddScoped<SessionState>();
+			// Recently used paths, persisted in the WebView's localStorage.
+			builder.Services.AddScoped<PathHistory>();
 
 			// Default log folder - use user's Documents for portability
 			string defaultLogFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
