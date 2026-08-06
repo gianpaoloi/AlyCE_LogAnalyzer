@@ -32,7 +32,8 @@ FEATURES
 ✓ Export filtered logs to CSV or original format
 ✓ Dark theme interface for extended viewing
 ✓ Column management - add/remove/resize as needed
-✓ Collapsible 'Load files' panel to free up screen space
+✓ Click any row for the full entry detail, with copy-to-clipboard
+✓ Collapsible 'Load files' and 'Watch settings' panels to free up space
 
 
 SYSTEM REQUIREMENTS
@@ -64,7 +65,10 @@ HOW TO USE
    - Explorer tab: Browse all logs with advanced filtering
    - Dashboard: View summary statistics and charts
    - Live: Monitor a single log file in real-time
+     (collapse the 'Watch settings' header to free up space)
    - Triage: Manage and categorize log entries
+   - In Explorer and Live, click any row to open the full entry: all fields,
+     the complete message with the stack trace, and buttons to copy it
 
 3. FILTERING:
    - Use column headers to filter by level, logger, message content

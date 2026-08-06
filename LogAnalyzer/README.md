@@ -47,6 +47,11 @@ source path, or the load progress). The collapsed state is shared by all pages a
 like the filters, so folding it once keeps it folded everywhere until a full page reload. The body stays in the
 DOM while collapsed, so the drop zone and a half-typed folder path survive a collapse/expand round-trip.
 
+**Live watch** has no load panel (it tails one file rather than loading a set), but its **Watch settings**
+card collapses the same way — same `.collapse-header` / `.collapse-hidden` styling, its own
+`SessionState.LiveSettingsCollapsed` flag, and a summary showing the watched file name plus the active text
+filter.
+
 ## Pages
 
 | Page | What it does |
@@ -55,7 +60,7 @@ DOM while collapsed, so the drop zone and a half-typed folder path survive a col
 | **Dashboard** | Log volume per hour stacked by level (SVG), errors & warnings per hour, level and logger breakdowns. |
 | **Explorer** | Searchable, paginated grid, topped by a **log volume time series** of the filtered set that doubles as a filter (drag a time window, click a level in the legend). Per-column combo filters, resizable columns, a hidable logger tree, column picker, and download of the filtered set. Click a row for full detail incl. formatted stack trace. |
 | **Triage** | Clusters similar ERROR/WARN messages into issue groups (guids/numbers/durations/quoted values masked), ordered by frequency, with first/last-seen, affected environments and a sample stack trace. |
-| **Live watch** | Tails a single file on a local or remote **UNC** path (`\\server\share\...`) and shows new matching lines in real time, with the same column filters, tree, column picker and download. |
+| **Live watch** | Tails a single file on a local or remote **UNC** path (`\\server\share\...`) and shows new matching lines in real time, with the same column filters, tree, column picker, download and click-a-row detail. Its **Watch settings** card collapses like the load panel. |
 
 ## Explorer & Live features
 
@@ -72,6 +77,9 @@ DOM while collapsed, so the drop zone and a half-typed folder path survive a col
 - **Download** – a **Download** split-button exports the **currently filtered** rows as:
   - **CSV** (`.csv`, UTF-8 + BOM for Excel; message stack-trace `\CRLF` markers become real newlines), or
   - **Log lines** (`.log`, original JSON-lines format, so the subset can be re-loaded).
+- **Row detail** – clicking any row opens the `LogDetail` dialog (draggable, resizable) with every field, the
+  message rendered with real newlines, and *Copy message* / *Copy details* buttons. On **Live watch** the row
+  is passed as a snapshot, so the tail keeps buffering behind the dialog without changing what you're reading.
 
 ## Log volume chart (Explorer)
 
@@ -114,8 +122,8 @@ expect a short pause per filter change.
 ## Filters persist across navigation
 
 Filter state (levels, environments, companies, text, logger-tree selection, the volume chart's time window,
-chosen columns, panel toggle, the load-panel and volume-chart collapsed states, plus the Live path / "from
-start") is held in a **scoped
+chosen columns, panel toggle, the load-panel / volume-chart / watch-settings collapsed states, plus the Live
+path / "from start") is held in a **scoped
 `SessionState`** service, which in Blazor Server lives for
 the whole SignalR circuit — so filters survive moving between pages and return when you come back. They reset
 only on a full page reload / reconnect. Explorer and Live keep their own independent filter state.
@@ -159,4 +167,4 @@ wwwroot/    app.css (dark theme + component styles), download.js (download + dro
 ```
 
 > `wwwroot/app.css` is duplicated in `LogAnalyzer.Maui/wwwroot/app.css` — component styles (e.g. the
-> `.lv-*` volume-chart and `.load-panel-*` rules) must be added to **both** copies.
+> `.lv-*` volume-chart, `.load-busy-*` spinner and `.collapse-*` rules) must be added to **both** copies.

@@ -6,7 +6,7 @@
 @inject SessionState State
 
 <RadzenCard class="rz-mb-3" Variant="Variant.Outlined">
-    <div class="load-panel-header @(Collapsed ? "" : "rz-mb-2")" @onclick="Toggle"
+    <div class="collapse-header @(Collapsed ? "" : "rz-mb-2")" @onclick="Toggle"
          title="@(Collapsed ? "Expand load files" : "Collapse load files")">
         <RadzenIcon Icon="@(Collapsed ? "expand_more" : "expand_less")" />
         <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0"><b>Load files</b></RadzenText>
@@ -32,7 +32,7 @@
 
     @* Kept in the DOM while collapsed so the drop zone's JS registration and the
        typed folder path survive a collapse/expand round-trip. *@
-    <div class="@(Collapsed ? "load-panel-body-hidden" : null)">
+    <div class="@(Collapsed ? "collapse-hidden" : null)">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
         <RadzenText TextStyle="TextStyle.Body2" class="rz-mr-1"><b>Log folder</b></RadzenText>
         <RadzenTextBox @bind-Value="_folder" Placeholder="C:\path\to\Logs or \\server\share\Logs"

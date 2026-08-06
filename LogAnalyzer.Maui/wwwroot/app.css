@@ -296,10 +296,10 @@ h2 { font-size: 1.05rem; margin: 0 0 .6rem; color: var(--txt); }
 .lv-legend-item i { width: 11px; height: 3px; border-radius: 2px; display: inline-block; }
 .lv-legend-total { color: var(--muted); font-variant-numeric: tabular-nums; }
 
-/* collapsible load-files panel */
-.load-panel-header { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; cursor: pointer; user-select: none; }
-.load-panel-header:hover { color: var(--brand); }
-.load-panel-body-hidden { display: none; }
+/* collapsible card header (load-files panel, live watch settings) */
+.collapse-header { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; cursor: pointer; user-select: none; }
+.collapse-header:hover { color: var(--brand); }
+.collapse-hidden { display: none; }
 
 /* side layout: main content + hidable right panel (logger tree) */
 .side-layout { display: flex; gap: 1rem; align-items: flex-start; }

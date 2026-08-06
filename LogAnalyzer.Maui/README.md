@@ -38,12 +38,13 @@ Identical feature set to the server app:
 
 - **Overview / Dashboard / Explorer / Triage / Live watch** pages.
 - Load logs from a **folder / UNC path**, or by dropping / picking `.log` files or a ZIP of them. The load
-  panel **collapses** into a one-line summary via its *Load files* header, on every page that shows it.
+  panel **collapses** into a one-line summary via its *Load files* header, on every page that shows it;
+  Live watch's *Watch settings* card collapses the same way.
 - A **spinner with the current phase** (looking for files → parsing *n/m* files → sorting & computing stats)
   while a load is in flight, next to the Load button and in place of the page body.
 - Explorer & Live: fixed columns incl. **Company**, per-column **combo filters** in the headers,
-  **Add columns…** picker, resizable columns, a hidable **fully-expanded logger tree**, and
-  **Download** of the filtered rows (CSV or original `.log`).
+  **Add columns…** picker, resizable columns, a hidable **fully-expanded logger tree**,
+  **Download** of the filtered rows (CSV or original `.log`), and **click a row** for the full-detail dialog.
 - Explorer: a collapsible **log volume time series** over the filtered rows — stacked by level, with an
   automatic bucket size, a y axis scaled to the actual volume, and per-level totals in the legend. It is also
   a filter: **drag across the bars** to pick a time window, **click a legend entry** to toggle that level.
@@ -70,7 +71,8 @@ This project keeps only the MAUI shell (`MauiProgram.cs`, `MainPage.xaml`, `Comp
 **`wwwroot/`** — `app.css` (dark theme + component styles), `index.html`, `download.js`, `favicon.png`.
 
 > `wwwroot/app.css` is **still a separate copy** from `../LogAnalyzer/wwwroot/app.css`: styles for shared
-> components (e.g. the `.lv-*` volume-chart and `.load-panel-*` rules) have to be added to both files.
+> components (e.g. the `.lv-*` volume-chart, `.load-busy-*` spinner and `.collapse-*` rules) have to be
+> added to both files.
 
 ### Host shell — what changed vs the server project
 

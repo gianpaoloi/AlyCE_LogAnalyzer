@@ -2,6 +2,7 @@
 @inject LogWatcher Watcher
 @inject IConfiguration Config
 @inject SessionState State
+@inject DialogService DialogService
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -13,6 +14,18 @@
 </RadzenText>
 
 <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+    <div class="collapse-header @(State.LiveSettingsCollapsed ? "" : "rz-mb-2")" @onclick="ToggleSettings"
+         title="@(State.LiveSettingsCollapsed ? "Expand watch settings" : "Collapse watch settings")">
+        <RadzenIcon Icon="@(State.LiveSettingsCollapsed ? "expand_more" : "expand_less")" />
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0"><b>Watch settings</b></RadzenText>
+        @if (State.LiveSettingsCollapsed)
+        {
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">@SettingsSummary()</RadzenText>
+        }
+    </div>
+
+    @* Kept in the DOM while collapsed so the header combos don't lose their popup state. *@
+    <div class="@(State.LiveSettingsCollapsed ? "collapse-hidden" : null)">
     <RadzenStack Gap="0.75rem">
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
             <RadzenTextBox @bind-Value="State.LivePath" Placeholder="\\server\share\Logs\all_2026-06-30.log"
@@ -45,6 +58,7 @@
             <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">Filter Level / Environment / Time / Message from the column headers</RadzenText>
         </RadzenStack>
     </RadzenStack>
+    </div>
 </RadzenCard>
 
 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-2" Wrap="FlexWrap.Wrap">
@@ -66,6 +80,7 @@
     {
         <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="@Watcher.LastError" />
     }
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">· click a row for detail</RadzenText>
 </RadzenStack>
 
 <div class="side-layout">
@@ -73,6 +88,7 @@
         <RadzenDataGrid Data="@Snapshot()" TItem="LogEntry" AllowPaging="true" PageSize="50"
                         Density="Density.Compact" AllowSorting="true" AllowFiltering="true" FilterMode="FilterMode.Simple"
                         FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
+                        RowSelect="OpenDetail"
                         PagerHorizontalAlign="HorizontalAlign.Center" ShowPagingSummary="true">
             <Columns>
                 <RadzenDataGridColumn TItem="LogEntry" Title="Time" Property="Time" Width="130px">
@@ -214,6 +230,17 @@
 
     private void OnDisplayFilterChanged() => StateHasChanged();
 
+    private void ToggleSettings() => State.LiveSettingsCollapsed = !State.LiveSettingsCollapsed;
+
+    /// <summary>One-line recap of the folded panel: which file, and whether a text filter is on.</summary>
+    private string SettingsSummary()
+    {
+        var path = State.LivePath;
+        var file = string.IsNullOrWhiteSpace(path) ? "no file selected" : Path.GetFileName(path.TrimEnd('\\', '/'));
+        if (string.IsNullOrWhiteSpace(file)) file = path!;
+        return string.IsNullOrWhiteSpace(State.LiveText) ? file : $"{file} · text \"{State.LiveText}\"";
+    }
+
     // Export the currently filtered snapshot (CSV by default; .log = original JSON lines).
     private async Task OnDownload(RadzenSplitButtonItem? item)
     {
@@ -227,6 +254,16 @@
         using var stream = new MemoryStream(bytes);
         using var streamRef = new DotNetStreamReference(stream);
         await JS.InvokeVoidAsync("downloadFileFromStream", name, streamRef);
+    }
+
+    // Same detail dialog as the Explorer grid. The entry is a snapshot, so the tail can keep
+    // appending behind the dialog without changing what is on screen.
+    private async Task OpenDetail(LogEntry e)
+    {
+        await DialogService.OpenAsync<LogDetail>(
+            $"{e.Level} · {e.Time:HH:mm:ss.fff}",
+            new Dictionary<string, object?> { { "Entry", e } },
+            new DialogOptions { Width = "900px", Height = "auto", Resizable = true, Draggable = true });
     }
 
     private void OnLoggerSelected(string? prefix)

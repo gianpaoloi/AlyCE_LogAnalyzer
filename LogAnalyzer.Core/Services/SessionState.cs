@@ -37,4 +37,5 @@ public sealed class SessionState
     public bool LiveShowLoggers { get; set; }
     public string? LivePath { get; set; }
     public bool LiveFromStart { get; set; }
+    public bool LiveSettingsCollapsed { get; set; }
 }
