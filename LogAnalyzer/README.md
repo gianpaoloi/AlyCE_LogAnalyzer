@@ -53,6 +53,25 @@ card collapses the same way — same `.collapse-header` / `.collapse-hidden` sty
 `SessionState.LiveSettingsCollapsed` flag, and a summary showing the watched file name plus the active text
 filter.
 
+## Staying responsive on a long watch
+
+A tail that runs for hours produces faster than a browser can render, and several things used to grow
+without bound while it did. Four limits keep a long watch flat:
+
+- **One throttled refresh.** `Live.razor` no longer queues a render per poll (plus one per status change).
+  A single loop refreshes at most every 400 ms, only when something changed, and **awaits** each render, so
+  it can never outrun the renderer and the render queue cannot pile up. User actions still render at once.
+- **Capped read per poll.** `LogWatcher` decodes at most 4 MB per tick instead of the whole remainder;
+  catching up from the start of a big file or after a rotation no longer allocates a huge string on the
+  large-object heap. The rest follows on the next tick. The chunk is decoded with a `Decoder` kept across
+  polls, which also fixes a multi-byte character split across two chunks decoding to garbage.
+- **Capped intern pool.** `LogParser` interns repeated strings; the pool is now capped at 20 000 entries.
+  `LogWatcher` keeps one parser for the life of the app, so an uncapped pool meant every distinct
+  `username` / `cid` / `company` seen during a watch was retained for ever.
+- **Capped filter values.** The Environment / Company header combos stop collecting new values at 500 each
+  and the logger tree at 2 000 loggers — known values keep counting. Otherwise every refresh got slower as
+  the dropdowns and the tree grew.
+
 ## Auto-scroll (Live watch)
 
 New lines normally flow into the grid as they are read, which makes a row move while you are reading or
@@ -96,7 +115,9 @@ desktop for MAUI — which is the same machine `LogWatcher` tails from, so local
 
 - Drives → folders → files. Folders sort by name, files **newest first** (usually the log to tail). Size and
   Modified are shown; only `.log` is listed until *all files* is ticked.
-- Click a folder to open it, a file to select it, then **Select**. The path box inside the dialog is only there
+- Click a folder to open it, a file to select it, then **Select** — **the watch starts straight away**, no
+  second click on *Start watching*. (Switch files by stopping first: *Browse…* is disabled while watching.)
+- The path box inside the dialog is only there
   to reach a share that cannot be browsed into (`\\server` isn't enumerable) — Enter or **Go** navigates.
 - Every filesystem probe runs **off the UI thread under a 3 s timeout**. `File.Exists` / `Directory.Exists` /
   `DriveInfo.IsReady` block for ~30 s on a wrong or offline UNC path, which would otherwise freeze the app

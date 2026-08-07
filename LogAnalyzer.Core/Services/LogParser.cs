@@ -21,11 +21,21 @@ public sealed class LogParser
     // Intern pool shared across a load so repeated tenant/level/logger strings reuse one instance.
     private readonly Dictionary<string, string> _intern = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Cap on that pool. Interning pays off for the values that repeat — level, logger, environment,
+    /// thread — and those turn up in the first lines; high-cardinality fields such as username or cid
+    /// would otherwise grow the pool for as long as parsing continues. That is unbounded for
+    /// <see cref="LogWatcher"/>, which keeps one parser for the whole life of the app: on a long watch
+    /// the pool held every distinct value ever seen, and the growth eventually stalls the app.
+    /// </summary>
+    private const int MaxInterned = 20_000;
+
     private string? Intern(string? s)
     {
         if (s is null) return null;
         if (_intern.TryGetValue(s, out var existing)) return existing;
-        _intern[s] = s;
+        // Past the cap the string is used as-is: a duplicate instance costs less than an endless pool.
+        if (_intern.Count < MaxInterned) _intern[s] = s;
         return s;
     }
 

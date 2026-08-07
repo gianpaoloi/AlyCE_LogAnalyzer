@@ -11,7 +11,18 @@ namespace LogAnalyzer.Services;
 /// </summary>
 public sealed class LogWatcher : IAsyncDisposable
 {
+    /// <summary>
+    /// Most bytes decoded in one poll. Tailing appends a few KB at a time, but catching up — from the
+    /// start of a big file, or after a rotation — used to decode the whole remainder into a single
+    /// string, which lands on the large-object heap and stalls the app. Whatever is left follows on the
+    /// next tick.
+    /// </summary>
+    private const int MaxChunkBytes = 4 * 1024 * 1024;
+
     private readonly LogParser _parser = new();
+    // Kept across polls: a multi-byte character split over two chunks would otherwise decode to
+    // garbage on both sides of the boundary.
+    private readonly Decoder _decoder = Encoding.UTF8.GetDecoder();
     private CancellationTokenSource? _cts;
     private Task? _loop;
     private long _position;
@@ -105,14 +116,27 @@ public sealed class LogWatcher : IAsyncDisposable
         {
             _position = 0;
             _pending = "";
+            _decoder.Reset();
         }
         if (info.Length == _position) return;
 
         using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         fs.Seek(_position, SeekOrigin.Begin);
-        using var reader = new StreamReader(fs, Encoding.UTF8);
-        var chunk = reader.ReadToEnd();
-        _position = fs.Position;
+
+        var toRead = (int)Math.Min(info.Length - _position, MaxChunkBytes);
+        var bytes = new byte[toRead];
+        var read = fs.ReadAtLeast(bytes, toRead, throwOnEndOfStream: false);
+        if (read <= 0) return;
+        var startedAtZero = _position == 0;
+        _position += read;
+
+        // Decoded by hand rather than with a StreamReader: the reader buffers ahead, so stopping at the
+        // cap would leave _position past the text actually decoded and silently drop lines.
+        var chars = new char[_decoder.GetCharCount(bytes, 0, read)];
+        var decoded = _decoder.GetChars(bytes, 0, read, chars, 0);
+        var chunk = new string(chars, 0, decoded);
+        // A StreamReader would have eaten the BOM; the parser must not see it on the first line.
+        if (startedAtZero && chunk.StartsWith('﻿')) chunk = chunk[1..];
 
         var text = _pending + chunk;
         var lines = text.Split('\n');

@@ -14,8 +14,7 @@ release is collected under *Unreleased*.
 - **Auto-scroll toggle on Live watch** — untick *auto-scroll* to freeze the grid on the lines currently shown
   while the tail keeps parsing and buffering behind it, so a row can be read or clicked without moving. Column
   filters, the logger tree and download still work on the frozen set; the status bar gains an *auto-scroll
-  off* badge and a *Show N new lines* button to catch up. New `SessionState.LiveAutoScroll`.
-  *(working tree, not yet committed)*
+  off* badge and a *Show N new lines* button to catch up. New `SessionState.LiveAutoScroll`. (`efe0a4d`)
 - **File picker on Live watch** — a *Browse…* button opens `FileBrowserDialog`, a filesystem browser
   (drives → folders → files, with size and modified date, folders by name and files newest-first), so the file
   to tail no longer has to be typed. It browses the machine that reads the logs — the server for the web host,
@@ -45,8 +44,24 @@ release is collected under *Unreleased*.
   tells the user where to get the runtime instead of failing with a blank window; the Inno Setup installer
   downloads and installs it silently when missing. (`0419db2`)
 
+### Fixed
+
+- **Live watch froze after watching for a long time.** Four unbounded growths, all in the tail path:
+  the page queued a render per poll (and per status change), so the render queue outgrew the renderer — it
+  now refreshes at most every 400 ms, only when something changed, and awaits each render;
+  `LogWatcher` decoded the whole remainder of the file in one go when catching up, which allocated a
+  large-object-heap string — capped at 4 MB per tick, with a `Decoder` kept across polls (which also fixes a
+  multi-byte character split across two chunks decoding to garbage);
+  `LogParser`'s intern pool retained every distinct `username` / `cid` / `company` for the life of the app,
+  since the watcher keeps one parser — capped at 20 000 entries;
+  the Environment / Company header combos and the logger tree collected new values for ever, making each
+  refresh slower — capped at 500 values and 2 000 loggers, with known values still counting.
+  *(working tree, not yet committed)*
+
 ### Changed
 
+- Picking a file in the Live watch browser starts the watch immediately, instead of only filling the path box.
+  *(working tree, not yet committed)*
 - Live watch no longer freezes on a wrong or offline path. Every filesystem probe in the file browser runs off
   the UI thread under a 3 s timeout — `File.Exists` / `Directory.Exists` / `DriveInfo.IsReady` block for ~30 s
   on a dead UNC path, and the probing used to happen during dialog initialisation, so the app appeared hung

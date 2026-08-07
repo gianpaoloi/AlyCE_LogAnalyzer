@@ -38,7 +38,8 @@
                                 Disabled="@Watcher.IsWatching" style="flex:1; min-width:320px"
                                 title="Pick a file with Browse, or type/paste a path here" />
             <RadzenButton Text="Browse…" Icon="folder_open" Click="Browse" ButtonStyle="ButtonStyle.Secondary"
-                          Disabled="@Watcher.IsWatching" title="Pick the file to watch" />
+                          Disabled="@(Watcher.IsWatching || _starting)"
+                          title="Pick a file — watching starts as soon as you select it" />
             <RadzenCheckBox @bind-Value="State.LiveFromStart" Name="fs" Disabled="@Watcher.IsWatching" />
             <RadzenLabel Text="from start" Component="fs" />
             @* Stays enabled while watching — freezing the grid mid-tail is exactly what it is for. *@
@@ -180,6 +181,20 @@
     private static readonly string[] AllLevels = { "ERROR", "WARN", "INFO", "DEBUG" };
     private const int MaxKept = 1000;
 
+    // Caps on the values collected for the header combos and the logger tree. Without them a long watch
+    // on a busy multi-tenant log keeps growing the Environment / Company dropdowns and the tree, and the
+    // cost of every single refresh grows with it until the page stops keeping up.
+    private const int MaxLoggers = 2000;
+    private const int MaxDistinctValues = 500;
+
+    // The tail produces faster than a browser can render. Queueing one refresh per poll (plus one per
+    // status change) let the render queue grow without bound, which is what made a long watch freeze:
+    // instead a single loop refreshes at most every RefreshInterval, only when something changed, and
+    // awaits each render so it can never outrun the renderer.
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromMilliseconds(400);
+    private readonly CancellationTokenSource _refreshCts = new();
+    private int _dirty;
+
     private readonly object _gate = new();
     private readonly LinkedList<LogEntry> _matched = new(); // newest at front
     // All loggers/environments seen this session (regardless of filter), to populate the tree and filters.
@@ -212,6 +227,29 @@
 
         Watcher.EntriesAppended += OnEntries;
         Watcher.StatusChanged += OnStatus;
+        _ = RefreshLoopAsync(_refreshCts.Token);
+    }
+
+    /// <summary>Single throttled refresh for everything the background tail changes.</summary>
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(RefreshInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                if (Interlocked.Exchange(ref _dirty, 0) == 1)
+                    await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Page disposed.
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit already gone; nothing left to refresh.
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -233,11 +271,15 @@
         {
             foreach (var e in entries)
             {
+                // Known values keep counting; new ones stop being collected once a cap is reached.
                 if (!string.IsNullOrEmpty(e.Logger))
-                    _loggerCounts[e.Logger] = _loggerCounts.TryGetValue(e.Logger, out var n) ? n + 1 : 1;
-                if (!string.IsNullOrEmpty(e.Environment))
+                {
+                    if (_loggerCounts.TryGetValue(e.Logger, out var n)) _loggerCounts[e.Logger] = n + 1;
+                    else if (_loggerCounts.Count < MaxLoggers) _loggerCounts[e.Logger] = 1;
+                }
+                if (!string.IsNullOrEmpty(e.Environment) && _envSeen.Count < MaxDistinctValues)
                     envChanged |= _envSeen.Add(e.Environment);
-                if (!string.IsNullOrEmpty(e.Company))
+                if (!string.IsNullOrEmpty(e.Company) && _companySeen.Count < MaxDistinctValues)
                     companyChanged |= _companySeen.Add(e.Company);
 
                 if (!string.IsNullOrWhiteSpace(text) && e.Message.IndexOf(text, StringComparison.OrdinalIgnoreCase) < 0)
@@ -250,7 +292,7 @@
             if (envChanged) _envList = _envSeen.ToList();
             if (companyChanged) _companyList = _companySeen.ToList();
         }
-        _ = InvokeAsync(StateHasChanged);
+        Interlocked.Exchange(ref _dirty, 1);
     }
 
     // Display-time filter: level combo + environment combo + logger tree prefix.
@@ -345,6 +387,8 @@
         State.LivePath = path;
         // Browsed to it, so it exists — remember it right away instead of waiting for Start.
         _recentFiles = await History.AddAsync(PathHistory.LiveFileKey, path);
+        // Picking a file is the whole point of the dialog, so start tailing it without a second click.
+        await Start();
     }
 
     private async Task Start()
@@ -382,12 +426,15 @@
         _pending = 0;
     }
 
-    private async void OnStatus() => await InvokeAsync(StateHasChanged);
+    // Raised from the poll thread: flag it and let the refresh loop pick it up.
+    private void OnStatus() => Interlocked.Exchange(ref _dirty, 1);
 
     public void Dispose()
     {
         Watcher.EntriesAppended -= OnEntries;
         Watcher.StatusChanged -= OnStatus;
+        _refreshCts.Cancel();
+        _refreshCts.Dispose();
         // Watcher is a singleton and keeps running so the tail survives navigation.
     }
 }
