@@ -36,7 +36,9 @@
                                 FilterOperator="StringFilterOperator.Contains"
                                 FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                 Disabled="@Watcher.IsWatching" style="flex:1; min-width:320px"
-                                title="Type a path, or pick one you watched before" />
+                                title="Pick a file with Browse, or type/paste a path here" />
+            <RadzenButton Text="Browse…" Icon="folder_open" Click="Browse" ButtonStyle="ButtonStyle.Secondary"
+                          Disabled="@Watcher.IsWatching" title="Pick the file to watch" />
             <RadzenCheckBox @bind-Value="State.LiveFromStart" Name="fs" Disabled="@Watcher.IsWatching" />
             <RadzenLabel Text="from start" Component="fs" />
             @if (Watcher.IsWatching)
@@ -45,7 +47,8 @@
             }
             else
             {
-                <RadzenButton Text="Start watching" Icon="play_arrow" Click="Start" ButtonStyle="ButtonStyle.Primary" />
+                <RadzenButton Text="@(_starting ? "Opening…" : "Start watching")" Icon="play_arrow" Click="Start"
+                              ButtonStyle="ButtonStyle.Primary" Disabled="@_starting" />
             }
             <RadzenButton Text="Clear" Icon="clear_all" Click="Clear" ButtonStyle="ButtonStyle.Light" />
             <RadzenSplitButton Text="Download" Icon="download" Click="OnDownload" ButtonStyle="ButtonStyle.Success">
@@ -176,6 +179,7 @@
     private List<string> _envList = new();
     private List<string> _companyList = new();
     private List<string> _recentFiles = new();
+    private bool _starting;     // guards against a second Start while a slow path is being opened
 
     protected override void OnInitialized()
     {
@@ -288,14 +292,44 @@
         StateHasChanged();
     }
 
+    // File picker, so the path never has to be typed. It browses the machine that reads the logs,
+    // which is the same one LogWatcher tails from.
+    private async Task Browse()
+    {
+        var start = string.IsNullOrWhiteSpace(State.LivePath)
+            ? Config["LogAnalyzer:DefaultLogFolder"]
+            : State.LivePath;
+
+        var picked = await DialogService.OpenAsync<FileBrowserDialog>("Select the log file to watch",
+            new Dictionary<string, object?> { { "StartPath", start } },
+            new DialogOptions { Width = "820px", Height = "640px", Resizable = true, Draggable = true });
+
+        if (picked is not string path || path.Length == 0) return;
+
+        State.LivePath = path;
+        // Browsed to it, so it exists — remember it right away instead of waiting for Start.
+        _recentFiles = await History.AddAsync(PathHistory.LiveFileKey, path);
+    }
+
     private async Task Start()
     {
-        if (string.IsNullOrWhiteSpace(State.LivePath)) return;
+        if (_starting || string.IsNullOrWhiteSpace(State.LivePath)) return;
         var path = State.LivePath.Trim();
-        Watcher.Start(path, State.LiveFromStart);
 
-        // Only remember a path that actually resolves, so typos stay out of the suggestions.
-        if (File.Exists(path))
+        // Off the UI thread: opening a wrong or offline UNC path blocks for tens of seconds inside
+        // the watcher's existence check, and the page must stay usable meanwhile.
+        _starting = true;
+        try
+        {
+            await Task.Run(() => Watcher.Start(path, State.LiveFromStart));
+        }
+        finally
+        {
+            _starting = false;
+        }
+
+        // Only remember a path that actually opened, so typos stay out of the suggestions.
+        if (Watcher.IsWatching)
             _recentFiles = await History.AddAsync(PathHistory.LiveFileKey, path);
     }
 

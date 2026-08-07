@@ -1,0 +1,59 @@
+/* The listing scrolls inside the dialog so the path bar and the buttons stay visible. */
+.fb-list {
+    max-height: 46vh;
+    overflow: auto;
+}
+
+/* Occupies the same band as the listing so the dialog doesn't jump while a path is probed. */
+.fb-busy {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: 4rem;
+    word-break: break-all;
+}
+
+.fb-name {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+/* Favourite chip: the path button and its remove button read as one control. */
+.fb-fav {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--rz-border, rgba(0, 0, 0, .12));
+    border-radius: 1rem;
+    padding-right: .1rem;
+    max-width: 16rem;
+}
+
+.fb-fav:hover {
+    border-color: var(--rz-primary, #3f51b5);
+}
+
+/* Flatten the two Radzen buttons so the chip looks like a single pill. */
+.fb-fav ::deep .rz-button {
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+}
+
+/* Keep a long file name on one line; the tooltip carries the full path. */
+.fb-fav ::deep .rz-button-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fb-fav-icon {
+    color: var(--rz-warning, #e8a33d);
+}
+
+/* A long selected path wraps instead of pushing the buttons out of the dialog. */
+.fb-selected {
+    flex: 1;
+    min-width: 0;
+    word-break: break-all;
+}

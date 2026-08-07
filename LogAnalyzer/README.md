@@ -59,8 +59,9 @@ Both path boxes — the **log folder** on the load panel and the **file** on Liv
 that suggest paths already used on this machine. Click into an empty box to see the full list
 (`OpenOnFocus`, `MinLength="0"`), or keep typing to filter it (case-insensitive *contains*).
 
-- A path is recorded **only once it works** — after a load finishes without error, and for Live watch only if
-  `File.Exists`. Typos never reach the suggestions.
+- A path is recorded **only once it works** — after a load finishes without error, for Live watch once the
+  watcher actually opened the file (`Watcher.IsWatching`), and immediately for anything picked in the file
+  browser. Typos never reach the suggestions.
 - Most recent first, de-duplicated case-insensitively (Windows paths), capped at 12 entries.
 - Stored by `Services/PathHistory.cs` in the browser's **localStorage** under `alyce.pathHistory.*`, via the
   `pathHistoryLoad` / `pathHistorySave` helpers in `download.js`. `SessionState` was the wrong home for this:
@@ -71,7 +72,31 @@ that suggest paths already used on this machine. Click into an empty box to see 
 
 > Windows' own shell MRU list isn't reachable from inside a WebView, so this is the app's own history. A
 > native folder picker would be possible in the MAUI host only (the server host would open the dialog on the
-> wrong machine).
+> wrong machine) — hence the in-app browser below, which behaves the same in both hosts.
+
+## File browser (Browse…)
+
+**Live watch** has a **Browse…** button that opens `Components/Shared/FileBrowserDialog.razor`, so the file to
+tail never has to be typed. It browses the machine that *reads* the logs — the server for the web host, the
+desktop for MAUI — which is the same machine `LogWatcher` tails from, so local and UNC paths both work.
+
+- Drives → folders → files. Folders sort by name, files **newest first** (usually the log to tail). Size and
+  Modified are shown; only `.log` is listed until *all files* is ticked.
+- Click a folder to open it, a file to select it, then **Select**. The path box inside the dialog is only there
+  to reach a share that cannot be browsed into (`\\server` isn't enumerable) — Enter or **Go** navigates.
+- Every filesystem probe runs **off the UI thread under a 3 s timeout**. `File.Exists` / `Directory.Exists` /
+  `DriveInfo.IsReady` block for ~30 s on a wrong or offline UNC path, which would otherwise freeze the app
+  before the dialog even paints. The existence checks and the listing share one probe, so a bad path costs one
+  wait, not three. An abandoned probe is left to finish by itself — a blocking share call can't be cancelled.
+- A wrong, unreachable or empty path falls back to the **system drive** (`C:\`), with the reason shown in a
+  warning; the drive list is only the last resort if even that fails. Press ↑ at a drive root to reach it.
+- **Favorites** — *Add to favorites* pins the selected file, or the folder on screen if nothing is selected.
+  Pinned entries appear as chips (last path segment, full path in the tooltip); click one to jump there, `×`
+  to unpin. Stored by `PathHistory` under `alyce.pathHistory.favorites`, capped at 30, so they survive a
+  restart like the rest of the path history.
+
+Starting a watch is off the UI thread for the same reason: a wrong path used to freeze the page inside the
+watcher's existence check. The button reads *Opening…* and is disabled while the path is being resolved.
 
 ## Pages
 
@@ -81,7 +106,7 @@ that suggest paths already used on this machine. Click into an empty box to see 
 | **Dashboard** | Log volume per hour stacked by level (SVG), errors & warnings per hour, level and logger breakdowns. |
 | **Explorer** | Searchable, paginated grid, topped by a **log volume time series** of the filtered set that doubles as a filter (drag a time window, click a level in the legend). Per-column combo filters, resizable columns, a hidable logger tree, column picker, and download of the filtered set. Click a row for full detail incl. formatted stack trace. |
 | **Triage** | Clusters similar ERROR/WARN messages into issue groups (guids/numbers/durations/quoted values masked), ordered by frequency, with first/last-seen, affected environments and a sample stack trace. |
-| **Live watch** | Tails a single file on a local or remote **UNC** path (`\\server\share\...`) and shows new matching lines in real time, with the same column filters, tree, column picker, download and click-a-row detail. Its **Watch settings** card collapses like the load panel. |
+| **Live watch** | Tails a single file on a local or remote **UNC** path (`\\server\share\...`) — picked with **Browse…** or typed — and shows new matching lines in real time, with the same column filters, tree, column picker, download and click-a-row detail. Its **Watch settings** card collapses like the load panel. |
 
 ## Explorer & Live features
 

@@ -18,6 +18,12 @@ public sealed class PathHistory
     /// <summary>The file box on the live-watch page.</summary>
     public const string LiveFileKey = "liveFile";
 
+    /// <summary>Folders and files the user pinned in the file browser.</summary>
+    public const string FavoriteKey = "favorites";
+
+    /// <summary>Favourites are pinned on purpose, so they get more room than a recent-paths list.</summary>
+    public const int MaxFavorites = 30;
+
     private const string StoragePrefix = "alyce.pathHistory.";
     private const int MaxEntries = 12;
 
@@ -44,7 +50,7 @@ public sealed class PathHistory
     /// Moves <paramref name="value"/> to the front, de-duplicated case-insensitively (Windows paths),
     /// and returns the updated list so the caller can rebind without a second round trip.
     /// </summary>
-    public async Task<List<string>> AddAsync(string key, string? value)
+    public async Task<List<string>> AddAsync(string key, string? value, int max = MaxEntries)
     {
         var path = value?.Trim() ?? "";
         var list = await GetAsync(key);
@@ -52,15 +58,28 @@ public sealed class PathHistory
 
         list.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
         list.Insert(0, path);
-        if (list.Count > MaxEntries) list.RemoveRange(MaxEntries, list.Count - MaxEntries);
+        if (list.Count > max) list.RemoveRange(max, list.Count - max);
 
+        return await SaveAsync(key, list);
+    }
+
+    /// <summary>Drops <paramref name="value"/> and returns the updated list. Used to unpin a favourite.</summary>
+    public async Task<List<string>> RemoveAsync(string key, string value)
+    {
+        var list = await GetAsync(key);
+        if (list.RemoveAll(p => string.Equals(p, value, StringComparison.OrdinalIgnoreCase)) == 0) return list;
+        return await SaveAsync(key, list);
+    }
+
+    private async Task<List<string>> SaveAsync(string key, List<string> list)
+    {
         try
         {
             await _js.InvokeVoidAsync("pathHistorySave", StoragePrefix + key, list);
         }
         catch
         {
-            // Same as above: failing to persist must not break the load the user just asked for.
+            // Same as GetAsync: failing to persist must not break what the user just asked for.
         }
 
         return list;

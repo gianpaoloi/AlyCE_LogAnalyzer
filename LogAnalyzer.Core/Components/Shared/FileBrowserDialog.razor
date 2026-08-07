@@ -1,0 +1,399 @@
+@* Filesystem browser shown in a Radzen dialog so a log file can be picked instead of typed.
+   Browses the machine that reads the logs (the server for the web host, the desktop for MAUI),
+   which is the same machine LogWatcher tails from.
+
+   Every filesystem probe runs off the UI thread under a short timeout: a wrong or offline UNC path
+   makes File/Directory.Exists block for tens of seconds, which would otherwise freeze the app
+   before the dialog is even painted. *@
+@inject DialogService DialogService
+@inject PathHistory History
+
+<RadzenStack Gap="0.6rem">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+        <RadzenButton Icon="arrow_upward" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                      Click="GoUp" Disabled="@(_loading || _folder is null)" title="Parent folder" />
+        <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                      Click="@(() => OpenAsync(_folder))" Disabled="@_loading" title="Refresh" />
+        @* Typing stays possible only because a share such as \\server cannot be browsed into. *@
+        <RadzenTextBox @bind-Value="_pathBox" Change="@OpenAsync" Placeholder="\\server\share\Logs"
+                       Disabled="@_loading" style="flex:1; min-width:240px"
+                       title="Paste or type a folder, then press Enter" />
+        <RadzenButton Text="Go" Icon="subdirectory_arrow_right" ButtonStyle="ButtonStyle.Secondary"
+                      Size="ButtonSize.Small" Click="@(() => OpenAsync(_pathBox))" Disabled="@_loading" />
+    </RadzenStack>
+
+    @* Pinned folders and files, kept in localStorage so they survive a restart. *@
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+        <RadzenIcon Icon="star" class="fb-fav-icon" />
+        @if (_favorites.Count == 0)
+        {
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">No favorites yet</RadzenText>
+        }
+        @foreach (var fav in _favorites)
+        {
+            <span class="fb-fav">
+                <RadzenButton Text="@FavoriteLabel(fav)" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Click="@(() => OpenAsync(fav))" Disabled="@_loading" title="@fav" />
+                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text"
+                              Size="ButtonSize.ExtraSmall" Click="@(() => RemoveFavorite(fav))"
+                              title="@($"Remove {fav} from favorites")" />
+            </span>
+        }
+        <RadzenButton Text="Add to favorites" Icon="star_border" ButtonStyle="ButtonStyle.Secondary"
+                      Variant="Variant.Outlined" Size="ButtonSize.Small" class="rz-ml-auto"
+                      Click="AddFavorite" Disabled="@(_loading || FavoriteTarget is null || IsFavorite(FavoriteTarget))"
+                      title="@(FavoriteTarget is null ? "Nothing to pin yet" : $"Pin {FavoriteTarget}")" />
+    </RadzenStack>
+
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted mono">@(_folder ?? "This computer")</RadzenText>
+        <RadzenCheckBox @bind-Value="_allFiles" @bind-Value:after="@(() => OpenAsync(_folder))" Name="fbAll"
+                        Disabled="@_loading" />
+        <RadzenLabel Text="all files" Component="fbAll" title="@($"Otherwise only {string.Join(", ", Extensions)} files are listed")" />
+    </RadzenStack>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Warning" Variant="Variant.Flat" Shade="Shade.Lighter"
+                     AllowClose="false" class="rz-m-0">@_error</RadzenAlert>
+    }
+
+    @if (_loading)
+    {
+        <div class="fb-busy">
+            <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" ShowValue="false"
+                                       Size="ProgressBarCircularSize.Small"
+                                       ProgressBarStyle="ProgressBarStyle.Info" />
+            <span class="mono">@_busyPath</span>
+        </div>
+    }
+    else
+    {
+        <div class="fb-list">
+            <RadzenDataGrid Data="@_items" TItem="FsItem" Density="Density.Compact" AllowSorting="true"
+                            AllowPaging="false" AllowColumnResize="true" RowSelect="OnRowSelect"
+                            EmptyText="@(_folder is null ? "No drives available" : "Nothing to show in this folder")">
+                <Columns>
+                    <RadzenDataGridColumn TItem="FsItem" Title="Name" Property="Name">
+                        <Template Context="i">
+                            <span class="fb-name">
+                                <RadzenIcon Icon="@(i.IsFolder ? "folder" : "description")" />
+                                <span class="@(i.IsFolder ? null : "mono")">@i.Name</span>
+                            </span>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="FsItem" Title="Size" Property="Size" Width="110px" TextAlign="TextAlign.Right">
+                        <Template Context="i"><span class="mono">@(i.IsFolder ? "" : FormatSize(i.Size))</span></Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="FsItem" Title="Modified" Property="Modified" Width="170px">
+                        <Template Context="i"><span class="mono">@(i.Modified?.ToString("yyyy-MM-dd HH:mm") ?? "")</span></Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </div>
+    }
+
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted fb-selected">
+            @(_selected is null ? "Click a folder to open it, a file to select it" : _selected)
+        </RadzenText>
+        <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" class="rz-ml-auto"
+                      Click="@(() => DialogService.Close(null))" />
+        <RadzenButton Text="Select" Icon="check" ButtonStyle="ButtonStyle.Primary"
+                      Disabled="@(_selected is null)" Click="@(() => DialogService.Close(_selected))" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    /// <summary>File or folder the browser opens on; a file path also pre-selects that file.</summary>
+    [Parameter] public string? StartPath { get; set; }
+
+    /// <summary>Extensions listed unless the user asks for all files.</summary>
+    [Parameter] public string[] Extensions { get; set; } = new[] { ".log" };
+
+    /// <summary>
+    /// How long a path gets to answer before it is called unreachable. Long enough for a slow share,
+    /// short enough that a typo doesn't look like a hang — an SMB probe on a dead host takes ~30 s.
+    /// </summary>
+    private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(3);
+
+    private sealed record FsItem(string Name, string FullPath, bool IsFolder, long Size, DateTime? Modified);
+
+    /// <summary>Result of one background probe: what to list, plus anything worth telling the user.</summary>
+    private sealed record Listing(string? Folder, List<FsItem> Items, string? Error, string? Preselect);
+
+    private string? _folder;            // null = the drive list
+    private string _pathBox = "";
+    private string? _selected;
+    private string? _error;
+    private bool _allFiles;
+    private bool _loading;
+    private string _busyPath = "";
+    private List<FsItem> _items = new();
+    private List<string> _favorites = new();
+
+    /// <summary>Where a wrong, empty or unreachable path lands: the system drive, normally <c>C:\</c>.</summary>
+    private static string DefaultFolder =>
+        Path.GetPathRoot(Environment.SystemDirectory) is { Length: > 0 } root ? root : @"C:\";
+
+    /// <summary>What "Add to favorites" would pin: the selected file, else the folder on screen.</summary>
+    private string? FavoriteTarget => _selected ?? _folder;
+
+    // Awaited, so the dialog paints its spinner first and the probe never blocks the UI thread.
+    protected override Task OnInitializedAsync() => OpenAsync(StartPath);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // localStorage is only reachable once the component is interactive.
+        if (!firstRender) return;
+        _favorites = await History.GetAsync(PathHistory.FavoriteKey);
+        if (_favorites.Count > 0) StateHasChanged();
+    }
+
+    private Task OpenAsync(string? path) => OpenAsync(path, allowFallback: true, keepError: false);
+
+    /// <summary>
+    /// Lists <paramref name="path"/>. A file path opens its folder and pre-selects it; an empty,
+    /// unreachable or too-slow path falls back to <see cref="DefaultFolder"/> (and only then to the
+    /// drive list), so the dialog always shows something usable.
+    /// </summary>
+    private async Task OpenAsync(string? path, bool allowFallback, bool keepError)
+    {
+        var target = path?.Trim().Trim('"') ?? "";
+        if (target.Length == 0)
+        {
+            // Nothing to go on — start from the system drive rather than an abstract drive list.
+            await OpenAsync(DefaultFolder, allowFallback: false, keepError);
+            return;
+        }
+
+        if (!keepError) _error = null;
+        _selected = null;
+        _busyPath = target;
+        _loading = true;
+
+        var allFiles = _allFiles;
+        var extensions = Extensions;
+        var listing = await ProbeAsync(() => Resolve(target, allFiles, extensions));
+
+        _loading = false;
+
+        var failure = listing is null
+            ? $"{target} did not answer within {ProbeTimeout.TotalSeconds:0} s — it is offline, or the path is wrong."
+            : listing.Folder is null ? listing.Error : null;
+
+        if (failure is not null)
+        {
+            _error = failure;
+            // One retry on the system drive; if that fails too, the drive list is the last resort.
+            if (allowFallback && !PathEquals(target, DefaultFolder))
+                await OpenAsync(DefaultFolder, allowFallback: false, keepError: true);
+            else
+                await ShowDrivesAsync(keepError: true);
+            return;
+        }
+
+        _folder = listing!.Folder;
+        _pathBox = listing.Folder!;
+        _items = listing.Items;
+        _selected = listing.Preselect;
+        if (listing.Error is not null) _error = listing.Error;
+    }
+
+    /// <summary>
+    /// Runs one probe on a worker thread and gives up on it after <see cref="ProbeTimeout"/>.
+    /// An abandoned probe is left to finish by itself — a blocking share call cannot be cancelled.
+    /// </summary>
+    private static async Task<T?> ProbeAsync<T>(Func<T> work) where T : class
+    {
+        var task = Task.Run(work);
+        return await Task.WhenAny(task, Task.Delay(ProbeTimeout)) == task ? await task : null;
+    }
+
+    /// <summary>
+    /// Existence checks and listing in one go, off the UI thread: each one can block on a share, so
+    /// they belong inside the same timeout rather than being awaited one after another.
+    /// A null <c>Folder</c> means the path could not be resolved.
+    /// </summary>
+    private static Listing Resolve(string target, bool allFiles, string[] extensions)
+    {
+        try
+        {
+            string? preselect = null;
+
+            if (File.Exists(target))
+            {
+                preselect = Path.GetFullPath(target);
+                target = Path.GetDirectoryName(preselect) ?? target;
+            }
+            else if (!Directory.Exists(target))
+            {
+                // A path typed for a file that isn't there yet still lands in its folder if that exists.
+                var parent = Path.GetDirectoryName(target);
+                if (parent is not { Length: > 0 } || !Directory.Exists(parent))
+                    return new Listing(null, new List<FsItem>(), $"Not found: {target}", null);
+                target = parent;
+            }
+
+            var folder = Path.GetFullPath(target);
+            var (items, error) = List(folder, allFiles, extensions);
+            return new Listing(folder, items, error, preselect);
+        }
+        catch (Exception ex)
+        {
+            // Bad characters, a denied ACL, a share that refused the connection.
+            return new Listing(null, new List<FsItem>(), ex.Message, null);
+        }
+    }
+
+    private static (List<FsItem> Items, string? Error) List(string folder, bool allFiles, string[] extensions)
+    {
+        var dirs = new List<FsItem>();
+        var files = new List<FsItem>();
+        string? error = null;
+        try
+        {
+            foreach (var entry in new DirectoryInfo(folder).EnumerateFileSystemInfos())
+            {
+                try
+                {
+                    if ((entry.Attributes & FileAttributes.Hidden) != 0) continue;
+                    if (entry is DirectoryInfo d)
+                    {
+                        dirs.Add(new FsItem(d.Name, d.FullName, true, 0, d.LastWriteTime));
+                    }
+                    // Fully qualified: Radzen also has a FileInfo type, and @using Radzen wins here.
+                    else if (entry is System.IO.FileInfo f && Matches(f.Name, allFiles, extensions))
+                    {
+                        files.Add(new FsItem(f.Name, f.FullName, false, f.Length, f.LastWriteTime));
+                    }
+                }
+                catch
+                {
+                    // A single unreadable entry must not hide the rest of the folder.
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+
+        // Folders first, then the newest logs on top — that is nearly always the file to tail.
+        dirs.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+        files.Sort((a, b) => Nullable.Compare(b.Modified, a.Modified));
+        dirs.AddRange(files);
+        return (dirs, error);
+    }
+
+    private static bool Matches(string name, bool allFiles, string[] extensions) =>
+        allFiles || extensions.Length == 0 ||
+        extensions.Any(ext => name.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// The drive list is a probe of its own: <c>IsReady</c> on a disconnected mapped drive blocks
+    /// just like a bad UNC path does.
+    /// </summary>
+    private async Task ShowDrivesAsync(bool keepError = false)
+    {
+        _folder = null;
+        _pathBox = "";
+        _selected = null;
+        if (!keepError) _error = null;
+        _busyPath = "This computer";
+        _loading = true;
+
+        var drives = await ProbeAsync(ReadDrives);
+
+        _loading = false;
+        _items = drives ?? new List<FsItem>();
+        if (drives is null && string.IsNullOrEmpty(_error))
+            _error = "Listing the drives timed out — a mapped network drive is probably disconnected.";
+    }
+
+    private static List<FsItem> ReadDrives()
+    {
+        var drives = new List<FsItem>();
+        try
+        {
+            foreach (var d in DriveInfo.GetDrives())
+            {
+                try
+                {
+                    if (!d.IsReady) continue;
+                    drives.Add(new FsItem(DriveLabel(d), d.RootDirectory.FullName, true, 0, null));
+                }
+                catch
+                {
+                    // Skip a drive that cannot even be queried.
+                }
+            }
+        }
+        catch
+        {
+            // Nothing to enumerate — the caller shows an empty list.
+        }
+        return drives;
+    }
+
+    private static string DriveLabel(DriveInfo d)
+    {
+        try
+        {
+            var label = d.VolumeLabel;
+            return string.IsNullOrWhiteSpace(label) ? d.Name : $"{d.Name} ({label})";
+        }
+        catch
+        {
+            return d.Name;
+        }
+    }
+
+    private async Task GoUp()
+    {
+        if (_folder is null) return;
+        // Pure string work, so no probe needed to find the parent.
+        var parent = Directory.GetParent(_folder)?.FullName;
+        if (parent is null) await ShowDrivesAsync();
+        else await OpenAsync(parent);
+    }
+
+    private bool IsFavorite(string path) =>
+        _favorites.Any(f => PathEquals(f, path));
+
+    private static bool PathEquals(string a, string b) =>
+        string.Equals(a.TrimEnd('\\', '/'), b.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+
+    private async Task AddFavorite()
+    {
+        if (FavoriteTarget is not { Length: > 0 } target) return;
+        _favorites = await History.AddAsync(PathHistory.FavoriteKey, target, PathHistory.MaxFavorites);
+    }
+
+    private async Task RemoveFavorite(string path)
+    {
+        _favorites = await History.RemoveAsync(PathHistory.FavoriteKey, path);
+    }
+
+    /// <summary>Last path segment, so the chips stay short; the full path is in the tooltip.</summary>
+    private static string FavoriteLabel(string path)
+    {
+        var trimmed = path.TrimEnd('\\', '/');
+        var name = Path.GetFileName(trimmed);
+        return name.Length > 0 ? name : path;
+    }
+
+    private async Task OnRowSelect(FsItem item)
+    {
+        if (item.IsFolder) await OpenAsync(item.FullPath);
+        else _selected = item.FullPath;
+    }
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:N1} KB",
+        < 1024L * 1024 * 1024 => $"{bytes / (1024.0 * 1024):N1} MB",
+        _ => $"{bytes / (1024.0 * 1024 * 1024):N2} GB",
+    };
+}
