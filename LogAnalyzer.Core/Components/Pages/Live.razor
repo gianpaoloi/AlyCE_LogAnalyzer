@@ -41,6 +41,10 @@
                           Disabled="@Watcher.IsWatching" title="Pick the file to watch" />
             <RadzenCheckBox @bind-Value="State.LiveFromStart" Name="fs" Disabled="@Watcher.IsWatching" />
             <RadzenLabel Text="from start" Component="fs" />
+            @* Stays enabled while watching — freezing the grid mid-tail is exactly what it is for. *@
+            <RadzenCheckBox @bind-Value="State.LiveAutoScroll" @bind-Value:after="OnAutoScrollChanged" Name="as" />
+            <RadzenLabel Text="auto-scroll" Component="as"
+                         title="Off: the grid keeps showing the lines on screen while the tail keeps buffering" />
             @if (Watcher.IsWatching)
             {
                 <RadzenButton Text="Stop" Icon="stop" Click="Stop" ButtonStyle="ButtonStyle.Danger" />
@@ -89,6 +93,14 @@
     @if (!string.IsNullOrEmpty(Watcher.LastError))
     {
         <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="@Watcher.LastError" />
+    }
+    @if (!State.LiveAutoScroll)
+    {
+        <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="auto-scroll off" />
+        <RadzenButton Text="@(_pending > 0 ? $"Show {_pending:N0} new lines" : "Resume")" Icon="play_arrow"
+                      ButtonStyle="ButtonStyle.Warning" Variant="Variant.Outlined" Size="ButtonSize.Small"
+                      Click="ResumeAutoScroll"
+                      title="Turn auto-scroll back on and catch up with the tail" />
     }
     <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">· click a row for detail</RadzenText>
 </RadzenStack>
@@ -181,6 +193,11 @@
     private List<string> _recentFiles = new();
     private bool _starting;     // guards against a second Start while a slow path is being opened
 
+    // With auto-scroll off the grid renders this frozen copy of the buffer instead of _matched, so the
+    // row being read doesn't move. Column filters still apply to it; the tail keeps buffering behind.
+    private List<LogEntry>? _frozen;
+    private int _pending;      // matching lines buffered since auto-scroll was switched off
+
     protected override void OnInitialized()
     {
         // Seed the default path only the first time (so a user-edited path survives navigation).
@@ -189,6 +206,10 @@
             var def = Config["LogAnalyzer:DefaultLogFolder"];
             if (!string.IsNullOrEmpty(def)) State.LivePath = def!.TrimEnd('\\', '/') + "\\all_2026-06-30.log";
         }
+        // The buffer is per-page, so a fresh page has nothing to hold still: follow the tail again
+        // even if auto-scroll was off when the user navigated away.
+        State.LiveAutoScroll = true;
+
         Watcher.EntriesAppended += OnEntries;
         Watcher.StatusChanged += OnStatus;
     }
@@ -223,6 +244,8 @@
                     continue;
                 _matched.AddFirst(e);
                 while (_matched.Count > MaxKept) _matched.RemoveLast();
+                // Counted, not shown: the frozen view stays as it is until auto-scroll is back on.
+                if (_frozen is not null) _pending++;
             }
             if (envChanged) _envList = _envSeen.ToList();
             if (companyChanged) _companyList = _companySeen.ToList();
@@ -239,7 +262,7 @@
         var loggerPrefix = State.LiveLoggerPrefix;
         lock (_gate)
         {
-            IEnumerable<LogEntry> q = _matched;
+            IEnumerable<LogEntry> q = _frozen ?? (IEnumerable<LogEntry>)_matched;
             if (levels.Count > 0) q = q.Where(e => levels.Contains(e.Level));
             if (envs.Count > 0) q = q.Where(e => e.Environment != null && envs.Contains(e.Environment));
             if (companies.Count > 0) q = q.Where(e => e.Company != null && companies.Contains(e.Company));
@@ -249,6 +272,19 @@
     }
 
     private void OnDisplayFilterChanged() => StateHasChanged();
+
+    /// <summary>Freezes the buffer as it is now, or releases it and catches up with the tail.</summary>
+    private void OnAutoScrollChanged()
+    {
+        lock (_gate) _frozen = State.LiveAutoScroll ? null : _matched.ToList();
+        _pending = 0;
+    }
+
+    private void ResumeAutoScroll()
+    {
+        State.LiveAutoScroll = true;
+        OnAutoScrollChanged();
+    }
 
     private void ToggleSettings() => State.LiveSettingsCollapsed = !State.LiveSettingsCollapsed;
 
@@ -337,7 +373,13 @@
 
     private void Clear()
     {
-        lock (_gate) _matched.Clear();
+        lock (_gate)
+        {
+            _matched.Clear();
+            // Still frozen if auto-scroll is off — the user asked for a still view, now an empty one.
+            if (_frozen is not null) _frozen = new List<LogEntry>();
+        }
+        _pending = 0;
     }
 
     private async void OnStatus() => await InvokeAsync(StateHasChanged);

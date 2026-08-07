@@ -8,7 +8,8 @@ A Windows desktop application for parsing, browsing, and filtering structured lo
 - Path boxes remember previously used folders and files
 - Interactive filtering and search across all columns
 - Log volume time series stacked by level — drag it to filter a time window
-- Real-time log tailing / live monitoring
+- Real-time log tailing / live monitoring — pick the file to watch with a built-in browser (with favorites),
+  and switch auto-scroll off to read a line while the tail keeps running
 - Export filtered results to CSV or original log format
 - Collapsible load panel and side navigation to maximise screen space
 - Dark theme UI optimized for extended viewing sessions

@@ -38,4 +38,10 @@ public sealed class SessionState
     public string? LivePath { get; set; }
     public bool LiveFromStart { get; set; }
     public bool LiveSettingsCollapsed { get; set; }
+
+    /// <summary>
+    /// Whether Live watch keeps pulling new lines into the grid. Turning it off freezes what is on
+    /// screen so a row can be read or clicked while the tail keeps buffering behind it.
+    /// </summary>
+    public bool LiveAutoScroll { get; set; } = true;
 }

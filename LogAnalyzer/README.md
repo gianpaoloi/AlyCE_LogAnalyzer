@@ -53,6 +53,20 @@ card collapses the same way — same `.collapse-header` / `.collapse-hidden` sty
 `SessionState.LiveSettingsCollapsed` flag, and a summary showing the watched file name plus the active text
 filter.
 
+## Auto-scroll (Live watch)
+
+New lines normally flow into the grid as they are read, which makes a row move while you are reading or
+clicking it. Untick **auto-scroll** to hold the view still (`SessionState.LiveAutoScroll`, on by default):
+
+- Switching it off takes a copy of the buffer and the grid renders that copy, so nothing on screen moves.
+  The column filters, logger tree and download still work on it — they just operate on the frozen set.
+- The tail keeps running underneath: lines are still parsed and buffered, and the status bar keeps counting
+  (*lines read*, *buffered*, *last*). An **auto-scroll off** badge and a **Show N new lines** button appear
+  there, so the pause is visible and can be released even with the settings card collapsed.
+- **Clear** while paused empties the frozen view too, and new lines are counted as pending.
+- The buffer is per-page, so leaving the page and coming back starts from an empty grid — auto-scroll turns
+  itself back on there, since there is nothing left to hold still.
+
 ## Path history
 
 Both path boxes — the **log folder** on the load panel and the **file** on Live watch — are autocompletes
