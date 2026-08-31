@@ -163,9 +163,10 @@ Outputs to `./dist/`: the `.zip`, plus a `.manifest` with package metadata. The 
 self-contained (Ready-to-Run, debug symbols stripped, **not** trimmed) and contains `Application/`,
 `README.txt` and a `.lnk` shortcut.
 
-> The version and name are hardcoded `v1.0` plus a timestamp, and the `.lnk` records an absolute
-> path, so this archive is best treated as a local convenience. Use `create-portable-zip.ps1` for
-> anything you hand to someone else.
+> The name is `<ApplicationDisplayVersion>` read from the csproj plus a timestamp — so it says
+> `v1.0.0` for any local build, with no tag involved — and the `.lnk` records an absolute path. Treat
+> this archive as a local convenience; use `create-portable-zip.ps1` for anything you hand to
+> someone else.
 
 ## Notes / verify on first run
 

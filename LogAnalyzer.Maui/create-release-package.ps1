@@ -28,7 +28,17 @@ if ([System.IO.Path]::IsPathRooted($PackageOutputPath)) {
     $packagePath = Join-Path (Get-Location) $PackageOutputPath
 }
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$packageName = "AlyCE-LogAnalyzer-Maui-v1.0_$timestamp"
+
+# Read the version out of the csproj rather than hardcoding it, so the package name and the manifest
+# below cannot drift from what the app itself reports in the sidebar.
+$version = @(([xml](Get-Content -LiteralPath $projectFile)).Project.PropertyGroup.ApplicationDisplayVersion |
+    Where-Object { $_ })[0]
+if (-not $version) {
+    throw "Could not read <ApplicationDisplayVersion> from $projectFile"
+}
+
+# ${version} is braced because an underscore is a legal variable-name character.
+$packageName = "AlyCE-LogAnalyzer-Maui-v${version}_$timestamp"
 
 Write-Host "Project Path: $projectPath" -ForegroundColor Yellow
 Write-Host "Package Output: $packagePath" -ForegroundColor Yellow
@@ -175,7 +185,7 @@ $manifestContent = @"
 Package Name: $packageName
 Creation Date: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 Application: AlyCE Log Analyzer
-Version: 1.0
+Version: $version
 Target Platform: Windows (x64)
 Runtime: .NET 10.0 (Self-contained)
 Size: {0:F2} MB
