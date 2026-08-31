@@ -1,5 +1,6 @@
 @page "/"
 @inject LogStore Store
+@inherits ObservingComponentBase
 @implements IDisposable
 
 <PageTitle>Overview · AlyCE Log Analyzer</PageTitle>
@@ -77,7 +78,7 @@ else
 
     protected override void OnInitialized()
     {
-        Store.Changed += OnChanged;
+        Store.DatasetChanged += OnChanged;
         if (Store.IsLoaded) Build();
     }
 
@@ -101,8 +102,8 @@ else
         </RadzenCard>
     };
 
-    private async void OnChanged() => await InvokeAsync(() => { if (Store.IsLoaded) Build(); StateHasChanged(); });
-    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => RequestRefresh(() => { if (Store.IsLoaded) Build(); });
+    public void Dispose() => Store.DatasetChanged -= OnChanged;
 
     private static string Fmt(DateTime? d) => d is { } x ? x.ToString("yyyy-MM-dd HH:mm:ss") : "—";
     private static string FormatSpan(TimeSpan t) =>

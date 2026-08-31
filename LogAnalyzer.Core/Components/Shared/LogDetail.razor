@@ -83,12 +83,12 @@
         return sb.ToString();
     }
 
-    private static BadgeStyle LevelStyle(string level) => level.ToUpperInvariant() switch
+    private static BadgeStyle LevelStyle(string level) => LogLevels.Series(level) switch
     {
-        "ERROR" or "FATAL" => BadgeStyle.Danger,
-        "WARN" or "WARNING" => BadgeStyle.Warning,
-        "INFO" => BadgeStyle.Info,
-        "DEBUG" => BadgeStyle.Light,
+        LogLevels.Error => BadgeStyle.Danger,
+        LogLevels.Warn => BadgeStyle.Warning,
+        LogLevels.Info => BadgeStyle.Info,
+        LogLevels.Debug => BadgeStyle.Light,
         _ => BadgeStyle.Secondary,
     };
 }

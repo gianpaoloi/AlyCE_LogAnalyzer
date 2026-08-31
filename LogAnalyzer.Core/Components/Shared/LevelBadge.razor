@@ -4,12 +4,14 @@
 @code {
     [Parameter] public string? Level { get; set; }
 
-    private BadgeStyle Style => (Level ?? "").ToUpperInvariant() switch
+    // Via LogLevels so the badge, the chart and the colours agree on WARN/WARNING and ERROR/FATAL,
+    // and without the uppercased copy this used to allocate for every rendered row.
+    private BadgeStyle Style => LogLevels.Series(Level) switch
     {
-        "ERROR" or "FATAL" => BadgeStyle.Danger,
-        "WARN" or "WARNING" => BadgeStyle.Warning,
-        "INFO" => BadgeStyle.Info,
-        "DEBUG" => BadgeStyle.Light,
+        LogLevels.Error => BadgeStyle.Danger,
+        LogLevels.Warn => BadgeStyle.Warning,
+        LogLevels.Info => BadgeStyle.Info,
+        LogLevels.Debug => BadgeStyle.Light,
         _ => BadgeStyle.Secondary,
     };
 }

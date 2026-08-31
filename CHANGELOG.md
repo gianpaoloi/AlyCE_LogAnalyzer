@@ -11,6 +11,13 @@ release is collected under *Unreleased*.
 
 ### Added
 
+- **Unit test suite** (`LogAnalyzer.Tests`, 145 tests) covering the parser, the line reader, the store, the
+  tailer, the exporter and the filters — including regression tests for every fix listed below. Runs in CI
+  before a release is published. The message-signature scan is held against the regex pipeline it replaced
+  over the real sample logs. *(working tree, not yet committed)*
+- **Cancel button on the load panel.** A folder load on a slow or offline share could not be escaped: the
+  store supported cancellation but nothing ever passed a token, so the *Load cancelled.* path was
+  unreachable. *(working tree, not yet committed)*
 - **Auto-scroll toggle on Live watch** — untick *auto-scroll* to freeze the grid on the lines currently shown
   while the tail keeps parsing and buffering behind it, so a row can be read or clicked without moving. Column
   filters, the logger tree and download still work on the frozen set; the status bar gains an *auto-scroll
@@ -46,6 +53,61 @@ release is collected under *Unreleased*.
 
 ### Fixed
 
+- **Dropping a .log file could crash the Explorer with "collection was modified".** Appending mutated and
+  re-sorted the very list a query was walking, from a thread-pool thread on the MAUI drop path. Loads now
+  publish an immutable `LogDataset` and swap the reference, so a reader that has taken it can never see it
+  change. Appending also merges the two already-sorted sides instead of re-sorting everything loaded so far,
+  which made dropping N files cost N sorts of a growing list. *(working tree, not yet committed)*
+- **Live watch could mix up two files.** Restarting a watch cancelled the previous poll loop but did not wait
+  for it, then reset the shared read position and pending-line state underneath it — likely, because one poll
+  on a slow share can sit in a blocking read for seconds. `StartAsync` now awaits `StopAsync`. The loop also
+  swallowed only `OperationCanceledException`, leaving an unobserved `ObjectDisposedException` on the way out.
+  *(working tree, not yet committed)*
+- **A rotated log went quiet for good.** Rotation was only detected when the file *shrank*, so the usual
+  pattern — rename `all.log` away, create a fresh one — left a new file growing past the old read position and
+  nothing was ever read again. The tailer now fingerprints the first 256 bytes of the file it is following.
+  Creation time alone is not enough: NTFS file tunneling gives a file recreated within ~15 s of its
+  predecessor that predecessor's creation timestamp, which is exactly what rotation does.
+  *(working tree, not yet committed)*
+- **Catching up on a large file took minutes of waiting.** The 4 MB decode cap ended the poll rather than the
+  chunk, so tailing a 1 GB file from the start took one 750 ms tick per 4 MB. Chunks now follow each other
+  inside one poll (bounded, so the UI still breathes), and the file is opened once per poll instead of once
+  per chunk — a round trip each time on a share. *(working tree, not yet committed)*
+- **Lines sharing a timestamp were reordered on every load.** `List.Sort` is unstable, and the sample logs are
+  full of duplicate timestamps — two lines logged in the same tick came out in an arbitrary order that changed
+  from load to load. Files are now merged by time with ties broken on file order, so the same input always
+  gives the same result. *(working tree, not yet committed)*
+- **Timestamps depended on the machine's regional settings.** The fallback was a bare `DateTime.TryParse`,
+  which reads the current culture; the same file parsed differently on an it-IT machine than on an en-US one,
+  or silently became `DateTime.MinValue`. Now always invariant, and ISO-8601 with an offset is accepted.
+  *(working tree, not yet committed)*
+- **Live watch could not filter for FATAL.** The level dropdown was a hardcoded ERROR/WARN/INFO/DEBUG array,
+  while the rest of the app has always treated FATAL and WARNING as real levels — a FATAL line was displayed
+  but unfilterable. The list now grows with the levels actually seen in the tail.
+  *(working tree, not yet committed)*
+- **A failing store event could take the whole app down** instead of one component. The five `Store.Changed`
+  handlers were `async void`, so an exception from dispatching to a renderer that had already gone away (a
+  circuit closing as a load finishes) had no synchronization context to surface on. They now go through
+  `ObservingComponentBase`. *(working tree, not yet committed)*
+- **Dropping more than 100 files blanked the page.** `GetMultipleFiles` throws past its cap rather than
+  truncating, and nothing caught it. *(working tree, not yet committed)*
+- **Live watch started on a file that never existed.** The default path appended a hardcoded
+  `all_2026-06-30.log` to the configured folder, so the first *Start watching* always failed.
+  *(working tree, not yet committed)*
+- **The web host showed every visitor the same logs.** `LogStore` and `LogWatcher` were singletons, so one
+  dataset and one tail were shared by everyone on the server: whoever loaded a folder showed their logs to all
+  other users, *include DEBUG* was global, and either user could stop the other's watch. Both are scoped to a
+  circuit now. The desktop app keeps singletons — one user, one window. (This host still has no
+  authentication, and both the file browser and the tailer will read any path the machine can reach; it should
+  stay on localhost or go behind auth.) *(working tree, not yet committed)*
+- **A large export could exhaust memory.** CSV was built as a `StringBuilder`, then a string, then a byte
+  array — several copies of a set that can be hundreds of megabytes, all live at once, and the browser then
+  made one more. Both formats now stream into a self-deleting temp file, and the JSON writer is created once
+  instead of once per row. A leading `=`, `+` or `@` in a message is also defused, since log text ends up in a
+  spreadsheet. *(working tree, not yet committed)*
+- **Removed two pieces of dead code that were traps**: `LogFilter.Clone()` copied the levels but silently
+  dropped the environment and company filters, and `LogStore.QueryPage` buffered the whole result twice.
+  *(working tree, not yet committed)*
 - **Live watch froze after watching for a long time.** Four unbounded growths, all in the tail path:
   the page queued a render per poll (and per status change), so the render queue outgrew the renderer — it
   now refreshes at most every 400 ms, only when something changed, and awaits each render;
@@ -60,6 +122,30 @@ release is collected under *Unreleased*.
 
 ### Changed
 
+- **Loads are about twice as fast** (measured: 1 454 ms → 709 ms for 480 000 entries across 12 files,
+  159 MB). Files are parsed on all cores with a parser each, lines are read as UTF-8 bytes rather than a
+  string each, and each line goes through one `Utf8JsonReader` pass instead of a `JsonDocument` plus nine
+  property lookups. Statistics and the filter indexes are computed side by side, and files that cover
+  successive periods are concatenated instead of heap-merged. *(working tree, not yet committed)*
+- **Progress no longer makes every page redo its work.** A load raised one event per file, and each one made
+  the Explorer re-filter the whole previous dataset and triage re-cluster it — for a 60-file load, 60 times
+  over, when only a counter had changed. `DatasetChanged` and a throttled `ProgressChanged` are now separate.
+  *(working tree, not yet committed)*
+- **Triage re-clusters about 6× faster** (404 ms → 57 ms on 480 000 entries) because a message's signature is
+  computed once and cached on the entry, rather than seven chained `Regex.Replace` calls re-run on every
+  checkbox toggle. The normaliser itself is now a single scan instead of seven passes.
+  *(working tree, not yet committed)*
+- **The Explorer filters through per-facet indexes** on datasets above 50 000 entries, so narrowing by level,
+  environment or company no longer scans everything. *(working tree, not yet committed)*
+- **Live watch rebuilds the grid's rows only when they change.** The source list was rebuilt — under the buffer
+  lock — on *every* render, including renders caused by hovering or typing, and each one handed Radzen a new
+  reference to re-filter, re-sort and re-page. *(working tree, not yet committed)*
+- **The dashboard's volume chart is capped at 180 columns.** It plotted one column per hour over the whole
+  span, so a month of logs was 720 SVG columns and a year was 8 760. *(working tree, not yet committed)*
+- Level handling (WARN/WARNING, ERROR/FATAL) is centralised in `LogLevels`, which also removed the
+  `ToUpperInvariant()` that the badges and chart colours allocated for every rendered row. Entry lists are
+  pre-sized from the file size instead of always reserving room for a million entries.
+  *(working tree, not yet committed)*
 - Picking a file in the Live watch browser starts the watch immediately, instead of only filling the path box.
   *(working tree, not yet committed)*
 - Live watch no longer freezes on a wrong or offline path. Every filesystem probe in the file browser runs off

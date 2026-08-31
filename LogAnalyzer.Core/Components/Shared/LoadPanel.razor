@@ -1,4 +1,5 @@
 @* Folder input + load button + progress, built with Radzen. Reflects shared LogStore state. *@
+@inherits ObservingComponentBase
 @implements IDisposable
 @inject LogStore Store
 @inject IConfiguration Config
@@ -49,6 +50,11 @@
         @if (Store.IsLoading)
         {
             <LoadProgress />
+            @* A folder load on a slow share used to be un-escapable: nothing passed a token, so the
+               store's cancellation support was unreachable. *@
+            <RadzenButton Text="Cancel" Icon="cancel" Click="Cancel"
+                          ButtonStyle="ButtonStyle.Warning" Variant="Variant.Outlined"
+                          Size="ButtonSize.Small" Disabled="@(!Store.CanCancel)" />
         }
         else
         {
@@ -119,7 +125,10 @@
     protected override void OnInitialized()
     {
         _folder = Store.LoadedPath ?? Config["LogAnalyzer:DefaultLogFolder"] ?? "";
-        Store.Changed += OnChanged;
+        Store.DatasetChanged += OnChanged;
+        // The panel is the one thing that shows progress, so it is also the only subscriber that
+        // needs the (throttled) progress event.
+        Store.ProgressChanged += OnChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -144,10 +153,12 @@
     {
         if (string.IsNullOrWhiteSpace(_folder)) return;
         var folder = _folder.Trim();
-        await Store.LoadAsync(folder, Store.IncludeDebug, null, CancellationToken.None);
+        await Store.LoadAsync(folder, Store.IncludeDebug, CancellationToken.None);
         if (string.IsNullOrEmpty(Store.LoadError))
             _recentFolders = await History.AddAsync(PathHistory.LogFolderKey, folder);
     }
+
+    private void Cancel() => Store.CancelLoad();
 
     private void Clear()
     {
@@ -155,12 +166,27 @@
         _dropError = null;
     }
 
+    /// <summary>Most files one drop may carry. Above this the drop is refused with a message.</summary>
+    private const int MaxDroppedFiles = 100;
+
     private async Task OnDropZoneSelected(InputFileChangeEventArgs e)
     {
         if (Store.IsLoading) return;
 
-        var files = e.GetMultipleFiles(100);
-        if (files is null || files.Count == 0) return;
+        IReadOnlyList<IBrowserFile> files;
+        try
+        {
+            files = e.GetMultipleFiles(MaxDroppedFiles);
+        }
+        catch (InvalidOperationException)
+        {
+            // GetMultipleFiles throws past the cap rather than truncating, which used to reach the
+            // error boundary and blank the page.
+            _dropError = $"Too many files at once — drop at most {MaxDroppedFiles}, or load a folder.";
+            return;
+        }
+
+        if (files.Count == 0) return;
 
         var zipFiles = files.Where(f => f.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)).ToList();
         var logFiles = files.Where(f => f.Name.EndsWith(".log", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -185,22 +211,25 @@
         {
             _dropError = null;
             const long maxLogBytes = 500L * 1024 * 1024;
-            foreach (var file in logFiles)
-            {
-                await using var stream = file.OpenReadStream(maxLogBytes);
-                await Store.EnqueueFromFileAsync(stream, file.Name, Store.IncludeDebug, CancellationToken.None);
-            }
+            // One call for the whole set, and the streams are opened lazily as each file's turn
+            // comes: enqueueing them one by one re-sorted everything already loaded once per file.
+            var sources = logFiles
+                .Select(f => (f.Name, Open: new Func<Stream>(() => f.OpenReadStream(maxLogBytes))))
+                .ToList();
+
+            await Store.EnqueueFromStreamsAsync(sources, Store.IncludeDebug, CancellationToken.None);
             return;
         }
 
         _dropError = "Only .zip and .log files are supported.";
     }
 
-    private async void OnChanged() => await InvokeAsync(StateHasChanged);
+    private void OnChanged() => RequestRefresh();
 
     public void Dispose()
     {
-        Store.Changed -= OnChanged;
+        Store.DatasetChanged -= OnChanged;
+        Store.ProgressChanged -= OnChanged;
         if (_jsRegistered)
             _ = JS.InvokeVoidAsync("unregisterNativeDropInput", _dropZoneRef);
     }

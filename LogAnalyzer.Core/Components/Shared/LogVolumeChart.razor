@@ -123,15 +123,12 @@
     /// <summary>Raised with a series key (<c>INFO</c>, <c>WARN</c>, …) when a legend entry is clicked.</summary>
     [Parameter] public EventCallback<string> LevelToggled { get; set; }
 
-    /// <summary>Maps a raw level string onto the chart's five stacked series.</summary>
-    public static string SeriesKey(string level) => level.ToUpperInvariant() switch
-    {
-        "DEBUG" => "DEBUG",
-        "INFO" => "INFO",
-        "WARN" or "WARNING" => "WARN",
-        "ERROR" or "FATAL" => "ERROR",
-        _ => "OTHER",
-    };
+    /// <summary>
+    /// Maps a raw level string onto the chart's five stacked series. Shared with the badges, the
+    /// colours and the stats buckets, and allocation-free — this is called once per entry while
+    /// bucketing, and once per rendered segment.
+    /// </summary>
+    public static string SeriesKey(string level) => LogLevels.Series(level);
 
     private sealed class Bucket
     {
@@ -226,10 +223,10 @@
             var b = _buckets[(int)((Floor(e.Time, _step) - origin).Ticks / _step.Ticks)];
             switch (SeriesKey(e.Level))
             {
-                case "DEBUG": b.Debug++; break;
-                case "INFO": b.Info++; break;
-                case "WARN": b.Warn++; break;
-                case "ERROR": b.Error++; break;
+                case LogLevels.Debug: b.Debug++; break;
+                case LogLevels.Info: b.Info++; break;
+                case LogLevels.Warn: b.Warn++; break;
+                case LogLevels.Error: b.Error++; break;
                 default: b.Other++; break;
             }
         }
@@ -281,11 +278,11 @@
     {
         var rows = new (string Name, string Key, long Count)[]
         {
-            ("debug", "DEBUG", (long)_buckets.Sum(b => b.Debug)),
-            ("info", "INFO", (long)_buckets.Sum(b => b.Info)),
-            ("warn", "WARN", (long)_buckets.Sum(b => b.Warn)),
-            ("error", "ERROR", (long)_buckets.Sum(b => b.Error)),
-            ("other", "OTHER", (long)_buckets.Sum(b => b.Other)),
+            ("debug", LogLevels.Debug, (long)_buckets.Sum(b => b.Debug)),
+            ("info", LogLevels.Info, (long)_buckets.Sum(b => b.Info)),
+            ("warn", LogLevels.Warn, (long)_buckets.Sum(b => b.Warn)),
+            ("error", LogLevels.Error, (long)_buckets.Sum(b => b.Error)),
+            ("other", LogLevels.Other, (long)_buckets.Sum(b => b.Other)),
         };
         return rows.Where(r => r.Count > 0);
     }

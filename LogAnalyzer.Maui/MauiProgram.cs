@@ -25,7 +25,8 @@ public static class MauiProgram
 			// Radzen UI services (DialogService, NotificationService, etc.)
 			builder.Services.AddRadzenComponents();
 
-			// Same log-analysis services as the server app.
+			// Same log-analysis services as the server app, but singletons here: the desktop app is
+			// one user with one window, and the loaded dataset should survive a WebView reload.
 			builder.Services.AddSingleton<LogStore>();
 			builder.Services.AddSingleton<LogWatcher>();
 			builder.Services.AddScoped<SessionState>();

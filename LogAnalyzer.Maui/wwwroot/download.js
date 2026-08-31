@@ -1,7 +1,14 @@
 // Streams bytes produced on the server to a browser file download.
+// Prefers stream() over arrayBuffer(): the latter materialises the whole export as one contiguous
+// buffer *and* then copies it into the blob, which is a lot of memory for a large filtered set.
 window.downloadFileFromStream = async (fileName, contentStreamReference) => {
-    const arrayBuffer = await contentStreamReference.arrayBuffer();
-    const blob = new Blob([arrayBuffer]);
+    let blob;
+    if (typeof contentStreamReference.stream === 'function' && typeof Response === 'function') {
+        blob = await new Response(await contentStreamReference.stream()).blob();
+    } else {
+        blob = new Blob([await contentStreamReference.arrayBuffer()]);
+    }
+
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;

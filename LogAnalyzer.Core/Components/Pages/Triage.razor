@@ -1,6 +1,7 @@
 @page "/triage"
 @inject LogStore Store
 @inject IJSRuntime JS
+@inherits ObservingComponentBase
 @implements IDisposable
 
 <PageTitle>Triage · AlyCE Log Analyzer</PageTitle>
@@ -77,25 +78,25 @@ else
     private bool _showError = true;
     private bool _showWarn = true;
     private string? _env;
-    private List<MessageGroup> _groups = new();
+    private IReadOnlyList<MessageGroup> _groups = Array.Empty<MessageGroup>();
 
     protected override void OnInitialized()
     {
-        Store.Changed += OnChanged;
+        Store.DatasetChanged += OnChanged;
         if (Store.IsLoaded) Recompute();
     }
 
     private void Recompute()
     {
-        if (!Store.IsLoaded) { _groups = new(); return; }
+        if (!Store.IsLoaded) { _groups = Array.Empty<MessageGroup>(); return; }
         var levels = new List<string>();
         if (_showError) { levels.Add("ERROR"); levels.Add("FATAL"); }
         if (_showWarn) { levels.Add("WARN"); levels.Add("WARNING"); }
-        _groups = Store.Triage(levels, _env).ToList();
+        _groups = Store.Triage(levels, _env);
     }
 
-    private async void OnChanged() => await InvokeAsync(() => { Recompute(); StateHasChanged(); });
-    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => RequestRefresh(Recompute);
+    public void Dispose() => Store.DatasetChanged -= OnChanged;
 
     private async Task CopyToClipboard(string? text)
     {

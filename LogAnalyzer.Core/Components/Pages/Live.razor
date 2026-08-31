@@ -5,6 +5,7 @@
 @inject DialogService DialogService
 @inject PathHistory History
 @inject IJSRuntime JS
+@inherits ObservingComponentBase
 @implements IDisposable
 
 <PageTitle>Live watch · AlyCE Log Analyzer</PageTitle>
@@ -108,7 +109,10 @@
 
 <div class="side-layout">
     <div class="side-main">
-        <RadzenDataGrid Data="@Snapshot()" TItem="LogEntry" AllowPaging="true" PageSize="50"
+        @* A cached list, not a fresh one per render: this used to be rebuilt (under the buffer
+           lock) on every single render, which also handed Radzen a new reference each time and
+           made it re-filter, re-sort and re-page the whole buffer. *@
+        <RadzenDataGrid Data="@_snapshot" TItem="LogEntry" AllowPaging="true" PageSize="50"
                         Density="Density.Compact" AllowSorting="true" AllowFiltering="true" FilterMode="FilterMode.Simple"
                         FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
                         RowSelect="OpenDetail"
@@ -123,7 +127,7 @@
                             <span class="col-filter-title">Level</span>
                             <RadzenDropDown @bind-Value="State.LiveLevels" @bind-Value:after="OnDisplayFilterChanged"
                                             Multiple="true" AllowClear="true" Chips="true"
-                                            Placeholder="All levels" Data="@AllLevels" TValue="IEnumerable<string>" Style="width:100%" />
+                                            Placeholder="All levels" Data="@_levelList" TValue="IEnumerable<string>" Style="width:100%" />
                         </div>
                     </HeaderTemplate>
                     <Template Context="e"><LevelBadge Level="@e.Level" /></Template>
@@ -178,7 +182,13 @@
 </div>
 
 @code {
-    private static readonly string[] AllLevels = { "ERROR", "WARN", "INFO", "DEBUG" };
+    /// <summary>
+    /// Levels the filter offers before anything has been tailed. Anything else the log turns out to
+    /// contain — FATAL, TRACE, a custom level — is added as it is seen: the list used to be this
+    /// array and nothing else, so a FATAL line was displayed but could not be filtered for.
+    /// </summary>
+    private static readonly string[] KnownLevels = { "ERROR", "WARN", "INFO", "DEBUG" };
+
     private const int MaxKept = 1000;
 
     // Caps on the values collected for the header combos and the logger tree. Without them a long watch
@@ -193,7 +203,8 @@
     // awaits each render so it can never outrun the renderer.
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMilliseconds(400);
     private readonly CancellationTokenSource _refreshCts = new();
-    private int _dirty;
+    private int _dirty;         // a redraw is due
+    private int _bufferDirty;   // the grid's snapshot no longer matches the buffer
 
     private readonly object _gate = new();
     private readonly LinkedList<LogEntry> _matched = new(); // newest at front
@@ -201,12 +212,18 @@
     private readonly Dictionary<string, int> _loggerCounts = new(StringComparer.Ordinal);
     private readonly SortedSet<string> _envSeen = new(StringComparer.OrdinalIgnoreCase);
     private readonly SortedSet<string> _companySeen = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _levelsSeen = new(KnownLevels, StringComparer.OrdinalIgnoreCase);
     // Stable snapshots for the header combos; only rebuilt when a new value appears
     // so the dropdown's selection isn't disturbed on every tail refresh.
     private List<string> _envList = new();
     private List<string> _companyList = new();
+    private List<string> _levelList = OrderBySeverity(KnownLevels);
     private List<string> _recentFiles = new();
     private bool _starting;     // guards against a second Start while a slow path is being opened
+
+    // What the grid renders: the buffer with the display filters applied, rebuilt only when the
+    // buffer or one of those filters actually changes.
+    private List<LogEntry> _snapshot = new();
 
     // With auto-scroll off the grid renders this frozen copy of the buffer instead of _matched, so the
     // row being read doesn't move. Column filters still apply to it; the tail keeps buffering behind.
@@ -216,11 +233,11 @@
     protected override void OnInitialized()
     {
         // Seed the default path only the first time (so a user-edited path survives navigation).
+        // The folder itself, not a made-up file name inside it: this used to append a hardcoded
+        // "all_2026-06-30.log", so the first Start always failed on a file that never existed.
+        // Browse opens the folder and the newest .log in it is listed first.
         if (string.IsNullOrEmpty(State.LivePath))
-        {
-            var def = Config["LogAnalyzer:DefaultLogFolder"];
-            if (!string.IsNullOrEmpty(def)) State.LivePath = def!.TrimEnd('\\', '/') + "\\all_2026-06-30.log";
-        }
+            State.LivePath = Config["LogAnalyzer:DefaultLogFolder"];
         // The buffer is per-page, so a fresh page has nothing to hold still: follow the tail again
         // even if auto-scroll was off when the user navigated away.
         State.LiveAutoScroll = true;
@@ -238,8 +255,16 @@
         {
             while (await timer.WaitForNextTickAsync(ct))
             {
-                if (Interlocked.Exchange(ref _dirty, 0) == 1)
-                    await InvokeAsync(StateHasChanged);
+                if (Interlocked.Exchange(ref _dirty, 0) != 1) continue;
+
+                // The snapshot is only rebuilt when the buffer moved — a status change on its own
+                // (last-activity time, an error) just redraws.
+                var rebuild = Interlocked.Exchange(ref _bufferDirty, 0) == 1;
+                await InvokeAsync(() =>
+                {
+                    if (rebuild) RebuildSnapshot();
+                    StateHasChanged();
+                });
             }
         }
         catch (OperationCanceledException)
@@ -263,10 +288,11 @@
     private void OnEntries(IReadOnlyList<LogEntry> entries)
     {
         // Only the free-text filter gates the buffer; Level/Environment/logger are applied at
-        // display time (Snapshot) so changing a column filter re-filters already-buffered rows.
+        // display time (RebuildSnapshot) so changing a column filter re-filters buffered rows.
         var text = State.LiveText;
         var envChanged = false;
         var companyChanged = false;
+        var levelChanged = false;
         lock (_gate)
         {
             foreach (var e in entries)
@@ -281,6 +307,8 @@
                     envChanged |= _envSeen.Add(e.Environment);
                 if (!string.IsNullOrEmpty(e.Company) && _companySeen.Count < MaxDistinctValues)
                     companyChanged |= _companySeen.Add(e.Company);
+                if (!string.IsNullOrEmpty(e.Level) && _levelsSeen.Count < MaxDistinctValues)
+                    levelChanged |= _levelsSeen.Add(e.Level);
 
                 if (!string.IsNullOrWhiteSpace(text) && e.Message.IndexOf(text, StringComparison.OrdinalIgnoreCase) < 0)
                     continue;
@@ -291,17 +319,24 @@
             }
             if (envChanged) _envList = _envSeen.ToList();
             if (companyChanged) _companyList = _companySeen.ToList();
+            if (levelChanged) _levelList = OrderBySeverity(_levelsSeen);
         }
+
+        Interlocked.Exchange(ref _bufferDirty, 1);
         Interlocked.Exchange(ref _dirty, 1);
     }
 
-    // Display-time filter: level combo + environment combo + logger tree prefix.
-    private List<LogEntry> Snapshot()
+    /// <summary>
+    /// Rebuilds what the grid shows: the buffer (or the frozen copy) narrowed by the level and
+    /// environment combos, the company combo and the logger tree. Always called on the renderer.
+    /// </summary>
+    private void RebuildSnapshot()
     {
-        var levels = State.LiveLevels as ICollection<string> ?? State.LiveLevels.ToList();
-        var envs = State.LiveEnvironments as ICollection<string> ?? State.LiveEnvironments.ToList();
-        var companies = State.LiveCompanies as ICollection<string> ?? State.LiveCompanies.ToList();
+        var levels = AsCollection(State.LiveLevels);
+        var envs = AsCollection(State.LiveEnvironments);
+        var companies = AsCollection(State.LiveCompanies);
         var loggerPrefix = State.LiveLoggerPrefix;
+
         lock (_gate)
         {
             IEnumerable<LogEntry> q = _frozen ?? (IEnumerable<LogEntry>)_matched;
@@ -309,17 +344,38 @@
             if (envs.Count > 0) q = q.Where(e => e.Environment != null && envs.Contains(e.Environment));
             if (companies.Count > 0) q = q.Where(e => e.Company != null && companies.Contains(e.Company));
             if (!string.IsNullOrEmpty(loggerPrefix)) q = q.Where(e => LogFilter.MatchesPrefix(e.Logger, loggerPrefix));
-            return q.ToList();
+            _snapshot = q.ToList();
         }
     }
 
-    private void OnDisplayFilterChanged() => StateHasChanged();
+    private static ICollection<string> AsCollection(IEnumerable<string> values) =>
+        values as ICollection<string> ?? values.ToList();
+
+    /// <summary>ERROR first, then WARN / INFO / DEBUG, then anything unrecognised.</summary>
+    private static List<string> OrderBySeverity(IEnumerable<string> levels) =>
+        levels.OrderBy(Rank).ThenBy(l => l, StringComparer.OrdinalIgnoreCase).ToList();
+
+    private static int Rank(string level) => LogLevels.Series(level) switch
+    {
+        LogLevels.Error => 0,
+        LogLevels.Warn => 1,
+        LogLevels.Info => 2,
+        LogLevels.Debug => 3,
+        _ => 4,
+    };
+
+    private void OnDisplayFilterChanged()
+    {
+        RebuildSnapshot();
+        StateHasChanged();
+    }
 
     /// <summary>Freezes the buffer as it is now, or releases it and catches up with the tail.</summary>
     private void OnAutoScrollChanged()
     {
         lock (_gate) _frozen = State.LiveAutoScroll ? null : _matched.ToList();
         _pending = 0;
+        RebuildSnapshot();
     }
 
     private void ResumeAutoScroll()
@@ -339,17 +395,16 @@
         return string.IsNullOrWhiteSpace(State.LiveText) ? file : $"{file} · text \"{State.LiveText}\"";
     }
 
-    // Export the currently filtered snapshot (CSV by default; .log = original JSON lines).
+    // Export the currently displayed snapshot (CSV by default; .log = original JSON lines).
     private async Task OnDownload(RadzenSplitButtonItem? item)
     {
-        var rows = Snapshot();
+        var rows = _snapshot;
         if (rows.Count == 0) return;
         var json = item?.Value == "json";
         var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         var name = json ? $"live-logs-{stamp}.log" : $"live-logs-{stamp}.csv";
-        var bytes = json ? LogExport.ToJsonLines(rows) : LogExport.ToCsv(rows);
 
-        using var stream = new MemoryStream(bytes);
+        await using var stream = await LogExport.OpenExportAsync(rows, json);
         using var streamRef = new DotNetStreamReference(stream);
         await JS.InvokeVoidAsync("downloadFileFromStream", name, streamRef);
     }
@@ -367,7 +422,7 @@
     private void OnLoggerSelected(string? prefix)
     {
         State.LiveLoggerPrefix = prefix;
-        StateHasChanged();
+        OnDisplayFilterChanged();
     }
 
     // File picker, so the path never has to be typed. It browses the machine that reads the logs,
@@ -401,7 +456,9 @@
         _starting = true;
         try
         {
-            await Task.Run(() => Watcher.Start(path, State.LiveFromStart));
+            // StartAsync does its own blocking probe on a worker thread, and waits for any previous
+            // poll loop to finish before touching the shared read position.
+            await Watcher.StartAsync(path, State.LiveFromStart);
         }
         finally
         {
@@ -413,7 +470,7 @@
             _recentFiles = await History.AddAsync(PathHistory.LiveFileKey, path);
     }
 
-    private void Stop() => Watcher.Stop();
+    private Task Stop() => Watcher.StopAsync();
 
     private void Clear()
     {
@@ -424,6 +481,7 @@
             if (_frozen is not null) _frozen = new List<LogEntry>();
         }
         _pending = 0;
+        RebuildSnapshot();
     }
 
     // Raised from the poll thread: flag it and let the refresh loop pick it up.

@@ -59,19 +59,4 @@ public sealed class LogFilter
         if (!logger.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return false;
         return logger.Length == prefix.Length || logger[prefix.Length] == '.';
     }
-
-    public LogFilter Clone()
-    {
-        var c = new LogFilter
-        {
-            Text = Text,
-            Logger = Logger,
-            LoggerPrefix = LoggerPrefix,
-            Environment = Environment,
-            From = From,
-            To = To
-        };
-        foreach (var l in Levels) c.Levels.Add(l);
-        return c;
-    }
 }

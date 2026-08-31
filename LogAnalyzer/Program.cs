@@ -12,8 +12,16 @@ builder.Services.AddRazorComponents()
 builder.Services.AddRadzenComponents();
 
 // Log-analysis services. LogStore holds the loaded dataset; LogWatcher tails a live file.
-builder.Services.AddSingleton<LogStore>();
-builder.Services.AddSingleton<LogWatcher>();
+//
+// Scoped, not singleton: in this host a scope is one user's SignalR circuit. As singletons, every
+// visitor shared one dataset and one tail — whoever loaded a folder showed their logs to everybody
+// else on the server, the "include DEBUG" checkbox was global, and either user could stop the
+// other's watch. Scoped still outlives page navigation, which is all the pages rely on.
+//
+// NOTE: this host has no authentication, and both the file browser and the watcher will read any
+// path the machine can reach. Bind it to localhost, or put it behind auth before exposing it.
+builder.Services.AddScoped<LogStore>();
+builder.Services.AddScoped<LogWatcher>();
 // Per-circuit UI state so filters persist across page navigation.
 builder.Services.AddScoped<SessionState>();
 // Recently used paths, persisted in the browser's localStorage.

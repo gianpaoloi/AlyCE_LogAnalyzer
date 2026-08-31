@@ -3,6 +3,7 @@
 @inject DialogService DialogService
 @inject SessionState State
 @inject IJSRuntime JS
+@inherits ObservingComponentBase
 @implements IDisposable
 
 <PageTitle>Explorer · AlyCE Log Analyzer</PageTitle>
@@ -143,7 +144,7 @@ else
 
     protected override void OnInitialized()
     {
-        Store.Changed += OnChanged;
+        Store.DatasetChanged += OnChanged;
         if (Store.IsLoaded) { RefreshDistincts(); Apply(); }
     }
 
@@ -221,9 +222,10 @@ else
         var json = item?.Value == "json";
         var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         var name = json ? $"explorer-logs-{stamp}.log" : $"explorer-logs-{stamp}.csv";
-        var bytes = json ? LogExport.ToJsonLines(_filtered) : LogExport.ToCsv(_filtered);
 
-        using var stream = new MemoryStream(bytes);
+        // Written to a self-deleting temp file rather than built up in memory: a large filtered set
+        // used to exist as a StringBuilder, a string and a byte array all at once.
+        await using var stream = await LogExport.OpenExportAsync(_filtered, json);
         using var streamRef = new DotNetStreamReference(stream);
         await JS.InvokeVoidAsync("downloadFileFromStream", name, streamRef);
     }
@@ -236,6 +238,6 @@ else
             new DialogOptions { Width = "900px", Height = "auto", Resizable = true, Draggable = true });
     }
 
-    private async void OnChanged() => await InvokeAsync(() => { RefreshDistincts(); Apply(); StateHasChanged(); });
-    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => RequestRefresh(() => { RefreshDistincts(); Apply(); });
+    public void Dispose() => Store.DatasetChanged -= OnChanged;
 }

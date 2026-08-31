@@ -26,7 +26,7 @@ A Windows desktop application for parsing, browsing, and filtering structured lo
 
 ---
 
-## Install via winget
+## Install via winget (WIP)
 
 ```
 winget install TeamSystem.AlyCELogAnalyzer
