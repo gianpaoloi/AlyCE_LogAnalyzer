@@ -120,8 +120,23 @@ release is collected under *Unreleased*.
   refresh slower — capped at 500 values and 2 000 loggers, with known values still counting.
   *(working tree, not yet committed)*
 
+### Removed
+
+- **The Dashboard page.** Its two charts moved to Overview, which already carried the other half of the same
+  information — the *By level* pie and *Top loggers* breakdowns were on both pages, so the two were mostly a
+  split view of one dataset summary. `/dashboard` no longer resolves. *(working tree, not yet committed)*
+
 ### Changed
 
+- **Overview now carries the whole dataset summary**: the totals and time span it already had, plus the log
+  volume per time bucket stacked by level and the errors & warnings chart from the Dashboard, then the level /
+  environment / logger breakdowns. Both timeline charts label their own bucket size, which adapts to the span.
+  The bucket grouping moved out of the page into `TimelineView.Downsample` so it could be tested.
+  *(working tree, not yet committed)*
+- **The volume timeline no longer undercounts.** `TimeBucket` gained an *other* series, so levels outside
+  DEBUG/INFO/WARN/ERROR — TRACE, a custom level, or a line with no `level` field at all, which the parser
+  stores as `UNKNOWN` — are counted instead of silently dropped. The bars now add up to the entry total, and
+  the series only appears when such entries exist. *(working tree, not yet committed)*
 - **Loads are about twice as fast** (measured: 1 454 ms → 709 ms for 480 000 entries across 12 files,
   159 MB). Files are parsed on all cores with a parser each, lines are read as UTF-8 bytes rather than a
   string each, and each line goes through one `Utf8JsonReader` pass instead of a `JsonDocument` plus nine

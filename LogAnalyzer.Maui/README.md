@@ -36,7 +36,7 @@ The runtime installs **per-user without admin rights**, which matches this per-u
 
 Identical feature set to the server app:
 
-- **Overview / Dashboard / Explorer / Triage / Live watch** pages.
+- **Overview / Explorer / Triage / Live watch** pages.
 - Load logs from a **folder / UNC path**, or by dropping / picking `.log` files or a ZIP of them. The load
   panel **collapses** into a one-line summary via its *Load files* header, on every page that shows it;
   Live watch's *Watch settings* card collapses the same way.
@@ -63,7 +63,7 @@ Models, services and every page/component now live in **`LogAnalyzer.Core`** and
 - **`Models/`** — `LogEntry`, `LogFilter`, `LogColumns`, `Stats`, `TimeRange`.
 - **`Services/`** — `LogParser`, `LogStore`, `LogWatcher`, `LogExport`, `MessageNormalizer`,
   `SessionState`, `PathHistory`, `ChartColors`.
-- **`Components/Pages/`** — `Home` (Overview), `Dashboard`, `Explorer`, `Triage`, `Live`, `QuickStart`.
+- **`Components/Pages/`** — `Home` (Overview), `Explorer`, `Triage`, `Live`, `QuickStart`.
 - **`Components/Shared/`** — `LoadPanel` (collapsible header), `LoadProgress` (spinner + load phase),
   `LogVolumeChart`, `LevelBadge`, `LogDetail`, `LoggerTree`.
 - **`Components/Layout/`** — `MainLayout` (+ collapsible sidebar CSS), `NavMenu`.

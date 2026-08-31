@@ -36,6 +36,49 @@ else
         }
     </RadzenCard>
 
+    <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+        <RadzenText TextStyle="TextStyle.H6">Log volume @_bucketLabel (stacked by level)</RadzenText>
+        @if (_hours.Count == 0)
+        {
+            <RadzenText class="rz-color-muted">No timestamped entries.</RadzenText>
+        }
+        else
+        {
+            <RadzenChart>
+                <RadzenStackedColumnSeries Data="@_hours" CategoryProperty="Label" ValueProperty="Debug" Title="Debug" Fill="@ChartColors.Level("DEBUG")" />
+                <RadzenStackedColumnSeries Data="@_hours" CategoryProperty="Label" ValueProperty="Info" Title="Info" Fill="@ChartColors.Level("INFO")" />
+                <RadzenStackedColumnSeries Data="@_hours" CategoryProperty="Label" ValueProperty="Warn" Title="Warn" Fill="@ChartColors.Level("WARN")" />
+                <RadzenStackedColumnSeries Data="@_hours" CategoryProperty="Label" ValueProperty="Error" Title="Error" Fill="@ChartColors.Level("ERROR")" />
+                @if (_hasOther)
+                {
+                    <RadzenStackedColumnSeries Data="@_hours" CategoryProperty="Label" ValueProperty="Other" Title="Other" Fill="@ChartColors.Level("OTHER")" />
+                }
+                <RadzenCategoryAxis Padding="10" />
+                <RadzenValueAxis><RadzenAxisTitle Text="entries" /></RadzenValueAxis>
+                <RadzenLegend Position="LegendPosition.Bottom" />
+            </RadzenChart>
+        }
+    </RadzenCard>
+
+    <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+        <RadzenText TextStyle="TextStyle.H6">Errors &amp; warnings @_bucketLabel</RadzenText>
+        @if (_problemHours.Count == 0)
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Success" Variant="Variant.Flat" Shade="Shade.Lighter" AllowClose="false">
+                No errors or warnings in range 🎉
+            </RadzenAlert>
+        }
+        else
+        {
+            <RadzenChart>
+                <RadzenColumnSeries Data="@_problemHours" CategoryProperty="Label" ValueProperty="Warn" Title="Warn" Fill="@ChartColors.Level("WARN")" />
+                <RadzenColumnSeries Data="@_problemHours" CategoryProperty="Label" ValueProperty="Error" Title="Error" Fill="@ChartColors.Level("ERROR")" />
+                <RadzenCategoryAxis Padding="10" />
+                <RadzenLegend Position="LegendPosition.Bottom" />
+            </RadzenChart>
+        }
+    </RadzenCard>
+
     <RadzenRow Gap="1rem">
         <RadzenColumn Size="12" SizeMD="6">
             <RadzenCard Variant="Variant.Outlined">
@@ -67,6 +110,21 @@ else
 @code {
     private record ChartPoint(string Label, double Value);
 
+    private record HourRow(string Label, int Debug, int Info, int Warn, int Error, int Other)
+    {
+        public int Problem => Warn + Error;
+    }
+
+    /// <summary>
+    /// Most columns to hand a chart; past this <see cref="TimelineView.Downsample"/> groups whole
+    /// hours together. The Explorer's volume chart does the same thing with its own adaptive step.
+    /// </summary>
+    private const int MaxBars = 180;
+
+    private List<HourRow> _hours = new();
+    private List<HourRow> _problemHours = new();
+    private string _bucketLabel = "per hour";
+    private bool _hasOther;
     private List<ChartPoint> _levelData = new();
     private string[] _levelColors = Array.Empty<string>();
     private List<ChartPoint> _envData = new();
@@ -85,6 +143,8 @@ else
     private void Build()
     {
         var s = Store.Stats!;
+        BuildTimeline(s.Timeline);
+
         var levels = s.ByLevel.OrderByDescending(kv => kv.Value).ToList();
         _levelData = levels.Select(kv => new ChartPoint(kv.Key, kv.Value)).ToList();
         _levelColors = levels.Select(kv => ChartColors.Level(kv.Key)).ToArray();
@@ -92,6 +152,21 @@ else
             .Select(kv => new ChartPoint(kv.Key, kv.Value)).ToList();
         _loggerData = s.ByLogger.OrderByDescending(kv => kv.Value).Take(15)
             .Select(kv => new ChartPoint(kv.Key, kv.Value)).ToList();
+    }
+
+    private void BuildTimeline(List<TimeBucket> timeline)
+    {
+        var view = TimelineView.Downsample(timeline, MaxBars);
+        _bucketLabel = view.Describe();
+
+        _hours = view.Buckets
+            .Select(b => new HourRow(view.Label(b), b.Debug, b.Info, b.Warn, b.Error, b.Other))
+            .ToList();
+
+        // Precomputed rather than filtered in the markup, so it isn't redone on every render.
+        _problemHours = _hours.Where(h => h.Problem > 0).ToList();
+        // The series is only worth a legend entry when the log has levels outside the four.
+        _hasOther = _hours.Any(h => h.Other > 0);
     }
 
     private RenderFragment StatCard(string label, int value, string? cssClass) => __builder =>

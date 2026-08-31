@@ -15,8 +15,8 @@ Then open the URL printed in the console (e.g. `http://localhost:5134`).
 
 ## Loading logs
 
-There are two ways to load a dataset (from the panel at the top of the Overview / Dashboard / Explorer /
-Triage pages):
+There are two ways to load a dataset (from the panel at the top of the Overview / Explorer / Triage
+pages):
 
 - **Folder** – type a local or UNC path and click **Load** / **Reload**. The default folder is set in
   `appsettings.json` → `LogAnalyzer:DefaultLogFolder`. The box is a `RadzenAutoComplete` that **suggests
@@ -137,8 +137,7 @@ watcher's existence check. The button reads *Opening…* and is disabled while t
 
 | Page | What it does |
 |------|--------------|
-| **Overview** | Load a folder / ZIP; totals (entries, files, environments, loggers, errors, warnings), time span, and breakdown charts by level / environment / logger. |
-| **Dashboard** | Log volume per hour stacked by level (SVG), errors & warnings per hour, level and logger breakdowns. |
+| **Overview** | Load a folder / ZIP; totals (entries, files, environments, loggers, errors, warnings), time span, log volume per time bucket stacked by level, errors & warnings per bucket, and breakdown charts by level / environment / logger. |
 | **Explorer** | Searchable, paginated grid, topped by a **log volume time series** of the filtered set that doubles as a filter (drag a time window, click a level in the legend). Per-column combo filters, resizable columns, a hidable logger tree, column picker, and download of the filtered set. Click a row for full detail incl. formatted stack trace. |
 | **Triage** | Clusters similar ERROR/WARN messages into issue groups (guids/numbers/durations/quoted values masked), ordered by frequency, with first/last-seen, affected environments and a sample stack trace. |
 | **Live watch** | Tails a single file on a local or remote **UNC** path (`\\server\share\...`) — picked with **Browse…** or typed — and shows new matching lines in real time, with the same column filters, tree, column picker, download and click-a-row detail. Its **Watch settings** card collapses like the load panel. |
@@ -168,7 +167,7 @@ Above the grid, `LogVolumeChart` draws a Grafana-style volume time series of the
 so it narrows down with every search, level pick or logger-tree click.
 
 - **Stacked bars per time bucket** – debug / info / warn / error bottom-to-top, using the same
-  `ChartColors.Level` palette as the badges and dashboard. Levels outside the known set (the parser stores
+  `ChartColors.Level` palette as the badges and the overview charts. Levels outside the known set (the parser stores
   `UNKNOWN` when the field is missing) land in an **other** series, so the bars always add up to the row count.
 - **Automatic bucket size** – picked from a round-step ladder (1 s → 30 d) so the chart stays under ~180 bars
   whatever the time span; the chosen step is shown in the header (*"1h per bar"*). Empty buckets are kept, so
@@ -240,7 +239,7 @@ server app and `LogAnalyzer.Maui` reference. This project only holds the web hos
               LogExport (CSV / JSON-lines), SessionState (per-circuit UI state),
               PathHistory (recent paths in localStorage), ChartColors
   Components/
-    Pages/    Home(Overview), Dashboard, Explorer, Triage, Live, QuickStart, NotFound
+    Pages/    Home(Overview), Explorer, Triage, Live, QuickStart, NotFound
     Shared/   LoadPanel (collapsible header), LoadProgress (spinner + phase), LogVolumeChart,
               LevelBadge, LoggerTree, LogDetail
     Layout/   MainLayout (collapsible sidebar), NavMenu

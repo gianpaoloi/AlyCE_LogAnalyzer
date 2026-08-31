@@ -681,6 +681,7 @@ public sealed class LogStore
                     case LogLevels.Info: b.Info++; break;
                     case LogLevels.Warn: b.Warn++; break;
                     case LogLevels.Error: b.Error++; break;
+                    default: b.Other++; break;
                 }
             }
         }

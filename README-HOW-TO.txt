@@ -65,8 +65,8 @@ HOW TO USE
    - Click the 'Load files' header to collapse the panel once you are done
 
 2. VIEWING LOGS:
+   - Overview: Summary statistics, volume over time, and breakdown charts
    - Explorer tab: Browse all logs with advanced filtering
-   - Dashboard: View summary statistics and charts
    - Live: Monitor a single log file in real-time
      (collapse the 'Watch settings' header to free up space)
    - Triage: Manage and categorize log entries

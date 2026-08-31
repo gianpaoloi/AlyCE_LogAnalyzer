@@ -52,6 +52,36 @@ public class LogStoreTests : IDisposable
         Assert.Equal(2, store.Stats.Timeline.Count);           // two distinct hours
     }
 
+    /// <summary>
+    /// The timeline buckets have to account for every timestamped entry, or the volume chart on the
+    /// overview silently plots fewer entries than the dataset contains.
+    /// </summary>
+    [Fact]
+    public async Task Timeline_buckets_account_for_levels_outside_the_known_four()
+    {
+        WriteLog("a.log",
+            Line("2026-07-08 10:00:00.0000", "INFO", "info"),
+            Line("2026-07-08 10:00:01.0000", "ERROR", "error"),
+            Line("2026-07-08 10:00:02.0000", "WARN", "warn"),
+            Line("2026-07-08 10:00:03.0000", "DEBUG", "debug"),
+            Line("2026-07-08 10:00:04.0000", "TRACE", "trace"),
+            Line("2026-07-08 10:00:05.0000", "FATAL", "fatal"),
+            // No level field at all: the parser calls it UNKNOWN.
+            """{ "time": "2026-07-08 10:00:06.0000", "message": "levelless", "logger": "A.B" }""");
+
+        var store = new LogStore();
+        await store.LoadAsync(_dir, includeDebug: true, CancellationToken.None);
+
+        var bucket = Assert.Single(store.Stats!.Timeline);
+        Assert.Equal(7, store.Stats.TotalEntries);
+        Assert.Equal(store.Stats.TotalEntries, bucket.Total);
+        Assert.Equal(1, bucket.Info);
+        Assert.Equal(1, bucket.Debug);
+        Assert.Equal(1, bucket.Warn);
+        Assert.Equal(2, bucket.Error);      // ERROR + FATAL
+        Assert.Equal(2, bucket.Other);      // TRACE + the line with no level
+    }
+
     [Fact]
     public async Task Skips_debug_unless_asked_for()
     {
