@@ -128,6 +128,11 @@ release is collected under *Unreleased*.
 
 ### Changed
 
+- **The load panel folds itself away once a load succeeds**, on every page that shows it, so the results get
+  the screen straight after loading. The folded header still reports the entries, files and source path. It
+  unfolds again if a load fails or the dataset is cleared, since the error alert and the load controls are both
+  inside the folded part. Driven by the store, so a file dropped onto the desktop window — which bypasses the
+  panel — collapses it too. *(working tree, not yet committed)*
 - **Overview now carries the whole dataset summary**: the totals and time span it already had, plus the log
   volume per time bucket stacked by level and the errors & warnings chart from the Dashboard, then the level /
   environment / logger breakdowns. Both timeline charts label their own bucket size, which adapts to the span.

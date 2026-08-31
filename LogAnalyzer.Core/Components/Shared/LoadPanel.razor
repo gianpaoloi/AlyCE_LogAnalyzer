@@ -224,7 +224,25 @@
         _dropError = "Only .zip and .log files are supported.";
     }
 
-    private void OnChanged() => RequestRefresh();
+    private void OnChanged() => RequestRefresh(ApplyAutoCollapse);
+
+    /// <summary>
+    /// Folds the panel away once a load has succeeded: its job is done, and the folded header still
+    /// reports what was loaded. Unfolds it again when a load fails or the dataset is cleared —
+    /// the error alert and the load controls both live inside the folded part, so leaving it shut
+    /// would hide the very thing the user needs to see next.
+    /// <para>
+    /// Driven by the store's event rather than by the load buttons here, so a file dropped onto the
+    /// desktop window — which bypasses this panel entirely — collapses it too.
+    /// </para>
+    /// </summary>
+    private void ApplyAutoCollapse()
+    {
+        // Mid-load the panel stays as the user left it; progress shows either way.
+        if (Store.IsLoading) return;
+
+        State.LoadPanelCollapsed = Store.IsLoaded && string.IsNullOrEmpty(Store.LoadError);
+    }
 
     public void Dispose()
     {
