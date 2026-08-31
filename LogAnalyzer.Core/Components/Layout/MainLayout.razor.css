@@ -102,7 +102,9 @@ main {
     }
 
     .sidebar {
-        width: 250px;
+        /* Narrow rail: the four labels are short, so the space is better given to the content.
+           NavMenu.razor.css trims the brand and the nav-item padding to match. */
+        width: 190px;
         height: 100vh;
         position: sticky;
         top: 0;

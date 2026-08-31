@@ -21,8 +21,16 @@
     border-bottom: 1px solid rgba(255,255,255,.1);
 }
 
+/* Bootstrap's container-fluid adds .75rem either side; the sidebar is too narrow to spare it. */
+.top-row .container-fluid {
+    padding-left: .75rem;
+    padding-right: .5rem;
+}
+
 .navbar-brand {
-    font-size: 1.1rem;
+    /* Small enough that "AlyCE Log Analyzer" still fits on one line in the narrow rail —
+       .sidebar has overflow: hidden, so anything wider is silently clipped. */
+    font-size: 1rem;
     font-weight: 700;
     letter-spacing: .3px;
     background: linear-gradient(135deg, #a689f7, #21d4fd);
@@ -36,7 +44,7 @@
 .nav-icon {
     display: inline-flex;
     align-items: center;
-    margin-right: 0.75rem;
+    margin-right: 0.5rem;
 }
 
     /* The Radzen stylesheet pins .rzi to 1.5rem with literal values rather than the
@@ -50,7 +58,8 @@
 
 .nav-item {
     font-size: 0.9rem;
-    padding-bottom: 0.5rem;
+    /* Replaces the Bootstrap px-3 the markup used to carry — half the horizontal inset. */
+    padding: 0 0.5rem 0.5rem 0.5rem;
 }
 
     .nav-item:first-of-type {
@@ -67,6 +76,9 @@
         border: none;
         border-radius: 8px;
         border-left: 3px solid transparent;
+        /* Bootstrap's .nav-link ships 1rem either side; halved to match the narrower rail. */
+        padding-left: .5rem;
+        padding-right: .5rem;
         height: 3rem;
         display: flex;
         align-items: center;
@@ -93,7 +105,7 @@
     align-items: center;
     gap: .5rem;
     width: 100%;
-    padding: .6rem 1rem;
+    padding: .6rem .75rem;
     background: none;
     border: none;
     border-top: 1px solid rgba(255,255,255,.08);
