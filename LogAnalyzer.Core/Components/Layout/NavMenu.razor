@@ -1,3 +1,6 @@
+@inject IJSRuntime JS
+@inject NotificationService Notifications
+
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">AlyCE Log Analyzer</a>
@@ -29,4 +32,43 @@
             </NavLink>
         </div>
     </nav>
+
+    @* Pinned to the bottom of the sidebar so the running version is always on screen — it is the
+       first thing a bug report needs, and it is read from the assembly, so it cannot go stale. *@
+    <button type="button" class="nav-version" @onclick="CopyVersion" title="@Tooltip">
+        @* Parenthesised on purpose: bare "v@AppVersion.Display" looks like an email address to the
+           Razor parser, which then emits it as literal text. *@
+        <span class="nav-version-text">v@(AppVersion.Display)</span>
+        <span class="nav-version-copy" aria-hidden="true">&#x29C9;</span>
+    </button>
 </div>
+
+@code {
+    private static string Tooltip =>
+        AppVersion.Commit is null
+            ? $"Version {AppVersion.Display} — click to copy"
+            : $"Version {AppVersion.Display} (commit {AppVersion.ShortCommit}) — click to copy";
+
+    private async Task CopyVersion()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("copyTextToClipboard", AppVersion.Full);
+            Notify(NotificationSeverity.Success, "Copied", AppVersion.Full);
+        }
+        catch
+        {
+            // No clipboard (policy, or a non-secure context): show the value so it can be read off.
+            Notify(NotificationSeverity.Info, "Version", AppVersion.Full);
+        }
+    }
+
+    private void Notify(NotificationSeverity severity, string summary, string detail) =>
+        Notifications.Notify(new NotificationMessage
+        {
+            Severity = severity,
+            Summary = summary,
+            Detail = detail,
+            Duration = 4000,
+        });
+}

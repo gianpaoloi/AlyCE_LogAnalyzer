@@ -1,5 +1,5 @@
-AlyCE Log Analyzer - v1.0
-=========================
+AlyCE Log Analyzer
+==================
 
 QUICK START
 -----------
@@ -124,8 +124,10 @@ Slow performance:
 
 VERSION
 -------
-Version: 1.0
-Build Date: 2026-07-16 15:58:28
+The version you are running is shown at the bottom of the navigation sidebar.
+Click it to copy the exact version and commit - please include that in any
+bug report.
+
 Target Platform: Windows x64
 
 For issues or feature requests, please contact the development team.

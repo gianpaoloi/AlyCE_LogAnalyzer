@@ -120,36 +120,124 @@ dotnet publish LogAnalyzer.Maui/LogAnalyzer.Maui.csproj `
 
 ---
 
+## Versioning
+
+**The git tag is the only place a release version is written.** There is no version number to bump
+in a file — pushing `v1.2.3` is what makes the release `1.2.3`.
+
+From that one tag, the release workflow derives everything:
+
+| Where the version ends up | How | Automatic? |
+|---|---|---|
+| The running app (sidebar footer) | `-p:ApplicationDisplayVersion` → `AssemblyInformationalVersion` | ✅ |
+| Installer file name and Add/Remove Programs entry | `ISCC /DMyAppVersion` | ✅ |
+| Portable ZIP file name and its `README.txt` | `create-portable-zip.ps1 -Version` | ✅ |
+| Release title, notes and SHA256 list | workflow | ✅ |
+| `winget/manifests/*.yaml` (`PackageVersion`) | — | ❌ **manual**, see step 4 below |
+
+### Which version am I running?
+
+Look at the bottom of the navigation sidebar — it shows `v1.2.3`. Click it to copy the full version
+including the commit (`1.2.3+fe12a13c…`), which is what to paste into a bug report.
+
+That value is read from the assembly at runtime, so it cannot go stale. A **local development build**
+has no tag to take a version from and will show `1.0.x` (the `ApplicationDisplayVersion` default in
+`LogAnalyzer.Maui.csproj`) with the commit you built from — which is exactly how you can tell a dev
+build from a released one.
+
+### Version numbers
+
+Tags are `v<major>.<minor>.<patch>`, matching the workflow trigger `v*.*.*` — the leading `v` is
+stripped for the version itself.
+
+Note that `*` matches any character except `/`, so the trigger is looser than it looks: the trailing
+`*` absorbs a suffix, and `v1.3.0-rc1` therefore **does** start a release. A tag whose version
+contains a `-` is published as a GitHub *prerelease*; anything else is a full release.
+
+| Tag | Result |
+|---|---|
+| `v1.2.3` | Release `1.2.3` |
+| `v1.3.0-rc1` | **Pre**release `1.3.0-rc1` |
+| `v1.2` | Ignored — needs all three parts |
+| `release-1.2.3` | Ignored — needs the `v` prefix |
+
+---
+
 ## Publishing a New Release
 
-1. Merge the work into `main`, then tag the merge commit and push the tag — the CI workflow
-   ([`.github/workflows/release.yml`](.github/workflows/release.yml)) does the rest:
-   ```
-   git checkout main && git pull
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-   > The workflow **refuses to release a tag that is not an ancestor of `main`**. A tag trigger fires
-   > wherever the tag was placed, so without that check a version tag pushed from a feature branch
-   > would publish a release built from unmerged code.
+### 1. Get the code onto `main`
 
-2. GitHub Actions runs the unit tests, publishes the app **once**, and packages that single output
-   two ways — so the installer and the ZIP can never contain different binaries. It then creates a
-   GitHub Release with:
-   - `AlyCE-LogAnalyzer-Setup-{version}.exe` — the installer
-   - `AlyCE-LogAnalyzer-{version}-win-x64.zip` — the portable/redistributable package
-   - SHA256 for both (the installer's is the one the winget manifest needs)
+```bash
+git checkout main
+git pull
+```
 
-   The tests are a gate: if they fail, nothing is published. Both artifacts are also uploaded as
-   workflow artifacts (14-day retention), so they survive a failure in the release step itself.
+Everything you want in the release must be merged. The workflow **refuses to release a tag that is
+not an ancestor of `main`** — a tag trigger fires wherever the tag was placed, so without that check
+a version tag pushed from a feature branch would publish a release built from unmerged code.
 
-3. Update `winget/manifests/` with the `{{INSTALLER_URL}}` and `{{SHA256}}` from the Release notes.
+Before tagging, it is worth running the gate locally so you don't discover a failure after the tag
+exists:
 
-4. Submit to winget:
-   - Fork [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs)
-   - Copy the three files from `winget/manifests/` to:  
-     `manifests/t/TeamSystem/AlyCELogAnalyzer/1.0.0/`
-   - Open a Pull Request — the winget bot validates automatically
+```bash
+dotnet test LogAnalyzer.Tests/LogAnalyzer.Tests.csproj
+```
+
+Move anything still under *Unreleased* in [`CHANGELOG.md`](CHANGELOG.md) into a section for the new
+version, and commit that.
+
+### 2. Tag and push
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+Pushing the **tag** is what starts the release. Pushing to `main` does not.
+
+### 3. Watch the workflow
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) then, in order:
+
+1. checks the tag is on `main` — fails fast if not;
+2. runs the unit tests — **a failure here publishes nothing**;
+3. publishes the app **once**, self-contained win-x64;
+4. packages that single output twice — portable ZIP, then Inno Setup installer — so the two
+   downloads can never contain different binaries;
+5. hashes both and uploads them as workflow artifacts (14-day retention), so they survive a failure
+   in the release step itself;
+6. creates the GitHub Release with both files attached:
+   - `AlyCE-LogAnalyzer-Setup-1.2.3.exe` — the installer
+   - `AlyCE-LogAnalyzer-1.2.3-win-x64.zip` — the portable package
+
+   plus SHA256 for both in the release notes.
+
+Then install the result and check the sidebar reads `v1.2.3` — that confirms the tag reached the
+binary and not just the file names.
+
+### 4. Update winget (only step that isn't automatic)
+
+1. Take the installer URL and its **SHA256** from the release notes.
+2. Update `PackageVersion` and those two values in the three files under
+   [`winget/manifests/`](winget/manifests/) — all three must carry the same `PackageVersion`.
+3. Fork [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs), copy the three files to
+   `manifests/t/TeamSystem/AlyCELogAnalyzer/1.2.3/`, and open a Pull Request. The winget bot
+   validates automatically.
+
+### If something goes wrong
+
+A tag can be replaced, but a *published* release is visible to users — prefer a new patch version
+over rewriting one. To retry a tag that failed before anything was published:
+
+```bash
+git push --delete origin v1.2.3   # remove the remote tag
+git tag -d v1.2.3                 # and the local one
+# fix, commit to main, then tag again
+```
+
+To rehearse the whole thing, tag `v0.0.1-test` — it matches the trigger and, because the version
+carries a `-`, publishes as a **prerelease** rather than as the latest release. Delete the tag and
+the release afterwards.
 
 ---
 

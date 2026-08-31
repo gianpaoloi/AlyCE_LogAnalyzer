@@ -212,4 +212,7 @@ jobs:
             LogAnalyzer.Maui/dist/${{ steps.zip.outputs.ZIP_NAME }}
           fail_on_unmatched_files: true
           draft: false
-          prerelease: false
+          # 'v*.*.*' also matches a tag like v1.3.0-rc1 (the trailing * absorbs "0-rc1"), so mark
+          # anything carrying a SemVer prerelease suffix as a prerelease rather than shipping it as
+          # a full release.
+          prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}

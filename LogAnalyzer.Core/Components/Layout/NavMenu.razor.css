@@ -91,12 +91,53 @@
     color: #fff;
 }
 
+/* Version footer, pinned to the bottom of the sidebar by the flex column below. */
+.nav-version {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    width: 100%;
+    padding: .6rem 1rem;
+    background: none;
+    border: none;
+    border-top: 1px solid rgba(255,255,255,.08);
+    color: #6f7787;
+    font-size: .78rem;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: color .2s ease, background-color .2s ease;
+}
+
+    .nav-version:hover {
+        background-color: rgba(255,255,255,0.06);
+        color: #cbd2de;
+    }
+
+    .nav-version-text {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .nav-version-copy {
+        margin-left: auto;
+        opacity: 0;
+        transition: opacity .2s ease;
+    }
+
+    .nav-version:hover .nav-version-copy,
+    .nav-version:focus-visible .nav-version-copy {
+        opacity: 1;
+    }
+
 .nav-scrollable {
     display: none;
 }
 
+/* Flex column, so .nav-version's auto top margin pushes it to the bottom. */
 .navbar-toggler:checked ~ .nav-scrollable {
-    display: block;
+    display: flex;
+    flex-direction: column;
 }
 
 @media (min-width: 641px) {
@@ -106,7 +147,8 @@
 
     .nav-scrollable {
         /* Never collapse the sidebar for wide screens */
-        display: block;
+        display: flex;
+        flex-direction: column;
 
         /* Allow sidebar to scroll for tall menus */
         height: calc(100vh - 3.5rem);

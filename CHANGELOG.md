@@ -11,6 +11,11 @@ release is collected under *Unreleased*.
 
 ### Added
 
+- **The running version is shown at the bottom of the navigation sidebar**, always on screen. It reads
+  `AssemblyInformationalVersion` at runtime — which the SDK stamps with the version and, via SourceLink, the
+  exact commit — so it reports what is actually running and cannot go stale. Clicking it copies the full
+  `1.2.3+<commit>` string, which is what a bug report needs. New `Services/AppVersion.cs`.
+  *(working tree, not yet committed)*
 - **A portable (redistributable) ZIP is now built and published alongside the installer** on every version
   tag. `create-portable-zip.ps1` wraps the publish output as
   `AlyCE-LogAnalyzer-{version}-win-x64.zip`, containing one top-level folder with `Application/`, a
@@ -64,6 +69,14 @@ release is collected under *Unreleased*.
 
 ### Fixed
 
+- **Quick Start reported a version and build date that were typed by hand and weeks out of date.** The page
+  renders `README-HOW-TO.txt`, which stated `Version: 1.0 / Build Date: 2026-07-16` regardless of what was
+  actually running — so anyone quoting it in a bug report was quoting a fiction. That block is gone; the real
+  version comes from the assembly and is shown in the sidebar. *(working tree, not yet committed)*
+- **A prerelease tag published as a full release.** The workflow trigger `v*.*.*` is looser than it looks —
+  the trailing `*` matches any suffix, so `v1.3.0-rc1` starts a release — while `prerelease:` was hardcoded
+  to `false`. A version containing `-` is now published as a GitHub prerelease.
+  *(working tree, not yet committed)*
 - **Dropping a .log file could crash the Explorer with "collection was modified".** Appending mutated and
   re-sorted the very list a query was walking, from a thread-pool thread on the MAUI drop path. Loads now
   publish an immutable `LogDataset` and swap the reference, so a reader that has taken it can never see it
