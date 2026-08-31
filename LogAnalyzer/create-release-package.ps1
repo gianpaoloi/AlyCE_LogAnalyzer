@@ -20,7 +20,18 @@ $projectPath   = $scriptPath
 $projectFile   = Join-Path $projectPath "LogAnalyzer.csproj"
 $binPath       = Join-Path $projectPath "bin\Release"
 $objPath       = Join-Path $projectPath "obj\Release"
-$publishPath   = Join-Path $projectPath "bin\Release\net8.0\win-x64\publish"
+
+# Read the framework and version out of the csproj rather than hardcoding them: this script sat at
+# net8.0 through the .NET 10 migration, which is exactly the drift reading them avoids.
+$csproj = [xml](Get-Content -LiteralPath $projectFile)
+$targetFramework = @($csproj.Project.PropertyGroup.TargetFramework | Where-Object { $_ })[0]
+if (-not $targetFramework) {
+    throw "Could not read <TargetFramework> from $projectFile"
+}
+$version = @($csproj.Project.PropertyGroup.Version | Where-Object { $_ })[0]
+if (-not $version) { $version = "1.0.0" }   # the SDK default when <Version> is absent
+
+$publishPath   = Join-Path $projectPath "bin\Release\$targetFramework\win-x64\publish"
 
 if ([System.IO.Path]::IsPathRooted($PackageOutputPath)) {
     $packagePath = $PackageOutputPath
@@ -53,7 +64,7 @@ if (-not $SkipBuild) {
     Write-Host ""
     Write-Host "Building project in Release mode..." -ForegroundColor Cyan
 
-    & dotnet build $projectFile -c Release -f net8.0 --runtime win-x64 --self-contained
+    & dotnet build $projectFile -c Release -f $targetFramework --runtime win-x64 --self-contained
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Build failed!" -ForegroundColor Red
@@ -68,7 +79,7 @@ Write-Host "Publishing application..." -ForegroundColor Cyan
 
 & dotnet publish $projectFile `
     -c Release `
-    -f net8.0 `
+    -f $targetFramework `
     --runtime win-x64 `
     --self-contained `
     -p:PublishTrimmed=false `
@@ -154,9 +165,9 @@ $manifestContent = @"
 Package Name: $packageName
 Creation Date: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 Application: AlyCE Log Analyzer (Blazor Server)
-Version: 1.0
+Version: $version
 Target Platform: Windows (x64)
-Runtime: .NET 8.0 (Self-contained)
+Runtime: .NET $($targetFramework -replace '^net', '') (Self-contained)
 Size: {0:F2} MB
 
 Contents:

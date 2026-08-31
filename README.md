@@ -256,9 +256,12 @@ the release afterwards.
 
 ## Projects
 
-| Project | Description |
-|---|---|
-| `LogAnalyzer.Maui` | **Main** — Windows desktop app (MAUI + Blazor Hybrid) |
-| `LogAnalyzer.Core` | Shared business logic and log parsing |
-| `LogAnalyzer` | Alternative Blazor Server variant (self-hosted web app) |
-| `LogAnalyzer.Tests` | Unit tests for `LogAnalyzer.Core` |
+| Project | Target | Description |
+|---|---|---|
+| `LogAnalyzer.Maui` | `net10.0-windows10.0.19041.0` | **Main** — Windows desktop app (MAUI + Blazor Hybrid) |
+| `LogAnalyzer.Core` | `net10.0` | Shared business logic and log parsing |
+| `LogAnalyzer` | `net10.0` | Alternative Blazor Server variant (self-hosted web app) |
+| `LogAnalyzer.Tests` | `net10.0` | Unit tests for `LogAnalyzer.Core` |
+
+Everything is on .NET 10, so the .NET 10 SDK is the only prerequisite — building *and* running the tests
+need nothing else installed.

@@ -152,6 +152,13 @@ release is collected under *Unreleased*.
 
 ### Changed
 
+- **All projects now target .NET 10.** `LogAnalyzer.Core`, `LogAnalyzer` and `LogAnalyzer.Tests` moved from
+  `net8.0` to `net10.0`; `LogAnalyzer.Maui` was already there, so the solution is on one framework for the
+  first time. .NET 8 support ends in November 2026. Two knock-on cleanups: the pinned
+  `Microsoft.Extensions.Configuration.Abstractions` 8.0.0 reference in `LogAnalyzer.Core` turned out to be
+  redundant — the Razor SDK already supplies it through the shared framework — and was removed rather than
+  bumped; and `LogAnalyzer/create-release-package.ps1`, which had `net8.0` hardcoded in four places, now
+  reads the target framework and version out of the csproj so it cannot fall behind again.
 - **The load panel folds itself away once a load succeeds**, on every page that shows it, so the results get
   the screen straight after loading. The folded header still reports the entries, files and source path. It
   unfolds again if a load fails or the dataset is cleared, since the error alert and the load controls are both
