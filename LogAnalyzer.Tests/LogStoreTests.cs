@@ -255,6 +255,79 @@ public class LogStoreTests : IDisposable
         Assert.Contains("b.log", store.LoadedPath!);
     }
 
+    /// <summary>
+    /// A Blazor Server upload stream (<c>RemoteBrowserFileStream</c>) rejects synchronous reads, so
+    /// the store has to get the bytes off it asynchronously before parsing them.
+    /// </summary>
+    [Fact]
+    public async Task Enqueues_from_a_stream_that_only_supports_async_reads()
+    {
+        var bytes = Encoding.UTF8.GetBytes(
+            Line("2026-07-08 10:00:00.0000", "INFO", "uploaded-one") + "\n" +
+            Line("2026-07-08 10:00:01.0000", "ERROR", "uploaded-two") + "\n");
+
+        var store = new LogStore();
+        await store.EnqueueFromStreamsAsync(
+            new (string, Func<Stream>)[] { ("upload.log", () => new AsyncOnlyStream(bytes)) },
+            includeDebug: false, CancellationToken.None);
+
+        Assert.Null(store.LoadError);
+        Assert.Equal(new[] { "uploaded-one", "uploaded-two" }, store.Entries.Select(e => e.Message));
+        Assert.Equal("upload.log", store.Entries[0].SourceFile);
+        Assert.Equal("upload.log", store.LoadedPath);
+    }
+
+    [Fact]
+    public async Task Enqueues_several_async_only_streams_at_once()
+    {
+        var store = new LogStore();
+        var files = Enumerable.Range(0, 4).Select(i =>
+        {
+            var bytes = Encoding.UTF8.GetBytes(Line($"2026-07-08 10:00:0{i}.0000", "INFO", $"file{i}") + "\n");
+            return ($"upload{i}.log", new Func<Stream>(() => new AsyncOnlyStream(bytes)));
+        }).ToArray();
+
+        await store.EnqueueFromStreamsAsync(files, includeDebug: false, CancellationToken.None);
+
+        Assert.Null(store.LoadError);
+        Assert.Equal(new[] { "file0", "file1", "file2", "file3" }, store.Entries.Select(e => e.Message));
+        Assert.Equal(4, store.Stats!.FileCount);
+    }
+
+    /// <summary>Mimics a Blazor Server browser-file stream: async reads only, forward only.</summary>
+    private sealed class AsyncOnlyStream(byte[] data) : Stream
+    {
+        private int _position;
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException("Synchronous reads are not supported.");
+
+        public override int Read(Span<byte> buffer) =>
+            throw new NotSupportedException("Synchronous reads are not supported.");
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+        {
+            var n = Math.Min(buffer.Length, data.Length - _position);
+            if (n <= 0) return ValueTask.FromResult(0);
+            data.AsSpan(_position, n).CopyTo(buffer.Span);
+            _position += n;
+            return ValueTask.FromResult(n);
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken ct) =>
+            ReadAsync(buffer.AsMemory(offset, count), ct).AsTask();
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => _position; set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     [Fact]
     public async Task Loads_a_zip()
     {

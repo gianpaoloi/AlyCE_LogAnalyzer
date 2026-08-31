@@ -215,18 +215,56 @@ public sealed class LogStore
     /// Appends entries from uploaded .log files to the existing dataset. If nothing is loaded, this
     /// acts like a fresh load.
     /// <para>
-    /// Takes stream factories rather than open streams: they are opened one at a time, just before
-    /// being parsed, because a browser upload cannot serve several at once and an idle
-    /// <c>IBrowserFile</c> stream times out while it waits its turn. Each one is disposed as soon
-    /// as it has been read.
+    /// Each upload is copied to a temp file before anything is parsed, the same way a ZIP upload is.
+    /// A browser upload stream supports <em>async reads only</em> — reading one synchronously throws
+    /// "Synchronous reads are not supported." — and only one can be in flight at a time, whereas the
+    /// parser reads synchronously and on all cores. Copying first also gets each upload off the wire
+    /// promptly instead of holding it open for as long as parsing takes.
     /// </para>
     /// </summary>
-    public Task EnqueueFromStreamsAsync(
+    public async Task EnqueueFromStreamsAsync(
         IReadOnlyList<(string Name, Func<Stream> Open)> files, bool includeDebug, CancellationToken ct)
     {
-        var sources = files.Select(f => new LoadSource(f.Name, 0, f.Open)).ToList();
-        var label = files.Count == 1 ? files[0].Name : $"{files.Count} files";
-        return RunLoadAsync(sources, label, includeDebug, parallel: false, append: true, ct);
+        var spooled = new List<string>(files.Count);
+        try
+        {
+            var sources = new List<LoadSource>(files.Count);
+            foreach (var (name, open) in files)
+            {
+                var temp = Path.Combine(Path.GetTempPath(), $"alyce-upload-{Guid.NewGuid():N}.log");
+                spooled.Add(temp);
+
+                await using (var source = open())
+                await using (var target = new FileStream(temp, FileMode.CreateNew, FileAccess.Write,
+                                                         FileShare.None, bufferSize: 64 * 1024, useAsync: true))
+                {
+                    await source.CopyToAsync(target, ct);
+                }
+
+                // Reads from the temp copy, but keeps the name the user recognises.
+                sources.Add(FileSource(temp) with { Name = name });
+            }
+
+            var label = files.Count == 1 ? files[0].Name : $"{files.Count} files";
+            await RunLoadAsync(sources, label, includeDebug, parallel: true, append: true, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            LoadError = "Load cancelled.";
+            RaiseDataset();
+        }
+        catch (Exception ex)
+        {
+            LoadError = ex.Message;
+            RaiseDataset();
+        }
+        finally
+        {
+            foreach (var temp in spooled)
+            {
+                try { File.Delete(temp); } catch { /* best effort */ }
+            }
+        }
     }
 
     /// <summary>
