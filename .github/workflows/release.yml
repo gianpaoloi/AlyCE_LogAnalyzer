@@ -208,7 +208,7 @@ jobs:
           body: |
             ## AlyCE Log Analyzer ${{ steps.version.outputs.VERSION }}
 
-            ### Install via winget
+            ### Install via winget (WIP, prefer the downloads)
             ```
             winget install TeamSystem.AlyCELogAnalyzer
             ```
