@@ -129,7 +129,7 @@ From that one tag, the release workflow derives everything:
 
 | Where the version ends up | How | Automatic? |
 |---|---|---|
-| The running app (sidebar footer) | `-p:ApplicationDisplayVersion` → `AssemblyInformationalVersion` | ✅ |
+| The running app (sidebar footer) | `-p:InformationalVersion` (plus the commit, from SourceLink) | ✅ |
 | Installer file name and Add/Remove Programs entry | `ISCC /DMyAppVersion` | ✅ |
 | Portable ZIP file name and its `README.txt` | `create-portable-zip.ps1 -Version` | ✅ |
 | Release title, notes and SHA256 list | workflow | ✅ |
@@ -158,8 +158,21 @@ contains a `-` is published as a GitHub *prerelease*; anything else is a full re
 |---|---|
 | `v1.2.3` | Release `1.2.3` |
 | `v1.3.0-rc1` | **Pre**release `1.3.0-rc1` |
-| `v1.2` | Ignored — needs all three parts |
+| `v1.2` | Matches the trigger, then **fails** the version step — needs all three parts |
+| `v1.2.3.4` | Same — three parts exactly, not four |
 | `release-1.2.3` | Ignored — needs the `v` prefix |
+
+The workflow turns the tag into three separate values, because the MAUI SDK rejects a full SemVer
+string in either of the properties it validates:
+
+| Value | From `v1.3.0-rc1` | Used for |
+|---|---|---|
+| `VERSION` | `1.3.0-rc1` | `InformationalVersion`, so the sidebar shows the suffix; file names; release title |
+| `CORE` | `1.3.0` | `ApplicationDisplayVersion`, which must be exactly `major.minor.patch` |
+| `BUILD` | `10300` | `ApplicationVersion`, which must be a plain integer (`major*10000 + minor*100 + patch`) |
+
+Because of that last column, a `minor` or `patch` above 99 fails the version step rather than
+producing a build number that collides with a different release.
 
 ---
 

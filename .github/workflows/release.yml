@@ -48,15 +48,44 @@ jobs:
       # ---------------------------------------------------------------
       # 3. Parse version from tag (strips leading 'v')
       # ---------------------------------------------------------------
+      # Three values come out of the one tag, because the MAUI SDK validates its two version
+      # properties strictly and neither of them accepts a full SemVer string:
+      #
+      #   ApplicationDisplayVersion  must be exactly major.minor.patch -> CORE
+      #   ApplicationVersion         must be a plain integer build number -> BUILD
+      #   InformationalVersion       is free-form, so it keeps the tag verbatim -> VERSION
+      #
+      # VERSION is also what names the files and titles the release.
       - name: Extract version from tag
         id: version
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"          # e.g. v1.2.3
-          $ver = $tag.TrimStart('v')               # e.g. 1.2.3
+          $tag = "${{ github.ref_name }}"          # e.g. v1.2.3 or v1.3.0-rc1
+          $ver = $tag.TrimStart('v')               # e.g. 1.2.3  or 1.3.0-rc1
+
+          $m = [regex]::Match($ver, '^(\d+)\.(\d+)\.(\d+)(-.+)?$')
+          if (-not $m.Success) {
+            throw "Tag '$tag' is not vMAJOR.MINOR.PATCH[-suffix], so no MAUI version can be derived from it."
+          }
+
+          $major = [int]$m.Groups[1].Value
+          $minor = [int]$m.Groups[2].Value
+          $patch = [int]$m.Groups[3].Value
+          $core  = "$major.$minor.$patch"          # drops any -rc1 suffix
+
+          # One increasing integer per release. minor/patch get two digits each, so anything
+          # above 99 would collide with the next field up — fail loudly rather than ship a
+          # build number that silently means a different version.
+          if ($minor -gt 99 -or $patch -gt 99) {
+            throw "Version $core does not fit the major*10000 + minor*100 + patch build-number scheme."
+          }
+          $build = $major * 10000 + $minor * 100 + $patch
+
           echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
+          echo "CORE=$core"   >> $env:GITHUB_OUTPUT
+          echo "BUILD=$build" >> $env:GITHUB_OUTPUT
           echo "TAG=$tag"     >> $env:GITHUB_OUTPUT
-          Write-Host "Building version: $ver"
+          Write-Host "Tag $tag -> version $ver (display $core, build number $build)"
 
       # ---------------------------------------------------------------
       # 4. Setup .NET 10
@@ -95,8 +124,9 @@ jobs:
             -p:PublishReadyToRun=true `
             -p:DebugType=none `
             -p:DebugSymbols=false `
-            -p:ApplicationDisplayVersion="${{ steps.version.outputs.VERSION }}" `
-            -p:ApplicationVersion="${{ steps.version.outputs.VERSION }}"
+            -p:ApplicationDisplayVersion="${{ steps.version.outputs.CORE }}" `
+            -p:ApplicationVersion="${{ steps.version.outputs.BUILD }}" `
+            -p:InformationalVersion="${{ steps.version.outputs.VERSION }}"
 
       # ---------------------------------------------------------------
       # 8. Package the portable (redistributable) ZIP
