@@ -27,6 +27,22 @@ main {
     .top-row ::deep a { color: #9aa3b2; }
     .top-row ::deep a:hover { color: #21d4fd; }
 
+    /* Icon + label, so the glyph sits on the text baseline instead of above it. */
+    .top-row ::deep a {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+    }
+
+    /* The Radzen stylesheet pins .rzi to 1.5rem with literal values rather than the
+       --rz-icon-size custom property, so this has to override all four. */
+    .top-link-icon ::deep .rzi {
+        font-size: 1.1rem;
+        line-height: 1.1rem;
+        width: 1.1rem;
+        height: 1.1rem;
+    }
+
 .nav-toggle {
     margin-right: auto;
     background: transparent;

@@ -11,24 +11,26 @@
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="flex-column">
+        @* Icons come from the Material Symbols font Radzen already ships, so they match the icons on
+           every button in the app and inherit the link colour as it changes between states. *@
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-speedometer2-nav-menu" aria-hidden="true"></span> Overview
+                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="dashboard" /></span> Overview
             </NavLink>
         </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="explorer">
-                <span class="bi bi-search-nav-menu" aria-hidden="true"></span> Explorer
+                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="manage_search" /></span> Explorer
             </NavLink>
         </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="triage">
-                <span class="bi bi-exclamation-triangle-fill-nav-menu" aria-hidden="true"></span> Triage
+                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="warning" /></span> Triage
             </NavLink>
         </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="live">
-                <span class="bi bi-broadcast-nav-menu" aria-hidden="true"></span> Live watch
+                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="sensors" /></span> Live watch
             </NavLink>
         </div>
     </nav>
