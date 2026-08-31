@@ -18,9 +18,35 @@ jobs:
       # ---------------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history, so the main-branch check below can resolve the tagged commit.
+          fetch-depth: 0
 
       # ---------------------------------------------------------------
-      # 2. Parse version from tag (strips leading 'v')
+      # 2. Refuse to release a tag that is not on main
+      # ---------------------------------------------------------------
+      # A tag trigger fires wherever the tag was placed, so without this a version tag pushed from
+      # a feature branch would publish a release built from unmerged code.
+      - name: Verify the tag is on main
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $sha = $env:GITHUB_SHA
+
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if ($LASTEXITCODE -ne 0) { throw "Could not fetch origin/main to check the tag against." }
+
+          git merge-base --is-ancestor $sha origin/main
+          if ($LASTEXITCODE -ne 0) {
+            $msg = "Tag $tag points at $sha, which is not an ancestor of main. " +
+                   "Merge the work into main first, then tag the merge commit."
+            throw $msg
+          }
+
+          Write-Host "Tagged commit $sha is on main."
+
+      # ---------------------------------------------------------------
+      # 3. Parse version from tag (strips leading 'v')
       # ---------------------------------------------------------------
       - name: Extract version from tag
         id: version
@@ -33,7 +59,7 @@ jobs:
           Write-Host "Building version: $ver"
 
       # ---------------------------------------------------------------
-      # 3. Setup .NET 10
+      # 4. Setup .NET 10
       # ---------------------------------------------------------------
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
@@ -41,20 +67,22 @@ jobs:
           dotnet-version: '10.0.x'
 
       # ---------------------------------------------------------------
-      # 4. Install .NET MAUI workload
+      # 5. Install .NET MAUI workload
       # ---------------------------------------------------------------
       - name: Install MAUI workload
         run: dotnet workload install maui-windows
 
       # ---------------------------------------------------------------
-      # 5. Run the unit tests — a release should not ship if they fail
+      # 6. Run the unit tests — a release should not ship if they fail
       # ---------------------------------------------------------------
       - name: Run tests
         run: dotnet test LogAnalyzer.Tests/LogAnalyzer.Tests.csproj -c Release --nologo
 
       # ---------------------------------------------------------------
-      # 6. Publish MAUI app (self-contained, win-x64, Release)
+      # 7. Publish MAUI app (self-contained, win-x64, Release)
       # ---------------------------------------------------------------
+      # Published once and consumed by both the installer and the portable ZIP below, so the two
+      # downloads cannot end up containing different binaries.
       - name: Publish MAUI app
         shell: pwsh
         run: |
@@ -71,13 +99,27 @@ jobs:
             -p:ApplicationVersion="${{ steps.version.outputs.VERSION }}"
 
       # ---------------------------------------------------------------
-      # 7. Install Inno Setup
+      # 8. Package the portable (redistributable) ZIP
+      # ---------------------------------------------------------------
+      # Same publish output as the installer, wrapped with a relative-path launcher and a README.
+      - name: Create portable ZIP
+        id: zip
+        shell: pwsh
+        run: |
+          ./LogAnalyzer.Maui/create-portable-zip.ps1 `
+            -PublishDir "LogAnalyzer.Maui/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish" `
+            -Version "${{ steps.version.outputs.VERSION }}" `
+            -OutputDir "LogAnalyzer.Maui/dist" `
+            -HowToPath "README-HOW-TO.txt"
+
+      # ---------------------------------------------------------------
+      # 9. Install Inno Setup
       # ---------------------------------------------------------------
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
 
       # ---------------------------------------------------------------
-      # 8. Compile installer
+      # 10. Compile installer
       # ---------------------------------------------------------------
       - name: Compile installer
         shell: pwsh
@@ -88,7 +130,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
 
       # ---------------------------------------------------------------
-      # 9. Compute SHA256 of the installer
+      # 11. Hash both artifacts (the installer hash goes into the winget manifest)
       # ---------------------------------------------------------------
       - name: Compute SHA256
         id: sha256
@@ -96,13 +138,37 @@ jobs:
         run: |
           $ver       = "${{ steps.version.outputs.VERSION }}"
           $installer = "LogAnalyzer.Maui/dist/AlyCE-LogAnalyzer-Setup-$ver.exe"
-          $hash      = (Get-FileHash $installer -Algorithm SHA256).Hash.ToUpper()
-          Write-Host "SHA256: $hash"
-          echo "HASH=$hash"          >> $env:GITHUB_OUTPUT
+          $zip       = "${{ steps.zip.outputs.ZIP }}"
+
+          foreach ($f in @($installer, $zip)) {
+            if (-not (Test-Path -LiteralPath $f)) { throw "Expected artifact is missing: $f" }
+          }
+
+          $hash    = (Get-FileHash $installer -Algorithm SHA256).Hash.ToUpper()
+          $zipHash = (Get-FileHash $zip       -Algorithm SHA256).Hash.ToUpper()
+          Write-Host "Installer SHA256: $hash"
+          Write-Host "ZIP SHA256:       $zipHash"
+
+          echo "HASH=$hash"           >> $env:GITHUB_OUTPUT
+          echo "ZIP_HASH=$zipHash"    >> $env:GITHUB_OUTPUT
           echo "INSTALLER=$installer" >> $env:GITHUB_OUTPUT
 
       # ---------------------------------------------------------------
-      # 10. Create GitHub Release
+      # 12. Keep the built artifacts even if the release step fails
+      # ---------------------------------------------------------------
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: alyce-loganalyzer-${{ steps.version.outputs.VERSION }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            LogAnalyzer.Maui/dist/*.exe
+            LogAnalyzer.Maui/dist/*.zip
+
+      # ---------------------------------------------------------------
+      # 13. Create GitHub Release
       # ---------------------------------------------------------------
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -117,21 +183,33 @@ jobs:
             winget install TeamSystem.AlyCELogAnalyzer
             ```
 
-            ### Manual download
-            Download `AlyCE-LogAnalyzer-Setup-${{ steps.version.outputs.VERSION }}.exe` below and run it.
+            ### Downloads
 
-            ### Installer SHA256
+            | File | Use it when |
+            |------|-------------|
+            | `AlyCE-LogAnalyzer-Setup-${{ steps.version.outputs.VERSION }}.exe` | **Recommended.** Installs per-user (no admin rights), adds Start-menu entries, and installs the WebView2 runtime if it is missing. |
+            | `${{ steps.zip.outputs.ZIP_NAME }}` | Portable — extract anywhere and run `Launch.bat`. Nothing is installed and nothing is written to the registry. Needs the WebView2 runtime to be present already. |
+
+            Both contain the same self-contained build; no .NET runtime is required.
+
+            ### SHA256
             ```
-            ${{ steps.sha256.outputs.HASH }}
+            ${{ steps.sha256.outputs.HASH }}  AlyCE-LogAnalyzer-Setup-${{ steps.version.outputs.VERSION }}.exe
+            ${{ steps.sha256.outputs.ZIP_HASH }}  ${{ steps.zip.outputs.ZIP_NAME }}
             ```
-            Use this hash when updating the winget manifest (see `winget/manifests/`).
+            Use the installer hash when updating the winget manifest (see `winget/manifests/`).
 
             ### System requirements
             - Windows 10 version 17763 (1809) or later
             - x64 processor
             - No .NET runtime required (self-contained)
             - Microsoft Edge WebView2 Runtime — the installer adds it automatically when missing
-              (bundled with Windows 11; no admin rights required)
-          files: LogAnalyzer.Maui/dist/AlyCE-LogAnalyzer-Setup-${{ steps.version.outputs.VERSION }}.exe
+              (bundled with Windows 11; no admin rights required). The portable ZIP does not.
+          # Forward-slash relative paths: this input is glob-expanded, and a Windows absolute path's
+          # backslashes would be read as escape characters.
+          files: |
+            LogAnalyzer.Maui/dist/AlyCE-LogAnalyzer-Setup-${{ steps.version.outputs.VERSION }}.exe
+            LogAnalyzer.Maui/dist/${{ steps.zip.outputs.ZIP_NAME }}
+          fail_on_unmatched_files: true
           draft: false
           prerelease: false

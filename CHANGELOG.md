@@ -11,6 +11,17 @@ release is collected under *Unreleased*.
 
 ### Added
 
+- **A portable (redistributable) ZIP is now built and published alongside the installer** on every version
+  tag. `create-portable-zip.ps1` wraps the publish output as
+  `AlyCE-LogAnalyzer-{version}-win-x64.zip`, containing one top-level folder with `Application/`, a
+  `Launch.bat` that resolves its own location, and a `README.txt` carrying the version, a WebView2 note and
+  the usage instructions. The release workflow publishes **once** and feeds that same output to both the ZIP
+  and Inno Setup, so the two downloads cannot contain different binaries. Both are attached to the release
+  with their SHA256, and uploaded as workflow artifacts so they survive a failure in the release step.
+  *(working tree, not yet committed)*
+- **The release workflow refuses a tag that is not an ancestor of `main`.** A tag trigger fires wherever the
+  tag was placed, so a version tag pushed from a feature branch would otherwise publish a release built from
+  unmerged code. *(working tree, not yet committed)*
 - **Unit test suite** (`LogAnalyzer.Tests`, 145 tests) covering the parser, the line reader, the store, the
   tailer, the exporter and the filters — including regression tests for every fix listed below. Runs in CI
   before a release is published. The message-signature scan is held against the regex pipeline it replaced

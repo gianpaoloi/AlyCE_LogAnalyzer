@@ -102,51 +102,70 @@ Output under `bin\Release\...\win10-x64\publish\` runs as a normal `.exe`. Wrap 
 Inno Setup for an installer, or set `WindowsPackageType=MSIX` (with `Platforms/Windows/Package.appxmanifest`)
 for a Store/MSIX package.
 
-### Automated Release Package Builder
+### Packaging scripts
 
-Use the `create-release-package.ps1` script to build a complete redistributable package:
+There are two, for two different jobs.
 
-```powershell
-.\create-release-package.ps1
-```
+| Script | Builds? | Archive name | Use it for |
+|---|---|---|---|
+| `create-portable-zip.ps1` | **No** — packages an existing publish output | `AlyCE-LogAnalyzer-{version}-win-x64.zip` | Release artifacts. This is what the CI workflow calls. |
+| `create-release-package.ps1` | Yes — cleans, builds, publishes, zips | `AlyCE-LogAnalyzer-v1.0_{timestamp}.zip` | A quick one-shot package on your own machine. |
 
-#### Features
+#### `create-portable-zip.ps1` — release packaging
 
-- **Automated build & publish** in Release mode with optimizations:
-  - Trimmed runtime (smaller package size)
-  - Ready-to-Run compilation (faster startup)
-  - Debug symbols removed
-- **Self-contained** — no .NET runtime installation required on target machines
-- **Creates distributable ZIP** with timestamped naming
-- **Includes README.txt** with installation instructions
-- **Generates Launch.bat** for easy execution
-- **Creates manifest file** with package metadata
-
-#### Options
+Takes a publish directory and wraps it, deliberately building nothing. That is the point: the
+release workflow publishes **once** and feeds the same output to both this script and Inno Setup, so
+the installer and the ZIP cannot end up containing different binaries.
 
 ```powershell
-# Skip build step (use existing build)
-.\create-release-package.ps1 -SkipBuild
+# Publish first
+dotnet publish LogAnalyzer.Maui.csproj -c Release -f net10.0-windows10.0.19041.0 `
+    --runtime win-x64 --self-contained -p:PublishReadyToRun=true
 
-# Skip cleaning old builds
-.\create-release-package.ps1 -SkipClean
-
-# Custom output directory
-.\create-release-package.ps1 -PackageOutputPath "C:\MyPackages"
-
-# Combine options
-.\create-release-package.ps1 -SkipBuild -PackageOutputPath "D:\releases"
+# Then package
+.\create-portable-zip.ps1 `
+    -PublishDir "bin/Release/net10.0-windows10.0.19041.0/win-x64/publish" `
+    -Version 1.2.3 `
+    -OutputDir dist `
+    -HowToPath ../README-HOW-TO.txt
 ```
 
-#### Output
+| Parameter | |
+|---|---|
+| `-PublishDir` | **Required.** Rejected if it doesn't contain `LogAnalyzer.Maui.exe`, so a half-built directory can't yield a plausible-looking ZIP that won't start. |
+| `-Version` | **Required.** Used in the archive name and the README header. |
+| `-OutputDir` | Defaults to `./dist`. |
+| `-HowToPath` | Optional usage instructions appended to the archive's `README.txt`. |
 
-Outputs to `./dist/` by default:
-- **AlyCE-LogAnalyzer-v1.0_YYYYMMDD_HHMMSS.zip** — Ready-to-distribute package
-- **AlyCE-LogAnalyzer-v1.0_YYYYMMDD_HHMMSS.manifest** — Package metadata
-- **README.txt** — Installation & usage instructions
-- **Launch.bat** — Easy launch script for end users
+Produces a single top-level folder, so extracting it can't scatter several hundred runtime files
+into the user's current directory:
 
-The ZIP is fully self-contained and ready for distribution to Windows users.
+```
+AlyCE-LogAnalyzer-1.2.3-win-x64/
+├── Application/       the publish output
+├── Launch.bat         starts Application\LogAnalyzer.Maui.exe via a path relative to itself
+└── README.txt         version header, WebView2 note, then README-HOW-TO.txt
+```
+
+The launcher is a `.bat` rather than a `.lnk` on purpose: a shortcut stores the absolute path it was
+created with, which on a build agent points at a directory the end user does not have.
+
+#### `create-release-package.ps1` — local one-shot
+
+```powershell
+.\create-release-package.ps1                                  # clean, build, publish, zip
+.\create-release-package.ps1 -SkipBuild                       # reuse the existing build
+.\create-release-package.ps1 -SkipClean                       # keep previous build output
+.\create-release-package.ps1 -PackageOutputPath "D:\releases" # custom output directory
+```
+
+Outputs to `./dist/`: the `.zip`, plus a `.manifest` with package metadata. The archive is
+self-contained (Ready-to-Run, debug symbols stripped, **not** trimmed) and contains `Application/`,
+`README.txt` and a `.lnk` shortcut.
+
+> The version and name are hardcoded `v1.0` plus a timestamp, and the `.lnk` records an absolute
+> path, so this archive is best treated as a local convenience. Use `create-portable-zip.ps1` for
+> anything you hand to someone else.
 
 ## Notes / verify on first run
 
