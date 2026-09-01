@@ -50,7 +50,7 @@ _Nothing yet._
 - **The release workflow refuses a tag that is not an ancestor of `main`.** A tag trigger fires wherever the
   tag was placed, so a version tag pushed from a feature branch would otherwise publish a release built from
   unmerged code.
-- **Unit test suite** (`LogAnalyzer.Tests`, 309 tests) covering the parser, the line reader, the store, the
+- **Unit test suite** (`LogAnalyzer.Tests`, 321 tests) covering the parser, the line reader, the store, the
   tailer, the exporter and the filters — including regression tests for every fix listed below. Runs in CI
   before a release is published. The message-signature scan is held against the regex pipeline it replaced
   over the real sample logs.
@@ -91,6 +91,16 @@ _Nothing yet._
   downloads and installs it silently when missing. (`0419db2`)
 
 ### Fixed
+
+- **Removing a filter in Explorer froze the whole app.** Clicking a filter dropdown's clear (×) makes Radzen
+  write `default(TValue)` back through `@bind-Value` (`DropDownBase<T>.ClearAll`), and for
+  `IEnumerable<string>` that is null rather than an empty set. `BuildFilter` enumerated it straight away, so
+  clearing a Level, Environment or Company filter threw a `NullReferenceException` on the renderer — and an
+  unhandled exception there ends the Blazor circuit, so every later click, redraw and nav-menu item silently
+  did nothing. Nothing on screen said so, which is why it read as a freeze rather than as an error. The eight
+  affected properties on `SessionState` now coalesce null to an empty set in the setter, so "no filter" has one
+  representation for every reader; the same null would have hit Live's `AsCollection` and, for the "Add
+  columns…" combo, `Contains` during `BuildRenderTree`.
 
 - **The installer hash was never found in a real release's notes.** `GitHubReleaseParser` reads the
   `<hash>  <file name>` block as a fallback for releases published before GitHub returned a per-asset
