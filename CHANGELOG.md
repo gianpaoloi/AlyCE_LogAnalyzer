@@ -2,12 +2,16 @@
 
 All notable changes to **AlyCE Log Analyzer**, newest first. Entries reference the commit they come from.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The repository has no version
-tags: `1.0.0` is the version published to winget (`ApplicationDisplayVersion` in
-`LogAnalyzer.Maui.csproj` and `PackageVersion` in the winget manifests), and everything committed after that
-release is collected under *Unreleased*.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Each released version has a
+section here, and that section *is* what the release workflow publishes as the release notes — see
+[README → Publishing a New Release](README.md#1-get-the-code-onto-main). Anything merged since the last
+tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
+
+_Nothing yet._
+
+## [1.0.1] — 2026-09-01
 
 ### Added
 
@@ -30,13 +34,12 @@ release is collected under *Unreleased*.
   (offline, proxy, rate limit) shows nothing at all: this runs in the background of a log viewer and must not
   produce errors to dismiss. It is also the app's only outbound request, so it can be switched off with
   `LogAnalyzer:Updates:Enabled=false`. New `Services/Updates/` in Core, `Services/WindowsUpdateInstaller.cs`
-  in the MAUI host, and 124 tests. *(working tree, not yet committed)*
+  in the MAUI host, and 124 tests.
 
 - **The running version is shown at the bottom of the navigation sidebar**, always on screen. It reads
   `AssemblyInformationalVersion` at runtime — which the SDK stamps with the version and, via SourceLink, the
   exact commit — so it reports what is actually running and cannot go stale. Clicking it copies the full
   `1.2.3+<commit>` string, which is what a bug report needs. New `Services/AppVersion.cs`.
-  *(working tree, not yet committed)*
 - **A portable (redistributable) ZIP is now built and published alongside the installer** on every version
   tag. `create-portable-zip.ps1` wraps the publish output as
   `AlyCE-LogAnalyzer-{version}-win-x64.zip`, containing one top-level folder with `Application/`, a
@@ -44,17 +47,16 @@ release is collected under *Unreleased*.
   the usage instructions. The release workflow publishes **once** and feeds that same output to both the ZIP
   and Inno Setup, so the two downloads cannot contain different binaries. Both are attached to the release
   with their SHA256, and uploaded as workflow artifacts so they survive a failure in the release step.
-  *(working tree, not yet committed)*
 - **The release workflow refuses a tag that is not an ancestor of `main`.** A tag trigger fires wherever the
   tag was placed, so a version tag pushed from a feature branch would otherwise publish a release built from
-  unmerged code. *(working tree, not yet committed)*
-- **Unit test suite** (`LogAnalyzer.Tests`, 145 tests) covering the parser, the line reader, the store, the
+  unmerged code.
+- **Unit test suite** (`LogAnalyzer.Tests`, 307 tests) covering the parser, the line reader, the store, the
   tailer, the exporter and the filters — including regression tests for every fix listed below. Runs in CI
   before a release is published. The message-signature scan is held against the regex pipeline it replaced
-  over the real sample logs. *(working tree, not yet committed)*
+  over the real sample logs.
 - **Cancel button on the load panel.** A folder load on a slow or offline share could not be escaped: the
   store supported cancellation but nothing ever passed a token, so the *Load cancelled.* path was
-  unreachable. *(working tree, not yet committed)*
+  unreachable.
 - **Auto-scroll toggle on Live watch** — untick *auto-scroll* to freeze the grid on the lines currently shown
   while the tail keeps parsing and buffering behind it, so a row can be read or clicked without moving. Column
   filters, the logger tree and download still work on the frozen set; the status bar gains an *auto-scroll
@@ -116,82 +118,74 @@ release is collected under *Unreleased*.
   array writes or a bounded copy, filtering runs on that copy outside the lock, and each batch is cut to the
   newest 1 000 matches *before* anything is pushed. The distinct-value tallies behind the header combos left the
   lock entirely — the tail is their only writer, and the renderer reads published immutable copies.
-  *(working tree, not yet committed)*
 - **The Live watch text filter appeared to do nothing.** The box had no `@bind-Value:after`, so editing it
   triggered no redraw and left the lines buffered under the previous filter on screen — indistinguishable from a
   hang. It is now applied to the buffered lines as well as to the tail, so narrowing it takes effect
-  immediately. *(working tree, not yet committed)*
+  immediately.
 - **The Live watch logger tree could throw or spin.** It enumerated the logger tally while the poll thread was
   still counting into it, which a `Dictionary` does not allow; it now gets a snapshot published by the tail,
-  republished only when a logger is new to the session. *(working tree, not yet committed)*
+  republished only when a logger is new to the session.
 - **Leaving Live watch always threw an `ObjectDisposedException` internally.** `Dispose` cancelled the refresh
   loop's token source and disposed it in the next statement, racing the loop's own
   `PeriodicTimer.WaitForNextTickAsync`. The loop now disposes it once it has unwound. Refreshing is also
   skipped entirely while auto-scroll is off, where handing the grid a new `Data` reference every 400 ms made it
-  re-filter, re-sort and re-page for no visible change. *(working tree, not yet committed)*
+  re-filter, re-sort and re-page for no visible change.
 - **Quick Start reported a version and build date that were typed by hand and weeks out of date.** The page
   renders `README-HOW-TO.txt`, which stated `Version: 1.0 / Build Date: 2026-07-16` regardless of what was
   actually running — so anyone quoting it in a bug report was quoting a fiction. That block is gone; the real
-  version comes from the assembly and is shown in the sidebar. *(working tree, not yet committed)*
+  version comes from the assembly and is shown in the sidebar.
 - **A prerelease tag published as a full release.** The workflow trigger `v*.*.*` is looser than it looks —
   the trailing `*` matches any suffix, so `v1.3.0-rc1` starts a release — while `prerelease:` was hardcoded
   to `false`. A version containing `-` is now published as a GitHub prerelease.
-  *(working tree, not yet committed)*
 - **Dropping a .log file could crash the Explorer with "collection was modified".** Appending mutated and
   re-sorted the very list a query was walking, from a thread-pool thread on the MAUI drop path. Loads now
   publish an immutable `LogDataset` and swap the reference, so a reader that has taken it can never see it
   change. Appending also merges the two already-sorted sides instead of re-sorting everything loaded so far,
-  which made dropping N files cost N sorts of a growing list. *(working tree, not yet committed)*
+  which made dropping N files cost N sorts of a growing list.
 - **Live watch could mix up two files.** Restarting a watch cancelled the previous poll loop but did not wait
   for it, then reset the shared read position and pending-line state underneath it — likely, because one poll
   on a slow share can sit in a blocking read for seconds. `StartAsync` now awaits `StopAsync`. The loop also
   swallowed only `OperationCanceledException`, leaving an unobserved `ObjectDisposedException` on the way out.
-  *(working tree, not yet committed)*
 - **A rotated log went quiet for good.** Rotation was only detected when the file *shrank*, so the usual
   pattern — rename `all.log` away, create a fresh one — left a new file growing past the old read position and
   nothing was ever read again. The tailer now fingerprints the first 256 bytes of the file it is following.
   Creation time alone is not enough: NTFS file tunneling gives a file recreated within ~15 s of its
   predecessor that predecessor's creation timestamp, which is exactly what rotation does.
-  *(working tree, not yet committed)*
 - **Catching up on a large file took minutes of waiting.** The 4 MB decode cap ended the poll rather than the
   chunk, so tailing a 1 GB file from the start took one 750 ms tick per 4 MB. Chunks now follow each other
   inside one poll (bounded, so the UI still breathes), and the file is opened once per poll instead of once
-  per chunk — a round trip each time on a share. *(working tree, not yet committed)*
+  per chunk — a round trip each time on a share.
 - **Lines sharing a timestamp were reordered on every load.** `List.Sort` is unstable, and the sample logs are
   full of duplicate timestamps — two lines logged in the same tick came out in an arbitrary order that changed
   from load to load. Files are now merged by time with ties broken on file order, so the same input always
-  gives the same result. *(working tree, not yet committed)*
+  gives the same result.
 - **Timestamps depended on the machine's regional settings.** The fallback was a bare `DateTime.TryParse`,
   which reads the current culture; the same file parsed differently on an it-IT machine than on an en-US one,
   or silently became `DateTime.MinValue`. Now always invariant, and ISO-8601 with an offset is accepted.
-  *(working tree, not yet committed)*
 - **Live watch could not filter for FATAL.** The level dropdown was a hardcoded ERROR/WARN/INFO/DEBUG array,
   while the rest of the app has always treated FATAL and WARNING as real levels — a FATAL line was displayed
   but unfilterable. The list now grows with the levels actually seen in the tail.
-  *(working tree, not yet committed)*
 - **A failing store event could take the whole app down** instead of one component. The five `Store.Changed`
   handlers were `async void`, so an exception from dispatching to a renderer that had already gone away (a
   circuit closing as a load finishes) had no synchronization context to surface on. They now go through
-  `ObservingComponentBase`. *(working tree, not yet committed)*
+  `ObservingComponentBase`.
 - **Dropping more than 100 files blanked the page.** `GetMultipleFiles` throws past its cap rather than
-  truncating, and nothing caught it. *(working tree, not yet committed)*
+  truncating, and nothing caught it.
 - **Live watch started on a file that never existed.** The default path appended a hardcoded
   `all_2026-06-30.log` to the configured folder, so the first *Start watching* always failed.
-  *(working tree, not yet committed)*
 - **The web host showed every visitor the same logs.** `LogStore` and `LogWatcher` were singletons, so one
   dataset and one tail were shared by everyone on the server: whoever loaded a folder showed their logs to all
   other users, *include DEBUG* was global, and either user could stop the other's watch. Both are scoped to a
   circuit now. The desktop app keeps singletons — one user, one window. (This host still has no
   authentication, and both the file browser and the tailer will read any path the machine can reach; it should
-  stay on localhost or go behind auth.) *(working tree, not yet committed)*
+  stay on localhost or go behind auth.)
 - **A large export could exhaust memory.** CSV was built as a `StringBuilder`, then a string, then a byte
   array — several copies of a set that can be hundreds of megabytes, all live at once, and the browser then
   made one more. Both formats now stream into a self-deleting temp file, and the JSON writer is created once
   instead of once per row. A leading `=`, `+` or `@` in a message is also defused, since log text ends up in a
-  spreadsheet. *(working tree, not yet committed)*
+  spreadsheet.
 - **Removed two pieces of dead code that were traps**: `LogFilter.Clone()` copied the levels but silently
   dropped the environment and company filters, and `LogStore.QueryPage` buffered the whole result twice.
-  *(working tree, not yet committed)*
 - **Live watch froze after watching for a long time.** Four unbounded growths, all in the tail path:
   the page queued a render per poll (and per status change), so the render queue outgrew the renderer — it
   now refreshes at most every 400 ms, only when something changed, and awaits each render;
@@ -202,13 +196,12 @@ release is collected under *Unreleased*.
   since the watcher keeps one parser — capped at 20 000 entries;
   the Environment / Company header combos and the logger tree collected new values for ever, making each
   refresh slower — capped at 500 values and 2 000 loggers, with known values still counting.
-  *(working tree, not yet committed)*
 
 ### Removed
 
 - **The Dashboard page.** Its two charts moved to Overview, which already carried the other half of the same
   information — the *By level* pie and *Top loggers* breakdowns were on both pages, so the two were mostly a
-  split view of one dataset summary. `/dashboard` no longer resolves. *(working tree, not yet committed)*
+  split view of one dataset summary. `/dashboard` no longer resolves.
 
 ### Changed
 
@@ -235,7 +228,7 @@ release is collected under *Unreleased*.
 - **Release notes on the GitHub release page are now taken from `CHANGELOG.md`.** The workflow used to
   publish the same boilerplate — winget line, download table, hashes, system requirements — on every
   release, so the page never said what had actually changed. A new *Build release notes* step pulls the
-  section matching the tag out of the changelog, strips the `*(working tree, not yet committed)*` markers,
+  section matching the tag out of the changelog, strips the `` markers,
   and puts it above that boilerplate. The result is written to `release-notes.md` and passed as the
   action's `body_path` rather than inlined in the YAML: the changelog is arbitrary Markdown full of
   backticks, pipes and quotes, none of which survives a step output or a YAML scalar unescaped.
@@ -259,42 +252,37 @@ release is collected under *Unreleased*.
   the screen straight after loading. The folded header still reports the entries, files and source path. It
   unfolds again if a load fails or the dataset is cleared, since the error alert and the load controls are both
   inside the folded part. Driven by the store, so a file dropped onto the desktop window — which bypasses the
-  panel — collapses it too. *(working tree, not yet committed)*
+  panel — collapses it too.
 - **Overview now carries the whole dataset summary**: the totals and time span it already had, plus the log
   volume per time bucket stacked by level and the errors & warnings chart from the Dashboard, then the level /
   environment / logger breakdowns. Both timeline charts label their own bucket size, which adapts to the span.
   The bucket grouping moved out of the page into `TimelineView.Downsample` so it could be tested.
-  *(working tree, not yet committed)*
 - **The volume timeline no longer undercounts.** `TimeBucket` gained an *other* series, so levels outside
   DEBUG/INFO/WARN/ERROR — TRACE, a custom level, or a line with no `level` field at all, which the parser
   stores as `UNKNOWN` — are counted instead of silently dropped. The bars now add up to the entry total, and
-  the series only appears when such entries exist. *(working tree, not yet committed)*
+  the series only appears when such entries exist.
 - **Loads are about twice as fast** (measured: 1 454 ms → 709 ms for 480 000 entries across 12 files,
   159 MB). Files are parsed on all cores with a parser each, lines are read as UTF-8 bytes rather than a
   string each, and each line goes through one `Utf8JsonReader` pass instead of a `JsonDocument` plus nine
   property lookups. Statistics and the filter indexes are computed side by side, and files that cover
-  successive periods are concatenated instead of heap-merged. *(working tree, not yet committed)*
+  successive periods are concatenated instead of heap-merged.
 - **Progress no longer makes every page redo its work.** A load raised one event per file, and each one made
   the Explorer re-filter the whole previous dataset and triage re-cluster it — for a 60-file load, 60 times
   over, when only a counter had changed. `DatasetChanged` and a throttled `ProgressChanged` are now separate.
-  *(working tree, not yet committed)*
 - **Triage re-clusters about 6× faster** (404 ms → 57 ms on 480 000 entries) because a message's signature is
   computed once and cached on the entry, rather than seven chained `Regex.Replace` calls re-run on every
   checkbox toggle. The normaliser itself is now a single scan instead of seven passes.
-  *(working tree, not yet committed)*
 - **The Explorer filters through per-facet indexes** on datasets above 50 000 entries, so narrowing by level,
-  environment or company no longer scans everything. *(working tree, not yet committed)*
+  environment or company no longer scans everything.
 - **Live watch rebuilds the grid's rows only when they change.** The source list was rebuilt — under the buffer
   lock — on *every* render, including renders caused by hovering or typing, and each one handed Radzen a new
-  reference to re-filter, re-sort and re-page. *(working tree, not yet committed)*
+  reference to re-filter, re-sort and re-page.
 - **The dashboard's volume chart is capped at 180 columns.** It plotted one column per hour over the whole
-  span, so a month of logs was 720 SVG columns and a year was 8 760. *(working tree, not yet committed)*
+  span, so a month of logs was 720 SVG columns and a year was 8 760.
 - Level handling (WARN/WARNING, ERROR/FATAL) is centralised in `LogLevels`, which also removed the
   `ToUpperInvariant()` that the badges and chart colours allocated for every rendered row. Entry lists are
   pre-sized from the file size instead of always reserving room for a million entries.
-  *(working tree, not yet committed)*
 - Picking a file in the Live watch browser starts the watch immediately, instead of only filling the path box.
-  *(working tree, not yet committed)*
 - Live watch no longer freezes on a wrong or offline path. Every filesystem probe in the file browser runs off
   the UI thread under a 3 s timeout — `File.Exists` / `Directory.Exists` / `DriveInfo.IsReady` block for ~30 s
   on a dead UNC path, and the probing used to happen during dialog initialisation, so the app appeared hung

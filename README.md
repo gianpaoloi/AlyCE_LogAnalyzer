@@ -279,7 +279,7 @@ page on GitHub. The glyph beside it copies the full version including the commit
 (`1.2.3+fe12a13c…`), which is what to paste into a bug report.
 
 That value is read from the assembly at runtime, so it cannot go stale. A **local development build**
-has no tag to take a version from and will show `1.0.0` (the `ApplicationDisplayVersion` fallback in
+has no tag to take a version from and will show `1.0.1` (the `ApplicationDisplayVersion` fallback in
 `LogAnalyzer.Maui.csproj`) with the commit you built from — which is exactly how you can tell a dev
 build from a released one.
 

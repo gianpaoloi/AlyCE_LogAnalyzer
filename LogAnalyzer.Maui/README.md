@@ -1,5 +1,9 @@
 # AlyCE Log Analyzer — .NET MAUI Blazor Hybrid
 
+**Author:** Gianpaolo Iannetta
+
+**Email:** g.iannetta[at]teamsystem.com
+
 A native desktop rebuild of the AlyCE Log Analyzer. It hosts the **same Blazor components and
 services** as the server app inside a MAUI `BlazorWebView` (WebView2 on Windows) — so it runs
 **in-process** with no Kestrel server, no SignalR, no `localhost`, and with direct file-system access.

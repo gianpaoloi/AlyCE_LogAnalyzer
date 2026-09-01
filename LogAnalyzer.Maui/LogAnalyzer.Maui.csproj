@@ -21,10 +21,12 @@
         <ApplicationId>com.teamsystem.alyce.loganalyzer</ApplicationId>
 
         <!-- Versions -->
-        <!-- Fallback only: the release workflow overrides this with the git tag (see README
-             "Versioning"). Three parts so a local build reads as 1.0.0 rather than 1.0. -->
-        <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
-        <ApplicationVersion>1</ApplicationVersion>
+        <!-- Fallback only: the release workflow overrides both with the git tag (see README
+             "Versioning"). Three parts so a local build reads as 1.0.1 rather than 1.0.
+             ApplicationVersion follows the same major*10000 + minor*100 + patch scheme the
+             workflow computes, so a local build and a released one are numbered alike. -->
+        <ApplicationDisplayVersion>1.0.1</ApplicationDisplayVersion>
+        <ApplicationVersion>10001</ApplicationVersion>
 
         <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
         <WindowsPackageType>None</WindowsPackageType>
