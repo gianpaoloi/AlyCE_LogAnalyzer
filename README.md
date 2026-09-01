@@ -1,6 +1,93 @@
 # AlyCE Log Analyzer
 
-A Windows desktop application for parsing, browsing, and filtering structured log files. Built with .NET MAUI + Blazor.
+**Read, filter and tail structured application logs on Windows.** Point it at a folder of `.log` files —
+or a ZIP straight off a server — and it parses them into something you can search, chart, group by error
+and watch live. It is a desktop app rather than a service, so the logs never leave the machine.
+
+Built with .NET MAUI + Blazor Hybrid. Self-contained: no .NET runtime to install.
+
+![The Overview page: entry counts, error and warning totals, time span, and log volume stacked by level](docs/screenshots/01-overview.png)
+
+---
+
+## Contents
+
+- [A quick tour](#a-quick-tour) — what the four pages do
+- [Features](#features)
+- [System requirements](#system-requirements)
+- [Install](#install) — [winget](#install-via-winget-wip) · [manual](#manual-install)
+- [Staying up to date](#staying-up-to-date) — the built-in updater
+- [Build from source](#build-from-source)
+- [Versioning](#versioning) — how a git tag becomes a release
+- [Publishing a new release](#publishing-a-new-release)
+- [Projects](#projects)
+
+---
+
+## A quick tour
+
+### Overview — is anything wrong?
+
+The landing page after a load: how many entries came in, from how many files, across how many
+environments and loggers, and how many of them are errors or warnings. Below that, log volume stacked by
+level over the whole time span, and errors and warnings on their own axis so a spike is obvious.
+
+The **Load files** panel collapses to a one-line summary once a load succeeds — visible in the screenshot
+above as `1.356 entries · 2 files · …` — because after the first load the screen is better spent on the
+logs than on the folder picker.
+
+### Explorer — every line, filterable
+
+![The Explorer page: search boxes, a draggable log volume chart, per-column filters and the log grid](docs/screenshots/02-explorer.png)
+
+The full table. Search the message text, filter by level, environment, company or time from the column
+headers, and add optional columns (correlation id, user, thread) from **Add columns…**. Drag a window on
+the **Log volume** chart to restrict everything below it to that period; click a level in the legend to
+drop it.
+
+**Download** exports what you are currently looking at — filters applied — as CSV or in the original log
+format.
+
+### Triage — group the noise
+
+![The Triage page: 30 distinct issues grouped by signature, with occurrence counts and sample messages](docs/screenshots/03-triage.png)
+
+The same errors and warnings, collapsed by message *signature* rather than listed one by one: 636
+occurrences in the screenshot become 30 distinct issues, ordered by how often each happened. Volatile
+parts of a message (ids, GUIDs, paths, durations) are normalised away before grouping, so one bug that
+fired 153 times is one row instead of 153. Click a row to expand the occurrences behind it.
+
+This is usually the fastest way into an unfamiliar log: read fifteen rows instead of fifteen thousand.
+
+### Live watch — tail a file as it is written
+
+![Live watch actively tailing a log file: a WATCHING badge, 761 lines read, and rows arriving with level badges](docs/screenshots/04-live-watch.png)
+
+Follow a log while it grows, on a local path or a UNC share. Tick **from start** to read the existing
+contents first. The same column filters apply to the tail, so you can watch only errors from one
+environment.
+
+Untick **auto-scroll** to freeze the view on the lines currently shown — the tail keeps reading and
+buffering behind it, and a *Show N new lines* button catches you up. That means you can read or click a
+row without it sliding away, which is otherwise the fundamental problem with tailing a busy log.
+
+### Pick a file instead of typing a path
+
+![The Browse dialog: a filesystem browser with favourites, listing folders and files with size and modified date](docs/screenshots/06-file-browser.png)
+
+**Browse…** opens a filesystem browser — drives, then folders, then files with size and modified date,
+newest first. It browses the machine that reads the logs, which is the same machine the tail runs on, so
+local paths and UNC shares both work. Pin the folders you keep coming back to with **Add to favorites**;
+they are remembered between runs, as are the paths you have typed before.
+
+### Built-in Quick Start
+
+![The Quick Start page: in-app documentation of the log format and the workflow](docs/screenshots/05-quick-start.png)
+
+The app documents itself — the log format it expects and the usual workflow — so the README is not the
+only copy of that information.
+
+---
 
 ## Features
 
@@ -10,6 +97,7 @@ A Windows desktop application for parsing, browsing, and filtering structured lo
 - Log volume time series stacked by level — drag it to filter a time window
 - Real-time log tailing / live monitoring — pick the file to watch with a built-in browser (with favorites),
   and switch auto-scroll off to read a line while the tail keeps running
+- Error and warning triage that groups occurrences by message signature
 - Export filtered results to CSV or original log format
 - Collapsible load panel and side navigation to maximise screen space
 - Dark theme UI optimized for extended viewing sessions
@@ -27,7 +115,9 @@ A Windows desktop application for parsing, browsing, and filtering structured lo
 
 ---
 
-## Install via winget (WIP)
+## Install
+
+### Install via winget (WIP)
 
 ```
 winget install TeamSystem.AlyCELogAnalyzer
@@ -36,7 +126,7 @@ winget install TeamSystem.AlyCELogAnalyzer
 > **Note:** the package is available in the winget community repository once the manifest has been submitted.  
 > See [`winget/manifests/`](winget/manifests/) for the manifest files.
 
-## Manual Install
+### Manual Install
 
 Every release ships two downloads on the [Releases](../../releases) page. Both contain the same
 self-contained build — no .NET runtime is required either way.
@@ -54,6 +144,45 @@ AlyCE-LogAnalyzer-{version}-win-x64/
 ├── Launch.bat         starts it from wherever you extracted it
 └── README.txt         usage instructions
 ```
+
+---
+
+## Staying up to date
+
+The desktop app checks for a newer release on its own. Once per run it asks GitHub for the latest
+release of this repository, compares the tag with the version it is running, and — only if the tag is
+newer — adds an **Update to v1.2.3** line above the version in the sidebar.
+
+Clicking it shows the release notes and a **Download and install** button, which downloads the
+release's `AlyCE-LogAnalyzer-Setup-{version}.exe`, checks it against the SHA256 published with the
+release, and runs it silently. The app closes while it installs and starts again on the new version.
+No admin rights are involved — the setup package is per-user, the same as a first install.
+
+| Situation | What the app offers |
+|---|---|
+| Installed with `AlyCE-LogAnalyzer-Setup-*.exe` | Download and install, in place |
+| Portable ZIP, or a build from source | The release page only — installing would leave the copy you are running behind, still on the old version, while the "update" landed in `%LOCALAPPDATA%` |
+| Self-hosted web build (`LogAnalyzer`) | The release page only — that host is a published folder you replace |
+
+A check that cannot complete — offline, behind a proxy, or past GitHub's anonymous rate limit —
+shows nothing rather than an error, and is retried later in the session.
+
+This is the app's **only outbound network request**. To switch it off, set:
+
+```json
+{ "LogAnalyzer": { "Updates": { "Enabled": false } } }
+```
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `LogAnalyzer:Updates:Enabled` | `true` | Contact GitHub at all |
+| `LogAnalyzer:Updates:Repository` | `gianpaoloi/AlyCE_LogAnalyzer` | Which repository's releases to read |
+| `LogAnalyzer:Updates:CheckIntervalHours` | `6` | How long an answer is reused before asking again |
+
+> Only versions tagged `vMAJOR.MINOR.PATCH` are offered, and comparison follows SemVer precedence:
+> `1.10.0` beats `1.9.0`, and `1.3.0` beats `1.3.0-rc1`. Because GitHub's *latest release* excludes
+> prereleases, a `v1.3.0-rc1` release is never offered as an update — deliberately, so a release
+> candidate does not reach users who did not ask for one.
 
 ---
 
@@ -77,8 +206,8 @@ dotnet run -f net10.0-windows10.0.19041.0
 dotnet test LogAnalyzer.Tests/LogAnalyzer.Tests.csproj
 ```
 
-Covers the parser, the UTF-8 line reader, the store, the file tailer, the exporter and the filters.
-The release workflow runs them too, and will not publish if they fail.
+Covers the parser, the UTF-8 line reader, the store, the file tailer, the exporter, the filters and the
+update check. The release workflow runs them too, and will not publish if they fail.
 
 ### Create a release package (local)
 
@@ -119,6 +248,12 @@ dotnet publish LogAnalyzer.Maui/LogAnalyzer.Maui.csproj `
 > `create-portable-zip.ps1` deliberately does not build anything — it packages an existing publish
 > output, so it can be pointed at the same directory the installer reads.
 
+### Sample logs
+
+[`Example-Logs/`](Example-Logs/) holds two real `.log` files and a ZIP. They are what the parser and
+signature tests run against, and they are the quickest way to see the app with something in it — load
+that folder and every screenshot above reproduces.
+
 ---
 
 ## Versioning
@@ -139,50 +274,14 @@ From that one tag, the release workflow derives everything:
 
 ### Which version am I running?
 
-Look at the bottom of the navigation sidebar — it shows `v1.2.3`. Click it to copy the full version
-including the commit (`1.2.3+fe12a13c…`), which is what to paste into a bug report.
+Look at the bottom of the navigation sidebar — it shows `v1.2.3`, and clicking it opens the releases
+page on GitHub. The glyph beside it copies the full version including the commit
+(`1.2.3+fe12a13c…`), which is what to paste into a bug report.
 
 That value is read from the assembly at runtime, so it cannot go stale. A **local development build**
 has no tag to take a version from and will show `1.0.0` (the `ApplicationDisplayVersion` fallback in
 `LogAnalyzer.Maui.csproj`) with the commit you built from — which is exactly how you can tell a dev
 build from a released one.
-
-### Staying up to date
-
-The desktop app checks for a newer release on its own. Once per run it asks GitHub for the latest
-release of this repository, compares the tag with the version it is running, and — only if the tag is
-newer — adds an **Update to v1.2.3** line above the version in the sidebar.
-
-Clicking it shows the release notes and a **Download and install** button, which downloads the
-release's `AlyCE-LogAnalyzer-Setup-{version}.exe`, checks it against the SHA256 published with the
-release, and runs it silently. The app closes while it installs and starts again on the new version.
-No admin rights are involved — the setup package is per-user, the same as a first install.
-
-| Situation | What the app offers |
-|---|---|
-| Installed with `AlyCE-LogAnalyzer-Setup-*.exe` | Download and install, in place |
-| Portable ZIP, or a build from source | The release page only — installing would leave the copy you are running behind, still on the old version, while the "update" landed in `%LOCALAPPDATA%` |
-| Self-hosted web build (`LogAnalyzer`) | The release page only — that host is a published folder you replace |
-
-A check that cannot complete — offline, behind a proxy, or past GitHub's anonymous rate limit —
-shows nothing rather than an error, and is retried later in the session.
-
-This is the app's **only outbound network request**. To switch it off, set:
-
-```json
-{ "LogAnalyzer": { "Updates": { "Enabled": false } } }
-```
-
-| Setting | Default | Meaning |
-|---|---|---|
-| `LogAnalyzer:Updates:Enabled` | `true` | Contact GitHub at all |
-| `LogAnalyzer:Updates:Repository` | `gianpaoloi/AlyCE_LogAnalyzer` | Which repository's releases to read |
-| `LogAnalyzer:Updates:CheckIntervalHours` | `6` | How long an answer is reused before asking again |
-
-> Only versions tagged `vMAJOR.MINOR.PATCH` are offered, and comparison follows SemVer precedence:
-> `1.10.0` beats `1.9.0`, and `1.3.0` beats `1.3.0-rc1`. Because GitHub's *latest release* excludes
-> prereleases, a `v1.3.0-rc1` release is never offered as an update — deliberately, so a release
-> candidate does not reach users who did not ask for one.
 
 ### Version numbers
 
@@ -311,9 +410,12 @@ the release afterwards.
 | Project | Target | Description |
 |---|---|---|
 | `LogAnalyzer.Maui` | `net10.0-windows10.0.19041.0` | **Main** — Windows desktop app (MAUI + Blazor Hybrid) |
-| `LogAnalyzer.Core` | `net10.0` | Shared business logic and log parsing |
+| `LogAnalyzer.Core` | `net10.0` | Shared business logic, log parsing and the whole UI |
 | `LogAnalyzer` | `net10.0` | Alternative Blazor Server variant (self-hosted web app) |
 | `LogAnalyzer.Tests` | `net10.0` | Unit tests for `LogAnalyzer.Core` |
 
 Everything is on .NET 10, so the .NET 10 SDK is the only prerequisite — building *and* running the tests
 need nothing else installed.
+
+Every page above lives in `LogAnalyzer.Core`, which is why the desktop app and the web host look
+identical: they are two hosts around one set of Blazor components.

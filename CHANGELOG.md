@@ -212,6 +212,16 @@ release is collected under *Unreleased*.
 
 ### Changed
 
+- **`README.md` leads with the app rather than with its release machinery.** Six screenshots under
+  `docs/screenshots/` and a page-by-page tour come first, then install, then the updater; versioning and
+  the release process — which only a maintainer needs — moved below them, and a table of contents was
+  added because the file is long enough to need one. No content was dropped: the only rewritten passages
+  are the intro, the "which version am I running" paragraph (the sidebar click now opens GitHub rather
+  than copying) and two headings that changed level.
+
+  The screenshots are captured from the repository's own `Example-Logs/`, so loading that folder
+  reproduces them.
+
 - **Clicking the version in the sidebar now opens the releases page on GitHub.** It used to copy the version
   to the clipboard, which is still available on the glyph beside it — that value (`1.2.3+<commit>`) is what a
   bug report wants and is not something a link can provide, so the two are now separate controls rather than
