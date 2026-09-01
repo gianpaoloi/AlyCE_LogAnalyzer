@@ -267,7 +267,21 @@
         v >= 1_000_000 ? $"{v / 1_000_000.0:0.##}M" :
         v >= 1_000 ? $"{v / 1_000.0:0.##}K" : v.ToString("N0");
 
-    private static string Pct(double f) => $"{Math.Clamp(f, 0, 1) * 100:0.###}%";
+    /// <summary>
+    /// A percentage for a CSS declaration, formatted invariantly.
+    /// <para>
+    /// The invariant part is the whole point. This value goes straight into inline CSS, and on a
+    /// culture with a comma decimal separator — it-IT, de-DE, fr-FR, most of Europe — the current
+    /// culture turns 1.9 into "1,9%", which is not a length any browser accepts. The declaration is
+    /// dropped silently, the bar segment falls back to its <c>min-height: 1px</c>, and only the
+    /// segments whose percentage happened to come out a whole number were ever drawn to scale: a
+    /// 1 590-entry bucket rendered 3px tall (1px per level) next to a 343-entry one at 20px, which
+    /// is what made the y axis look wrong when the axis was in fact the only part that was right.
+    /// The same formatting positions the gridlines and the tick labels, so the x axis collapsed its
+    /// labels onto the left edge for the same reason.
+    /// </para>
+    /// </summary>
+    private static string Pct(double f) => FormattableString.Invariant($"{Math.Clamp(f, 0, 1) * 100:0.###}%");
 
     /// <summary>Segment style; a non-empty segment always keeps a visible sliver (like Grafana).</summary>
     private string Seg(double count, string level) => count <= 0
