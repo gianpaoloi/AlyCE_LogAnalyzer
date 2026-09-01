@@ -307,3 +307,21 @@ h2 { font-size: 1.05rem; margin: 0 0 .6rem; color: var(--txt); }
 .side-panel { width: 320px; flex: 0 0 320px; max-height: 75vh; overflow: auto; }
 .side-panel .logger-chip { white-space: normal; word-break: break-all; text-align: left; }
 @media (max-width: 900px) { .side-layout { flex-direction: column; } .side-panel { width: 100%; flex-basis: auto; } }
+
+/* file browser dialog (Browse… on Live watch) — see FileBrowserDialog.razor.css
+ *
+ * Radzen ships .rz-dialog-content as `flex: 0 1 auto; overflow: auto`, so it does not fill the
+ * dialog and it scrolls anything that overflows. For this dialog the listing is what should scroll,
+ * so the content box is made to fill the (fixed-height) dialog and stop scrolling itself; the
+ * component's own stylesheet then flexes the listing into whatever the toolbars leave.
+ *
+ * The class comes from DialogOptions.ContentCssClass where the dialog is opened, so it lands on that
+ * one element and nothing else is affected. It cannot live in the component's scoped CSS: the content
+ * box is an *ancestor* of FileBrowserDialog, and Blazor CSS isolation only reaches descendants. */
+.fb-dialog-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}

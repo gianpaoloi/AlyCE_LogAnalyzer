@@ -562,7 +562,20 @@
 
         var picked = await DialogService.OpenAsync<FileBrowserDialog>("Select the log file to watch",
             new Dictionary<string, object?> { { "StartPath", start } },
-            new DialogOptions { Width = "820px", Height = "640px", Resizable = true, Draggable = true });
+            new DialogOptions
+            {
+                Width = "820px",
+                Height = "640px",
+                Resizable = true,
+                Draggable = true,
+                // Same glyph as the Browse… button that opens it, so the dialog is recognisably the
+                // thing that was just clicked.
+                Icon = "folder_open",
+                // Puts the class on Radzen's .rz-dialog-content box. That element is an *ancestor* of
+                // FileBrowserDialog, and Blazor's scoped CSS can only reach descendants, so the one
+                // rule that has to change there lives in app.css. See ".fb-dialog-content" for why.
+                ContentCssClass = "fb-dialog-content",
+            });
 
         if (picked is not string path || path.Length == 0) return;
 

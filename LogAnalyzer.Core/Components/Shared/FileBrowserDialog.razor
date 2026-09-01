@@ -8,7 +8,11 @@
 @inject DialogService DialogService
 @inject PathHistory History
 
-<RadzenStack Gap="0.6rem">
+@* The wrapper fills the dialog's height so the listing can take whatever the toolbars leave. It is a
+   plain div rather than a class on RadzenStack because CSS isolation only scopes elements written in
+   this file — see FileBrowserDialog.razor.css. *@
+<div class="fb-root">
+<RadzenStack Gap="0.6rem" class="fb-stack">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
         <RadzenButton Icon="arrow_upward" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                       Click="GoUp" Disabled="@(_loading || _folder is null)" title="Parent folder" />
@@ -103,6 +107,7 @@
                       Disabled="@(_selected is null)" Click="@(() => DialogService.Close(_selected))" />
     </RadzenStack>
 </RadzenStack>
+</div>
 
 @code {
     /// <summary>File or folder the browser opens on; a file path also pre-selects that file.</summary>

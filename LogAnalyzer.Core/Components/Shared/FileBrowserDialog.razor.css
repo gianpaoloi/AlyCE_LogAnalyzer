@@ -1,17 +1,61 @@
-/* The listing scrolls inside the dialog so the path bar and the buttons stay visible. */
+/* The listing scrolls inside the dialog so the path bar and the buttons stay visible.
+ *
+ * There are three nested boxes here that can scroll: Radzen's .rz-dialog-content (flex: 0 1 auto,
+ * overflow: auto), this .fb-list, and the data grid's own .rz-data-grid-data (flex: 1,
+ * overflow: auto). Only one of them may ever have anything to scroll, so the chain is set up to give
+ * the grid the whole leftover band and let it scroll internally.
+ *
+ * This replaced `max-height: 46vh`, which measured the listing against the *viewport* while the
+ * dialog stayed a fixed 640px. Maximise the window and 46vh exceeded the dialog's own height, so the
+ * dialog body scrolled too and there were two scrollbars. A fixed pixel cap would only move the same
+ * bug to short windows, where .rz-dialog's max-height: 100% shrinks the dialog instead. */
 .fb-list {
-    max-height: 46vh;
-    overflow: auto;
+    flex: 1 1 auto;
+    /* A flex item will not shrink below its content without this, which is exactly how the overflow
+       escaped to the dialog in the first place. */
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
 }
+
+    /* Hand the band to the grid so .rz-data-grid-data inside it becomes the single scroller. */
+    .fb-list ::deep .rz-data-grid {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
 
 /* Occupies the same band as the listing so the dialog doesn't jump while a path is probed. */
 .fb-busy {
     display: flex;
     align-items: center;
     gap: .5rem;
+    /* Grows like .fb-list, so the footer buttons do not walk up the dialog while a path is probed. */
+    flex: 1 1 auto;
     min-height: 4rem;
     word-break: break-all;
 }
+
+/* A flex item of .rz-dialog-content (see ".fb-dialog-content" in app.css), so the stack is as tall
+ * as the dialog and .fb-list above has a definite band to grow into.
+ *
+ * This is a plain <div> wrapping the stack rather than a class on RadzenStack itself. Blazor's CSS
+ * isolation only stamps its scope attribute onto elements written in this file, never onto a child
+ * component's root element, so `class="fb-root"` on the RadzenStack compiled to
+ * `.fb-root[b-<scope>]` and matched nothing at all: the stack stayed content-sized, the listing had
+ * no band to grow into, and .rz-dialog-content's overflow: hidden then clipped the overspill with no
+ * scrollbar anywhere. */
+.fb-root {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+    /* ::deep because the stack's div is rendered by RadzenStack, so it carries no scope attribute. */
+    .fb-root ::deep .fb-stack {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
 
 .fb-name {
     display: inline-flex;
