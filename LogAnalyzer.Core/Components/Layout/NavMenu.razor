@@ -51,13 +51,23 @@
     }
 
     @* Pinned to the bottom of the sidebar so the running version is always on screen — it is the
-       first thing a bug report needs, and it is read from the assembly, so it cannot go stale. *@
-    <button type="button" class="nav-version" @onclick="CopyVersion" title="@Tooltip">
-        @* Parenthesised on purpose: bare "v@AppVersion.Display" looks like an email address to the
-           Razor parser, which then emits it as literal text. *@
-        <span class="nav-version-text">v@(AppVersion.Display)</span>
-        <span class="nav-version-copy" aria-hidden="true">&#x29C9;</span>
-    </button>
+       first thing a bug report needs, and it is read from the assembly, so it cannot go stale.
+
+       The version itself links out to the releases page; the glyph beside it still copies the full
+       version, which is the value a bug report wants and is not something a link can give you. An
+       <a> rather than a click handler because that is what already opens GitHub for the About link,
+       and it is what the WebView hands to the system browser. *@
+    <div class="nav-version">
+        <a class="nav-version-link" href="@Updates.Options.ReleasesPageUrl" target="_blank"
+           rel="noopener noreferrer" title="@Tooltip">
+            @* Parenthesised on purpose: bare "v@AppVersion.Display" looks like an email address to
+               the Razor parser, which then emits it as literal text. *@
+            <span class="nav-version-text">v@(AppVersion.Display)</span>
+        </a>
+        <button type="button" class="nav-version-copy" @onclick="CopyVersion" title="@CopyTooltip">
+            <span aria-hidden="true">&#x29C9;</span>
+        </button>
+    </div>
 </div>
 
 @code {
@@ -99,8 +109,10 @@
 
     private static string Tooltip =>
         AppVersion.Commit is null
-            ? $"Version {AppVersion.Display} — click to copy"
-            : $"Version {AppVersion.Display} (commit {AppVersion.ShortCommit}) — click to copy";
+            ? $"Version {AppVersion.Display} — open the releases page on GitHub"
+            : $"Version {AppVersion.Display} (commit {AppVersion.ShortCommit}) — open the releases page on GitHub";
+
+    private static string CopyTooltip => $"Copy {AppVersion.Full}";
 
     private async Task CopyVersion()
     {

@@ -90,6 +90,22 @@ release is collected under *Unreleased*.
 
 ### Fixed
 
+- **The Browse… dialog showed two scrollbars once the window was maximised.** The listing was capped at
+  `46vh` — measured against the *viewport* — while the dialog itself is a fixed 640px, so on a large screen
+  the listing alone was taller than the dialog that contained it and Radzen's `.rz-dialog-content` scrolled
+  as well. A fixed pixel cap would only have moved the same fault to short windows, where `.rz-dialog`'s
+  `max-height: 100%` shrinks the dialog instead, so the listing is now a flex item that takes exactly the
+  space the toolbars leave. Of the three boxes that can scroll in that dialog, only the grid's own
+  `.rz-data-grid-data` is ever given anything to scroll — verified in a browser: `scrollHeight` 860 against
+  `clientHeight` 302 on the grid body, and `scrolls: false` on every ancestor.
+
+  The first attempt at this over-corrected into *no* scrollbar, which is worth recording because the cause
+  is a standing trap: `class="fb-root"` was put on a `RadzenStack`, and Blazor's CSS isolation only stamps
+  its scope attribute onto elements written in the `.razor` file, never onto a child component's root
+  element. The rule compiled to `.fb-root[b-<scope>]` and matched nothing, so the stack stayed
+  content-sized and the overspill was clipped by the `overflow: hidden` with no scrollbar anywhere. It is a
+  plain `<div>` wrapper now.
+
 - **Setting a filter on Live watch, or clicking away to Triage or Explorer, froze the whole app.** One lock was
   shared between the tail's ingest handler and `RebuildSnapshot`, which every header filter calls — on the
   renderer. In Blazor Server the renderer is the single thread that serializes every click, every redraw and the
@@ -195,6 +211,16 @@ release is collected under *Unreleased*.
   split view of one dataset summary. `/dashboard` no longer resolves. *(working tree, not yet committed)*
 
 ### Changed
+
+- **Clicking the version in the sidebar now opens the releases page on GitHub.** It used to copy the version
+  to the clipboard, which is still available on the glyph beside it — that value (`1.2.3+<commit>`) is what a
+  bug report wants and is not something a link can provide, so the two are now separate controls rather than
+  one overloaded click. The link goes to the releases *list* rather than to `releases/tag/v<version>`: the
+  repository has no version tags yet, and a development build reports the `1.0.0` fallback, so a
+  tag-specific URL would 404 for everyone today.
+
+- **The Browse… dialog's title carries the same `folder_open` icon as the button that opens it**, via
+  Radzen's `DialogOptions.Icon`.
 
 - **Release notes on the GitHub release page are now taken from `CHANGELOG.md`.** The workflow used to
   publish the same boilerplate — winget line, download table, hashes, system requirements — on every
