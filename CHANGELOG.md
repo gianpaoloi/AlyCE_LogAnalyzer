@@ -50,7 +50,7 @@ _Nothing yet._
 - **The release workflow refuses a tag that is not an ancestor of `main`.** A tag trigger fires wherever the
   tag was placed, so a version tag pushed from a feature branch would otherwise publish a release built from
   unmerged code.
-- **Unit test suite** (`LogAnalyzer.Tests`, 307 tests) covering the parser, the line reader, the store, the
+- **Unit test suite** (`LogAnalyzer.Tests`, 309 tests) covering the parser, the line reader, the store, the
   tailer, the exporter and the filters — including regression tests for every fix listed below. Runs in CI
   before a release is published. The message-signature scan is held against the regex pipeline it replaced
   over the real sample logs.
@@ -91,6 +91,16 @@ _Nothing yet._
   downloads and installs it silently when missing. (`0419db2`)
 
 ### Fixed
+
+- **The installer hash was never found in a real release's notes.** `GitHubReleaseParser` reads the
+  `<hash>  <file name>` block as a fallback for releases published before GitHub returned a per-asset
+  `digest`, but its regex ended in `[ \t]*$` under `RegexOptions.Multiline`, where `$` matches before
+  the `\n` only. GitHub returns release bodies with CRLF, so the `\r` sat between the file name and
+  the anchor and no line ever matched — the fallback silently yielded no hash, leaving a download
+  with nothing to verify against. The trailing class now admits `\r`. This passed locally and failed
+  only in CI: the test's expected notes are a raw string literal, so its newlines are whatever git
+  checked the file out with, and the repository has no `.gitattributes` while `core.autocrlf` is
+  `true`. The regression test now spells out both endings rather than inheriting either.
 
 - **The Browse… dialog showed two scrollbars once the window was maximised.** The listing was capped at
   `46vh` — measured against the *viewport* — while the dialog itself is a fixed 640px, so on a large screen

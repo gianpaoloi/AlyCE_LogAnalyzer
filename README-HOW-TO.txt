@@ -130,4 +130,10 @@ bug report.
 
 Target Platform: Windows x64
 
-For issues or feature requests, please contact the development team.
+For issues or feature requests, please contact
+
+**Author:** Gianpaolo Iannetta
+
+**Email:** g.iannetta[at]teamsystem.com
+
+Thanks for using it ;)

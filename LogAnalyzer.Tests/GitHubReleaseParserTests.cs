@@ -107,6 +107,29 @@ public class GitHubReleaseParserTests
     }
 
     /// <summary>
+    /// GitHub returns release bodies with CRLF line endings, so the hash block has to be found in
+    /// that form too.
+    /// <para>
+    /// Both endings are spelled out here on purpose. <see cref="Notes"/> is a raw string literal, so
+    /// its newlines are whatever git checked this file out with — CRLF on Windows, LF elsewhere —
+    /// which means the tests above silently exercise only one of the two cases, and which of them
+    /// depends on the machine.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [InlineData("\r\n")]
+    [InlineData("\n")]
+    public void Finds_the_hash_whatever_the_notes_line_endings_are(string newLine)
+    {
+        var notes = string.Join(newLine, Notes.Split('\n').Select(line => line.TrimEnd('\r')));
+
+        var release = GitHubReleaseParser.Parse(Payload(notes: notes));
+
+        Assert.Equal("AAAA1111BBBB2222CCCC3333DDDD4444EEEE5555FFFF6666AAAA7777BBBB8888",
+                     release!.InstallerSha256);
+    }
+
+    /// <summary>
     /// GitHub now returns a digest per asset. It is authoritative, so it must win over the notes —
     /// the notes are prose that anyone with write access can edit after the fact.
     /// </summary>

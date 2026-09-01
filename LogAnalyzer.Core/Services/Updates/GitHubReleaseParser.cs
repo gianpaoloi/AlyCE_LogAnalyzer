@@ -130,7 +130,10 @@ public static partial class GitHubReleaseParser
         return null;
     }
 
-    [GeneratedRegex(@"^[ \t]*([0-9a-fA-F]{64})[ \t]+(\S+)[ \t]*$", RegexOptions.Multiline)]
+    // The \r in the trailing class is not cosmetic: GitHub returns release bodies with CRLF line
+    // endings, and in multiline mode "$" matches before the "\n" only, so the "\r" sits between the
+    // file name and "$" - a class of just [ \t] never gets past it.
+    [GeneratedRegex(@"^[ \t]*([0-9a-fA-F]{64})[ \t]+(\S+)[ \t\r]*$", RegexOptions.Multiline)]
     private static partial Regex HashLine();
 
     private static string? String(JsonElement element, string name) =>
