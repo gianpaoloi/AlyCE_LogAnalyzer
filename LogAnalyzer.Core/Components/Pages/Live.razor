@@ -67,7 +67,10 @@
                           Click="@(() => State.LiveShowLoggers = !State.LiveShowLoggers)" ButtonStyle="ButtonStyle.Secondary" />
         </RadzenStack>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
-            <RadzenTextBox @bind-Value="State.LiveText" Placeholder="text filter…" style="flex:1; min-width:220px" />
+            @* Applies to the buffered lines as well as to the tail, so editing it changes what is
+               on screen straight away instead of only affecting lines read after the change. *@
+            <RadzenTextBox @bind-Value="State.LiveText" @bind-Value:after="OnTextFilterChanged"
+                           Placeholder="text filter…" style="flex:1; min-width:220px" />
             <RadzenDropDown @bind-Value="State.LiveColumns" Multiple="true" AllowClear="true" Chips="true"
                             Placeholder="Add columns…" Data="@LogColumns.Optional"
                             TextProperty="Title" ValueProperty="Key" TValue="IEnumerable<string>" Style="width:300px" />
@@ -87,7 +90,7 @@
     {
         <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="idle" />
     }
-    <RadzenText TextStyle="TextStyle.Body2">· @Watcher.TotalEntries.ToString("N0") lines read · @_matched.Count.ToString("N0") buffered</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">· @Watcher.TotalEntries.ToString("N0") lines read · @BufferedCount.ToString("N0") buffered</RadzenText>
     @if (Watcher.LastActivity is { } la)
     {
         <RadzenText TextStyle="TextStyle.Body2">· last @la.ToString("HH:mm:ss")</RadzenText>
@@ -99,7 +102,7 @@
     @if (!State.LiveAutoScroll)
     {
         <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="auto-scroll off" />
-        <RadzenButton Text="@(_pending > 0 ? $"Show {_pending:N0} new lines" : "Resume")" Icon="play_arrow"
+        <RadzenButton Text="@(PendingCount > 0 ? $"Show {PendingCount:N0} new lines" : "Resume")" Icon="play_arrow"
                       ButtonStyle="ButtonStyle.Warning" Variant="Variant.Outlined" Size="ButtonSize.Small"
                       Click="ResumeAutoScroll"
                       title="Turn auto-scroll back on and catch up with the tail" />
@@ -155,7 +158,9 @@
                 </RadzenDataGridColumn>
                 @foreach (var col in LogColumns.Optional.Where(c => State.LiveColumns.Contains(c.Key)))
                 {
-                    <RadzenDataGridColumn TItem="LogEntry" Title="@col.Title" Width="@col.Width" Filterable="false" Sortable="false">
+                    @* Keyed, so adding or removing a column moves the existing ones instead of
+                       making Radzen tear down and re-register the whole column collection. *@
+                    <RadzenDataGridColumn @key="col.Key" TItem="LogEntry" Title="@col.Title" Width="@col.Width" Filterable="false" Sortable="false">
                         <Template Context="e"><span class="mono">@col.Value(e)</span></Template>
                     </RadzenDataGridColumn>
                 }
@@ -175,7 +180,9 @@
     {
         <div class="side-panel">
             <RadzenCard Variant="Variant.Outlined">
-                <LoggerTree Loggers="@_loggerCounts" Selected="@State.LiveLoggerPrefix" SelectedChanged="OnLoggerSelected" />
+                @* The published copy, not the live tally: LoggerTree enumerates this while the poll
+                   thread is still counting into the tally, which is not safe on a Dictionary. *@
+                <LoggerTree Loggers="@_loggerSnapshot" Selected="@State.LiveLoggerPrefix" SelectedChanged="OnLoggerSelected" />
             </RadzenCard>
         </div>
     }
@@ -206,29 +213,60 @@
     private int _dirty;         // a redraw is due
     private int _bufferDirty;   // the grid's snapshot no longer matches the buffer
 
+    // The buffer, as a fixed ring of the newest MaxKept matching lines. _gate guards nothing but
+    // this ring, and is only ever held for a bounded run of array writes — no LINQ, no allocation
+    // and no per-batch loop under it. That is the whole point: touching a header filter runs
+    // RebuildSnapshot on the renderer, and the renderer is the single thread that serializes every
+    // click, every redraw and the nav menu for the circuit. When it could block behind an ingest
+    // batch (which the watcher hands over in chunks of up to 4 MB, sixteen per poll) the entire app
+    // froze until that batch finished — the same freeze whether you set a filter or clicked away to
+    // Triage or Explorer.
     private readonly object _gate = new();
-    private readonly LinkedList<LogEntry> _matched = new(); // newest at front
-    // All loggers/environments seen this session (regardless of filter), to populate the tree and filters.
+    private readonly LogEntry[] _ring = new LogEntry[MaxKept];
+    private int _ringEnd;      // next slot to write
+    private int _ringCount;
+
+    // All loggers/environments seen this session (regardless of filter), to populate the tree and
+    // filters. Written only by OnEntries, i.e. only by the watcher's single poll thread
+    // (LogWatcher.StartAsync awaits the previous loop before starting a new one), and never read by
+    // the renderer — it reads the published copies below instead. So no lock on either side.
     private readonly Dictionary<string, int> _loggerCounts = new(StringComparer.Ordinal);
     private readonly SortedSet<string> _envSeen = new(StringComparer.OrdinalIgnoreCase);
     private readonly SortedSet<string> _companySeen = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _levelsSeen = new(KnownLevels, StringComparer.OrdinalIgnoreCase);
-    // Stable snapshots for the header combos; only rebuilt when a new value appears
-    // so the dropdown's selection isn't disturbed on every tail refresh.
-    private List<string> _envList = new();
-    private List<string> _companyList = new();
-    private List<string> _levelList = OrderBySeverity(KnownLevels);
+
+    // Reused by the ingest pre-trim; poll thread only.
+    private readonly List<LogEntry> _keep = new(MaxKept);
+
+    // Stable snapshots for the header combos and the logger tree, published as whole immutable
+    // objects. Only rebuilt when a new value appears, so the dropdown's selection isn't disturbed
+    // on every tail refresh.
+    private volatile List<string> _envList = new();
+    private volatile List<string> _companyList = new();
+    private volatile List<string> _levelList = OrderBySeverity(KnownLevels);
+    private volatile IReadOnlyDictionary<string, int> _loggerSnapshot = new Dictionary<string, int>(StringComparer.Ordinal);
     private List<string> _recentFiles = new();
     private bool _starting;     // guards against a second Start while a slow path is being opened
 
+    // The text filter as the poll thread sees it. Read there, written on the renderer.
+    private volatile string? _text;
+
     // What the grid renders: the buffer with the display filters applied, rebuilt only when the
-    // buffer or one of those filters actually changes.
+    // buffer or one of those filters actually changes. Renderer only.
     private List<LogEntry> _snapshot = new();
 
-    // With auto-scroll off the grid renders this frozen copy of the buffer instead of _matched, so the
-    // row being read doesn't move. Column filters still apply to it; the tail keeps buffering behind.
-    private List<LogEntry>? _frozen;
+    // With auto-scroll off the grid renders this frozen copy of the buffer instead of the ring, so
+    // the row being read doesn't move. Column filters still apply to it; the tail keeps buffering
+    // behind. Renderer only — _paused is what the poll thread looks at.
+    private LogEntry[]? _frozen;
+    private volatile bool _paused;
     private int _pending;      // matching lines buffered since auto-scroll was switched off
+
+    /// <summary>Lines currently in the ring. Approximate by nature — the tail keeps appending.</summary>
+    private int BufferedCount => Volatile.Read(ref _ringCount);
+
+    /// <summary>Matching lines the tail has buffered since auto-scroll was switched off.</summary>
+    private int PendingCount => Volatile.Read(ref _pending);
 
     protected override void OnInitialized()
     {
@@ -241,6 +279,10 @@
         // The buffer is per-page, so a fresh page has nothing to hold still: follow the tail again
         // even if auto-scroll was off when the user navigated away.
         State.LiveAutoScroll = true;
+        _paused = false;
+        // The text filter does survive navigation, so the poll thread has to start out agreeing
+        // with the box.
+        _text = State.LiveText;
 
         Watcher.EntriesAppended += OnEntries;
         Watcher.StatusChanged += OnStatus;
@@ -262,7 +304,10 @@
                 var rebuild = Interlocked.Exchange(ref _bufferDirty, 0) == 1;
                 await InvokeAsync(() =>
                 {
-                    if (rebuild) RebuildSnapshot();
+                    // Not while frozen: the rows are meant to hold still, and handing Radzen a new
+                    // Data reference makes it re-filter, re-sort and re-page for no visible change.
+                    // The redraw still happens — the "N new lines" count is what moves.
+                    if (rebuild && _frozen is null) RebuildSnapshot();
                     StateHasChanged();
                 });
             }
@@ -275,6 +320,13 @@
         {
             // Circuit already gone; nothing left to refresh.
         }
+        finally
+        {
+            // Disposed here rather than in Dispose(): cancelling and disposing back to back raced
+            // this loop's own WaitForNextTickAsync, so leaving the page reliably threw (and swallowed)
+            // an ObjectDisposedException.
+            _refreshCts.Dispose();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -285,50 +337,112 @@
         if (_recentFiles.Count > 0) StateHasChanged();
     }
 
+    /// <summary>
+    /// Ingest. Runs on the watcher's poll thread, and the batch it is handed is unbounded — a
+    /// catch-up poll on a big file can carry hundreds of thousands of entries. Everything expensive
+    /// here happens outside <see cref="_gate"/>; only the ring push takes it.
+    /// </summary>
     private void OnEntries(IReadOnlyList<LogEntry> entries)
     {
-        // Only the free-text filter gates the buffer; Level/Environment/logger are applied at
-        // display time (RebuildSnapshot) so changing a column filter re-filters buffered rows.
-        var text = State.LiveText;
         var envChanged = false;
         var companyChanged = false;
         var levelChanged = false;
-        lock (_gate)
-        {
-            foreach (var e in entries)
-            {
-                // Known values keep counting; new ones stop being collected once a cap is reached.
-                if (!string.IsNullOrEmpty(e.Logger))
-                {
-                    if (_loggerCounts.TryGetValue(e.Logger, out var n)) _loggerCounts[e.Logger] = n + 1;
-                    else if (_loggerCounts.Count < MaxLoggers) _loggerCounts[e.Logger] = 1;
-                }
-                if (!string.IsNullOrEmpty(e.Environment) && _envSeen.Count < MaxDistinctValues)
-                    envChanged |= _envSeen.Add(e.Environment);
-                if (!string.IsNullOrEmpty(e.Company) && _companySeen.Count < MaxDistinctValues)
-                    companyChanged |= _companySeen.Add(e.Company);
-                if (!string.IsNullOrEmpty(e.Level) && _levelsSeen.Count < MaxDistinctValues)
-                    levelChanged |= _levelsSeen.Add(e.Level);
+        var loggerAdded = false;
 
-                if (!string.IsNullOrWhiteSpace(text) && e.Message.IndexOf(text, StringComparison.OrdinalIgnoreCase) < 0)
-                    continue;
-                _matched.AddFirst(e);
-                while (_matched.Count > MaxKept) _matched.RemoveLast();
-                // Counted, not shown: the frozen view stays as it is until auto-scroll is back on.
-                if (_frozen is not null) _pending++;
+        foreach (var e in entries)
+        {
+            // Known values keep counting; new ones stop being collected once a cap is reached.
+            if (!string.IsNullOrEmpty(e.Logger))
+            {
+                if (_loggerCounts.TryGetValue(e.Logger, out var n)) _loggerCounts[e.Logger] = n + 1;
+                else if (_loggerCounts.Count < MaxLoggers)
+                {
+                    _loggerCounts[e.Logger] = 1;
+                    loggerAdded = true;
+                }
             }
-            if (envChanged) _envList = _envSeen.ToList();
-            if (companyChanged) _companyList = _companySeen.ToList();
-            if (levelChanged) _levelList = OrderBySeverity(_levelsSeen);
+            if (!string.IsNullOrEmpty(e.Environment) && _envSeen.Count < MaxDistinctValues)
+                envChanged |= _envSeen.Add(e.Environment);
+            if (!string.IsNullOrEmpty(e.Company) && _companySeen.Count < MaxDistinctValues)
+                companyChanged |= _companySeen.Add(e.Company);
+            if (!string.IsNullOrEmpty(e.Level) && _levelsSeen.Count < MaxDistinctValues)
+                levelChanged |= _levelsSeen.Add(e.Level);
         }
 
-        Interlocked.Exchange(ref _bufferDirty, 1);
-        Interlocked.Exchange(ref _dirty, 1);
+        if (envChanged) _envList = _envSeen.ToList();
+        if (companyChanged) _companyList = _companySeen.ToList();
+        if (levelChanged) _levelList = OrderBySeverity(_levelsSeen);
+        // Only republished when a logger is new to us: the tree is rebuilt off the key count, so
+        // copying up to MaxLoggers entries for a batch that merely bumped some counters is work
+        // nothing would ever look at.
+        if (loggerAdded) _loggerSnapshot = new Dictionary<string, int>(_loggerCounts, StringComparer.Ordinal);
+
+        // Only the free-text filter gates the buffer; Level/Environment/logger are applied at
+        // display time (RebuildSnapshot) so changing a column filter re-filters buffered rows.
+        // Collected newest-first and cut off at MaxKept, because only the newest MaxKept can
+        // survive the ring anyway: pushing the rest just to have each one evict its predecessor is
+        // work thrown away by definition, and it used to be done holding the lock the renderer
+        // needs.
+        var text = _text;
+        var filtering = !string.IsNullOrWhiteSpace(text);
+        var matched = 0;
+        _keep.Clear();
+        for (var i = entries.Count - 1; i >= 0; i--)
+        {
+            var e = entries[i];
+            if (filtering && e.Message.IndexOf(text!, StringComparison.OrdinalIgnoreCase) < 0) continue;
+            matched++;
+            if (_keep.Count < MaxKept) _keep.Add(e);
+        }
+
+        if (matched > 0)
+        {
+            lock (_gate)
+            {
+                for (var i = _keep.Count - 1; i >= 0; i--) Push(_keep[i]);
+            }
+            _keep.Clear();  // so the scratch list doesn't keep a page of entries alive
+
+            // Counted, not shown: the frozen view stays as it is until auto-scroll is back on.
+            if (_paused) Interlocked.Add(ref _pending, matched);
+            Interlocked.Exchange(ref _bufferDirty, 1);
+        }
+
+        // A batch where the text filter matched nothing still moves the header combos and the
+        // logger tree, so it is worth a redraw even though the grid's rows are unchanged.
+        if (matched > 0 || envChanged || companyChanged || levelChanged || loggerAdded)
+            Interlocked.Exchange(ref _dirty, 1);
+    }
+
+    /// <summary>Appends one entry to the ring, evicting the oldest. Caller holds <see cref="_gate"/>.</summary>
+    private void Push(LogEntry e)
+    {
+        _ring[_ringEnd] = e;
+        _ringEnd = _ringEnd + 1 == _ring.Length ? 0 : _ringEnd + 1;
+        if (_ringCount < _ring.Length) _ringCount++;
+    }
+
+    /// <summary>Copies the ring out newest-first. The lock covers the copy and nothing else.</summary>
+    private LogEntry[] SnapshotBuffer()
+    {
+        lock (_gate)
+        {
+            if (_ringCount == 0) return [];
+            var result = new LogEntry[_ringCount];
+            var i = _ringEnd;
+            for (var n = 0; n < _ringCount; n++)
+            {
+                i = i == 0 ? _ring.Length - 1 : i - 1;
+                result[n] = _ring[i];
+            }
+            return result;
+        }
     }
 
     /// <summary>
-    /// Rebuilds what the grid shows: the buffer (or the frozen copy) narrowed by the level and
-    /// environment combos, the company combo and the logger tree. Always called on the renderer.
+    /// Rebuilds what the grid shows: the buffer (or the frozen copy) narrowed by the text box, the
+    /// level, environment and company combos and the logger tree. Always called on the renderer, and
+    /// never while holding <see cref="_gate"/> — the copy is taken first, the filtering runs on it.
     /// </summary>
     private void RebuildSnapshot()
     {
@@ -336,16 +450,18 @@
         var envs = AsCollection(State.LiveEnvironments);
         var companies = AsCollection(State.LiveCompanies);
         var loggerPrefix = State.LiveLoggerPrefix;
+        var text = State.LiveText;
 
-        lock (_gate)
-        {
-            IEnumerable<LogEntry> q = _frozen ?? (IEnumerable<LogEntry>)_matched;
-            if (levels.Count > 0) q = q.Where(e => levels.Contains(e.Level));
-            if (envs.Count > 0) q = q.Where(e => e.Environment != null && envs.Contains(e.Environment));
-            if (companies.Count > 0) q = q.Where(e => e.Company != null && companies.Contains(e.Company));
-            if (!string.IsNullOrEmpty(loggerPrefix)) q = q.Where(e => LogFilter.MatchesPrefix(e.Logger, loggerPrefix));
-            _snapshot = q.ToList();
-        }
+        IEnumerable<LogEntry> q = _frozen ?? SnapshotBuffer();
+        if (levels.Count > 0) q = q.Where(e => levels.Contains(e.Level));
+        if (envs.Count > 0) q = q.Where(e => e.Environment != null && envs.Contains(e.Environment));
+        if (companies.Count > 0) q = q.Where(e => e.Company != null && companies.Contains(e.Company));
+        if (!string.IsNullOrEmpty(loggerPrefix)) q = q.Where(e => LogFilter.MatchesPrefix(e.Logger, loggerPrefix));
+        // Also applied here, not just at ingest, so narrowing the box drops the lines already
+        // buffered under the previous one instead of leaving them on screen.
+        if (!string.IsNullOrWhiteSpace(text))
+            q = q.Where(e => e.Message.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0);
+        _snapshot = q.ToList();
     }
 
     private static ICollection<string> AsCollection(IEnumerable<string> values) =>
@@ -370,11 +486,22 @@
         StateHasChanged();
     }
 
+    /// <summary>
+    /// The text box gates the tail as well as the display, so the poll thread has to be told before
+    /// the buffer is re-filtered against the new value.
+    /// </summary>
+    private void OnTextFilterChanged()
+    {
+        _text = State.LiveText;
+        OnDisplayFilterChanged();
+    }
+
     /// <summary>Freezes the buffer as it is now, or releases it and catches up with the tail.</summary>
     private void OnAutoScrollChanged()
     {
-        lock (_gate) _frozen = State.LiveAutoScroll ? null : _matched.ToList();
-        _pending = 0;
+        _paused = !State.LiveAutoScroll;
+        _frozen = _paused ? SnapshotBuffer() : null;
+        Interlocked.Exchange(ref _pending, 0);
         RebuildSnapshot();
     }
 
@@ -476,11 +603,13 @@
     {
         lock (_gate)
         {
-            _matched.Clear();
-            // Still frozen if auto-scroll is off — the user asked for a still view, now an empty one.
-            if (_frozen is not null) _frozen = new List<LogEntry>();
+            Array.Clear(_ring);
+            _ringEnd = 0;
+            _ringCount = 0;
         }
-        _pending = 0;
+        // Still frozen if auto-scroll is off — the user asked for a still view, now an empty one.
+        if (_frozen is not null) _frozen = [];
+        Interlocked.Exchange(ref _pending, 0);
         RebuildSnapshot();
     }
 
@@ -492,7 +621,7 @@
         Watcher.EntriesAppended -= OnEntries;
         Watcher.StatusChanged -= OnStatus;
         _refreshCts.Cancel();
-        _refreshCts.Dispose();
+        // The loop disposes its own token source once it has unwound.
         // Watcher is a singleton and keeps running so the tail survives navigation.
     }
 }

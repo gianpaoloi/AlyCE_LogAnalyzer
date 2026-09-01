@@ -69,6 +69,29 @@ release is collected under *Unreleased*.
 
 ### Fixed
 
+- **Setting a filter on Live watch, or clicking away to Triage or Explorer, froze the whole app.** One lock was
+  shared between the tail's ingest handler and `RebuildSnapshot`, which every header filter calls — on the
+  renderer. In Blazor Server the renderer is the single thread that serializes every click, every redraw and the
+  nav menu for the circuit, so blocking it there stopped everything until the batch in flight finished. And the
+  batches are large: `LogWatcher` hands over up to 4 MB × 16 chunks per poll, so one call could loop a quarter
+  of a million entries under that lock — of which, with a 1 000-line buffer, all but the last thousand were
+  `AddFirst` immediately undone by `RemoveLast`. The buffer is now a fixed ring, the lock covers nothing but
+  array writes or a bounded copy, filtering runs on that copy outside the lock, and each batch is cut to the
+  newest 1 000 matches *before* anything is pushed. The distinct-value tallies behind the header combos left the
+  lock entirely — the tail is their only writer, and the renderer reads published immutable copies.
+  *(working tree, not yet committed)*
+- **The Live watch text filter appeared to do nothing.** The box had no `@bind-Value:after`, so editing it
+  triggered no redraw and left the lines buffered under the previous filter on screen — indistinguishable from a
+  hang. It is now applied to the buffered lines as well as to the tail, so narrowing it takes effect
+  immediately. *(working tree, not yet committed)*
+- **The Live watch logger tree could throw or spin.** It enumerated the logger tally while the poll thread was
+  still counting into it, which a `Dictionary` does not allow; it now gets a snapshot published by the tail,
+  republished only when a logger is new to the session. *(working tree, not yet committed)*
+- **Leaving Live watch always threw an `ObjectDisposedException` internally.** `Dispose` cancelled the refresh
+  loop's token source and disposed it in the next statement, racing the loop's own
+  `PeriodicTimer.WaitForNextTickAsync`. The loop now disposes it once it has unwound. Refreshing is also
+  skipped entirely while auto-scroll is off, where handing the grid a new `Data` reference every 400 ms made it
+  re-filter, re-sort and re-page for no visible change. *(working tree, not yet committed)*
 - **Quick Start reported a version and build date that were typed by hand and weeks out of date.** The page
   renders `README-HOW-TO.txt`, which stated `Version: 1.0 / Build Date: 2026-07-16` regardless of what was
   actually running — so anyone quoting it in a bug report was quoting a fiction. That block is gone; the real
