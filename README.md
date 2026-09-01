@@ -133,7 +133,8 @@ From that one tag, the release workflow derives everything:
 | The running app (sidebar footer) | `-p:InformationalVersion` (plus the commit, from SourceLink) | ✅ |
 | Installer file name and Add/Remove Programs entry | `ISCC /DMyAppVersion` | ✅ |
 | Portable ZIP file name and its `README.txt` | `create-portable-zip.ps1 -Version` | ✅ |
-| Release title, notes and SHA256 list | workflow | ✅ |
+| Release title and SHA256 list | workflow | ✅ |
+| **Release notes** — what changed in this version | the matching section of [`CHANGELOG.md`](CHANGELOG.md) | ✅ (but the section is yours to write — see step 1) |
 | `winget/manifests/*.yaml` (`PackageVersion`) | — | ❌ **manual**, see step 4 below |
 
 ### Which version am I running?
@@ -234,8 +235,18 @@ exists:
 dotnet test LogAnalyzer.Tests/LogAnalyzer.Tests.csproj
 ```
 
-Move anything still under *Unreleased* in [`CHANGELOG.md`](CHANGELOG.md) into a section for the new
-version, and commit that.
+**Move anything still under *Unreleased* in [`CHANGELOG.md`](CHANGELOG.md) under a heading for the new
+version, and commit that** — that section *becomes* the release notes, so this is the one manual step
+that decides what users read on the release page:
+
+```markdown
+## [1.2.3] — 2026-09-01
+```
+
+The workflow looks for `## [1.2.3]` (the brackets and the trailing date are both optional). If it
+finds nothing it falls back to *Unreleased*, and if that is empty too it just links to the file —
+either way it logs a warning and **the release still publishes**, so a forgotten changelog costs you
+a tidy release page, not a failed build.
 
 ### 2. Tag and push
 
@@ -257,7 +268,10 @@ Pushing the **tag** is what starts the release. Pushing to `main` does not.
    downloads can never contain different binaries;
 5. hashes both and uploads them as workflow artifacts (14-day retention), so they survive a failure
    in the release step itself;
-6. creates the GitHub Release with both files attached:
+6. assembles the release notes — the `CHANGELOG.md` section for this version, then the download table,
+   the hashes and the system requirements. The assembled file is echoed into the step log, so you can
+   see exactly what was published without opening the release;
+7. creates the GitHub Release with both files attached:
    - `AlyCE-LogAnalyzer-Setup-1.2.3.exe` — the installer
    - `AlyCE-LogAnalyzer-1.2.3-win-x64.zip` — the portable package
 

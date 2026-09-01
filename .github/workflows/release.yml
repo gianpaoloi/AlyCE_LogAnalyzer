@@ -198,43 +198,171 @@ jobs:
             LogAnalyzer.Maui/dist/*.zip
 
       # ---------------------------------------------------------------
-      # 13. Create GitHub Release
+      # 13. Assemble the release notes from CHANGELOG.md
+      # ---------------------------------------------------------------
+      # Written to a file and passed to the release step as body_path rather than inlined there: the
+      # changelog is arbitrary Markdown full of backticks, pipes and quotes, none of which survives
+      # being squeezed through a step output or a YAML scalar unescaped.
+      #
+      # A missing section is a warning, never a failure. By this point the app is built, tested and
+      # packaged; throwing that away over a documentation slip would mean deleting the tag and
+      # starting the whole run again.
+      - name: Build release notes
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $core    = "${{ steps.version.outputs.CORE }}"
+          $tag     = "${{ steps.version.outputs.TAG }}"
+          $zipName = "${{ steps.zip.outputs.ZIP_NAME }}"
+          $changelogUrl = "https://github.com/${{ github.repository }}/blob/$tag/CHANGELOG.md"
+
+          # A release body is capped at 125,000 characters. Staying well under it leaves room for
+          # everything appended after the changelog, however long that section turns out to be.
+          $maxChars = 40000
+
+          # Keep a Changelog puts each release under a "## [version]" heading, so a section runs from
+          # that heading to the next "## " one. The "### Added" subheadings inside are not matched:
+          # '^##\s' requires whitespace where their third '#' sits.
+          function Get-ChangelogSection([string[]] $lines, [string] $wanted) {
+            $start = -1
+            for ($i = 0; $i -lt $lines.Count; $i++) {
+              if ($lines[$i] -notmatch '^##\s') { continue }
+              if ($start -ge 0) {
+                # Reached the next release heading. An empty section would produce a descending
+                # range, which PowerShell silently reverses, so it is returned explicitly.
+                if ($i - 1 -lt $start) { return @() }
+                return $lines[$start..($i - 1)]
+              }
+              # Accepts "## [1.2.3]", "## 1.2.3", and either dash in "## [1.2.3] - 2026-01-01".
+              if ($lines[$i] -match '^##\s+\[?([^\]\s]+)\]?' -and $Matches[1] -eq $wanted) {
+                $start = $i + 1
+              }
+            }
+            if ($start -ge 0) { return $lines[$start..($lines.Count - 1)] }
+            return $null
+          }
+
+          # Rooted at the workspace rather than relative, so the step does not depend on a working
+          # directory it never sets.
+          $changelogPath = Join-Path $env:GITHUB_WORKSPACE 'CHANGELOG.md'
+          $lines = @(Get-Content -LiteralPath $changelogPath -Encoding utf8)
+          $changes = @()
+          $usedSection = $null
+
+          # A prerelease tag may have a section of its own; otherwise fall back to the release it is
+          # a candidate for, and then to whatever is still sitting under Unreleased.
+          foreach ($candidate in @($version, $core, 'Unreleased')) {
+            $section = Get-ChangelogSection $lines $candidate
+            if ($null -eq $section) { continue }
+
+            # This marker tags an entry as unreleased while it sits in a working tree. On a release
+            # page it is both noise and untrue.
+            $section = $section -replace '\s*\*\(working tree, not yet committed\)\*', ''
+
+            # Drop the blank lines left behind by the headings at either end.
+            #
+            # Walked with indices rather than by re-slicing the array: PowerShell turns $a[1..0] into
+            # the range @(1,0), silently skips the out-of-range index, and hands back the same single
+            # element — so the obvious "chop the first line off until it isn't blank" loop never ends
+            # for a section that is nothing but blank lines.
+            $first = 0
+            $last = $section.Count - 1
+            while ($first -le $last -and [string]::IsNullOrWhiteSpace($section[$first])) { $first++ }
+            while ($last -ge $first -and [string]::IsNullOrWhiteSpace($section[$last])) { $last-- }
+
+            # A heading with nothing under it: keep looking, there may be a better candidate.
+            if ($first -gt $last) { continue }
+
+            $changes = @($section[$first..$last])
+            $usedSection = $candidate
+            break
+          }
+
+          if (-not $usedSection) {
+            Write-Host "::warning::CHANGELOG.md has no usable section for $version, $core or Unreleased, so the notes link to it instead of quoting it."
+          } elseif ($usedSection -eq 'Unreleased') {
+            Write-Host "::warning::CHANGELOG.md has no '## [$core]' section, so the notes were taken from Unreleased. Move that section under a version heading to keep the changelog and the releases in step."
+          } else {
+            Write-Host "Release notes taken from the CHANGELOG.md section for $usedSection ($($changes.Count) lines)."
+          }
+
+          # Truncate on a line boundary, so a table or a fenced code block is never cut in half.
+          $kept = [System.Collections.Generic.List[string]]::new()
+          $used = 0
+          $truncated = $false
+          foreach ($line in $changes) {
+            if ($used + $line.Length + 1 -gt $maxChars) { $truncated = $true; break }
+            $kept.Add($line)
+            $used += $line.Length + 1
+          }
+          if ($truncated) {
+            Write-Host "::warning::The changelog section is longer than $maxChars characters and was truncated in the release notes."
+          }
+
+          $notes = [System.Collections.Generic.List[string]]::new()
+          $notes.Add("## AlyCE Log Analyzer $version")
+          $notes.Add("")
+
+          if ($kept.Count -gt 0) {
+            # The section brings its own "### Added" / "### Fixed" headings, which is why nothing is
+            # added above it here.
+            $notes.AddRange($kept)
+            if ($truncated) {
+              $notes.Add("")
+              $notes.Add("_Truncated - see [CHANGELOG.md]($changelogUrl) for the rest._")
+            }
+            $notes.Add("")
+          }
+
+          $notes.Add("### Install via winget (WIP, prefer the downloads)")
+          $notes.Add('```')
+          $notes.Add("winget install TeamSystem.AlyCELogAnalyzer")
+          $notes.Add('```')
+          $notes.Add("")
+          $notes.Add("### Downloads")
+          $notes.Add("")
+          $notes.Add("| File | Use it when |")
+          $notes.Add("|------|-------------|")
+          $notes.Add("| ``AlyCE-LogAnalyzer-Setup-$version.exe`` | **Recommended.** Installs per-user (no admin rights), adds Start-menu entries, and installs the WebView2 runtime if it is missing. |")
+          $notes.Add("| ``$zipName`` | Portable - extract anywhere and run ``Launch.bat``. Nothing is installed and nothing is written to the registry. Needs the WebView2 runtime to be present already. |")
+          $notes.Add("")
+          $notes.Add("Both contain the same self-contained build; no .NET runtime is required.")
+          $notes.Add("")
+          $notes.Add("### SHA256")
+          $notes.Add('```')
+          $notes.Add("${{ steps.sha256.outputs.HASH }}  AlyCE-LogAnalyzer-Setup-$version.exe")
+          $notes.Add("${{ steps.sha256.outputs.ZIP_HASH }}  $zipName")
+          $notes.Add('```')
+          $notes.Add("Use the installer hash when updating the winget manifest (see ``winget/manifests/``).")
+          $notes.Add("")
+          $notes.Add("### System requirements")
+          $notes.Add("- Windows 10 version 17763 (1809) or later")
+          $notes.Add("- x64 processor")
+          $notes.Add("- No .NET runtime required (self-contained)")
+          $notes.Add("- Microsoft Edge WebView2 Runtime - the installer adds it automatically when missing (bundled with Windows 11; no admin rights required). The portable ZIP does not.")
+          $notes.Add("")
+          $notes.Add("---")
+          $notes.Add("")
+          $notes.Add("Full history: [CHANGELOG.md]($changelogUrl)")
+
+          # UTF-8 with no BOM: the API would render a BOM as a stray character at the top of the page.
+          $path = Join-Path $env:GITHUB_WORKSPACE 'release-notes.md'
+          [System.IO.File]::WriteAllText($path, ($notes -join "`n"), [System.Text.UTF8Encoding]::new($false))
+
+          Write-Host "----- release-notes.md ($((Get-Item $path).Length) bytes) -----"
+          Get-Content -LiteralPath $path | Select-Object -First 30
+
+      # ---------------------------------------------------------------
+      # 14. Create GitHub Release
       # ---------------------------------------------------------------
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.TAG }}
           name: "AlyCE Log Analyzer ${{ steps.version.outputs.VERSION }}"
-          body: |
-            ## AlyCE Log Analyzer ${{ steps.version.outputs.VERSION }}
-
-            ### Install via winget (WIP, prefer the downloads)
-            ```
-            winget install TeamSystem.AlyCELogAnalyzer
-            ```
-
-            ### Downloads
-
-            | File | Use it when |
-            |------|-------------|
-            | `AlyCE-LogAnalyzer-Setup-${{ steps.version.outputs.VERSION }}.exe` | **Recommended.** Installs per-user (no admin rights), adds Start-menu entries, and installs the WebView2 runtime if it is missing. |
-            | `${{ steps.zip.outputs.ZIP_NAME }}` | Portable — extract anywhere and run `Launch.bat`. Nothing is installed and nothing is written to the registry. Needs the WebView2 runtime to be present already. |
-
-            Both contain the same self-contained build; no .NET runtime is required.
-
-            ### SHA256
-            ```
-            ${{ steps.sha256.outputs.HASH }}  AlyCE-LogAnalyzer-Setup-${{ steps.version.outputs.VERSION }}.exe
-            ${{ steps.sha256.outputs.ZIP_HASH }}  ${{ steps.zip.outputs.ZIP_NAME }}
-            ```
-            Use the installer hash when updating the winget manifest (see `winget/manifests/`).
-
-            ### System requirements
-            - Windows 10 version 17763 (1809) or later
-            - x64 processor
-            - No .NET runtime required (self-contained)
-            - Microsoft Edge WebView2 Runtime — the installer adds it automatically when missing
-              (bundled with Windows 11; no admin rights required). The portable ZIP does not.
+          # Built by the previous step from CHANGELOG.md, so the notes say what actually changed
+          # rather than repeating the same boilerplate on every release.
+          body_path: release-notes.md
           # Forward-slash relative paths: this input is glob-expanded, and a Windows absolute path's
           # backslashes would be read as escape characters.
           files: |

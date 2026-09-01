@@ -196,6 +196,22 @@ release is collected under *Unreleased*.
 
 ### Changed
 
+- **Release notes on the GitHub release page are now taken from `CHANGELOG.md`.** The workflow used to
+  publish the same boilerplate — winget line, download table, hashes, system requirements — on every
+  release, so the page never said what had actually changed. A new *Build release notes* step pulls the
+  section matching the tag out of the changelog, strips the `*(working tree, not yet committed)*` markers,
+  and puts it above that boilerplate. The result is written to `release-notes.md` and passed as the
+  action's `body_path` rather than inlined in the YAML: the changelog is arbitrary Markdown full of
+  backticks, pipes and quotes, none of which survives a step output or a YAML scalar unescaped.
+
+  Lookup order is the full tag version, then the `major.minor.patch` core (so `v1.3.0-rc1` picks up the
+  `1.3.0` section), then *Unreleased*. Anything other than an exact match logs a GitHub warning, and a
+  changelog with nothing usable in it falls back to a link. **None of these fail the release** — by the
+  time this step runs the app is built, tested and packaged, and discarding that over a documentation slip
+  would mean deleting the tag and starting again. The assembled notes are echoed into the step log, and
+  the section is truncated on a line boundary if it would approach the 125,000-character limit on a
+  release body.
+
 - **All projects now target .NET 10.** `LogAnalyzer.Core`, `LogAnalyzer` and `LogAnalyzer.Tests` moved from
   `net8.0` to `net10.0`; `LogAnalyzer.Maui` was already there, so the solution is on one framework for the
   first time. .NET 8 support ends in November 2026. Two knock-on cleanups: the pinned
