@@ -18,7 +18,7 @@ Built with .NET MAUI + Blazor Hybrid. Self-contained: no .NET runtime to install
 - [Install](#install) — [winget](#install-via-winget-wip) · [manual](#manual-install)
 - [Staying up to date](#staying-up-to-date) — the built-in updater
 - [Build from source](#build-from-source)
-- [Versioning](#versioning) — how a git tag becomes a release
+- [Versioning](#versioning) — how a git tag becomes a release · [setting the version](#setting-the-version)
 - [Publishing a new release](#publishing-a-new-release)
 - [Projects](#projects)
 
@@ -258,8 +258,13 @@ that folder and every screenshot above reproduces.
 
 ## Versioning
 
-**The git tag is the only place a release version is written.** There is no version number to bump
-in a file — pushing `v1.2.3` is what makes the release `1.2.3`.
+**The git tag is what makes a release.** Pushing `v1.2.3` is what makes the release `1.2.3` — no
+file decides that, and nothing in the repository needs to name the version for the release to be
+built correctly.
+
+A few files do carry a version of their own: the fallbacks a local build falls back on when there is
+no tag to read, and the winget manifests, which the workflow never touches.
+[`set-version.ps1`](#setting-the-version) keeps those in step with the tag you are about to push.
 
 From that one tag, the release workflow derives everything:
 
@@ -270,7 +275,7 @@ From that one tag, the release workflow derives everything:
 | Portable ZIP file name and its `README.txt` | `create-portable-zip.ps1 -Version` | ✅ |
 | Release title and SHA256 list | workflow | ✅ |
 | **Release notes** — what changed in this version | the matching section of [`CHANGELOG.md`](CHANGELOG.md) | ✅ (but the section is yours to write — see step 1) |
-| `winget/manifests/*.yaml` (`PackageVersion`) | — | ❌ **manual**, see step 4 below |
+| `winget/manifests/*.yaml` (`PackageVersion`) | `set-version.ps1` | ⚠️ scripted — but the installer URL and SHA256 in them are still manual, see step 4 |
 
 ### Which version am I running?
 
@@ -279,7 +284,7 @@ page on GitHub. The glyph beside it copies the full version including the commit
 (`1.2.3+fe12a13c…`), which is what to paste into a bug report.
 
 That value is read from the assembly at runtime, so it cannot go stale. A **local development build**
-has no tag to take a version from and will show `1.0.1` (the `ApplicationDisplayVersion` fallback in
+has no tag to take a version from and will show `1.1.1` (the `ApplicationDisplayVersion` fallback in
 `LogAnalyzer.Maui.csproj`) with the commit you built from — which is exactly how you can tell a dev
 build from a released one.
 
@@ -312,6 +317,47 @@ string in either of the properties it validates:
 Because of that last column, a `minor` or `patch` above 99 fails the version step rather than
 producing a build number that collides with a different release.
 
+### Setting the version
+
+The fallbacks and the winget manifests are the part a tag cannot reach, so
+[`set-version.ps1`](set-version.ps1) sets them together with the changelog:
+
+```powershell
+./set-version.ps1 1.2.3
+```
+
+| It updates | To |
+|---|---|
+| `LogAnalyzer.Maui.csproj` — `ApplicationDisplayVersion` | `1.2.3` — always three parts, any suffix dropped |
+| `LogAnalyzer.Maui.csproj` — `ApplicationVersion` | `10203` — `major*10000 + minor*100 + patch` |
+| `installer/setup.iss` — `#define MyAppVersion` | `1.2.3`, suffix included |
+| `winget/manifests/*.yaml` — `PackageVersion` | `1.2.3`, in all three manifests |
+| `README.md` | the dev-build version quoted under *Which version am I running?* |
+| `CHANGELOG.md` | cuts *Unreleased* into `## [1.2.3] — <today>`, leaving a fresh empty *Unreleased* |
+
+| Option | What it does |
+|---|---|
+| `-WhatIf` | Lists every change and writes nothing. Worth running first. |
+| `-Date 2026-09-30` | Dates the changelog heading something other than today. |
+| `-NoChangelog` | Version numbers only — leaves `CHANGELOG.md` alone. |
+| `-Tag` | Creates the annotated tag `v1.2.3` locally. Never pushes. |
+| `-Force` | Turns "pattern not found" into a warning, and allows a second section for a version that already has one. |
+
+It takes `1.2.3`, `v1.2.3` or `1.3.0-rc1`, and rejects what the workflow would also reject — `1.2`,
+`1.2.3.4`, or a `minor`/`patch` above 99 — applying the same build-number rule as the version step,
+so a local bump and a tagged build cannot disagree about `ApplicationVersion`.
+
+Two behaviours worth knowing:
+
+- **Nothing is written unless every edit applies.** Each file is matched and patched in memory first;
+  if a pattern misses because a file was reworded, the script reports every miss and exits having
+  touched nothing — a half-applied version bump is worse than none.
+- **`-Tag` refuses to run on a dirty tree**, because the tag has to point at a commit that already
+  contains the bump. The order is bump, commit, then tag.
+
+It also warns when *Unreleased* is empty, since that section becomes the release notes and an empty
+one publishes a blank release page.
+
 ---
 
 ## Publishing a New Release
@@ -334,9 +380,20 @@ exists:
 dotnet test LogAnalyzer.Tests/LogAnalyzer.Tests.csproj
 ```
 
-**Move anything still under *Unreleased* in [`CHANGELOG.md`](CHANGELOG.md) under a heading for the new
-version, and commit that** — that section *becomes* the release notes, so this is the one manual step
-that decides what users read on the release page:
+**Set the version and commit it.** [`set-version.ps1`](#setting-the-version) moves everything under
+*Unreleased* in [`CHANGELOG.md`](CHANGELOG.md) under a heading for the new version, and updates the
+in-file versions the tag cannot reach:
+
+```powershell
+./set-version.ps1 1.2.3 -WhatIf    # see what it would change
+./set-version.ps1 1.2.3
+git add -A
+git commit -m "Set version 1.2.3"
+```
+
+That changelog section *becomes* the release notes, so it is what decides what users read on the
+release page. The script moves your entries under the new heading; **writing them is still yours** —
+it warns if *Unreleased* was empty. The heading it produces looks like this:
 
 ```markdown
 ## [1.2.3] — 2026-09-01
@@ -351,6 +408,14 @@ a tidy release page, not a failed build.
 
 ```bash
 git tag v1.2.3
+git push origin v1.2.3
+```
+
+Or let the script tag the commit you just made, which checks the tree is clean first:
+
+```powershell
+./set-version.ps1 1.2.3 -Tag
+git push
 git push origin v1.2.3
 ```
 

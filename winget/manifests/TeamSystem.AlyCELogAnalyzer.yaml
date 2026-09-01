@@ -10,7 +10,7 @@
 #     manifests/t/TeamSystem/AlyCELogAnalyzer/{Version}/
 #
 PackageIdentifier: TeamSystem.AlyCELogAnalyzer
-PackageVersion: 1.0.1
+PackageVersion: 1.1.1
 DefaultLocale: en-US
 ManifestType: version
 ManifestVersion: 1.9.0

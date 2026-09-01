@@ -11,6 +11,50 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 _Nothing yet._
 
+## [1.1.1] — 2026-09-01
+
+### Added
+
+- **55 regression tests** for the three fixes below, taking `LogAnalyzer.Tests` from 307 to 362: both
+  line endings for the release-notes hash block, null through every clearable multi-select on
+  `SessionState`, and the chart's CSS percentages under six cultures. Each was run against the unfixed
+  code first — the culture tests fail 21 of 41 without the fix — so they are known to catch the fault
+  rather than merely to pass.
+
+### Fixed
+
+- **Removing a filter in Explorer froze the whole app.** Clicking a filter dropdown's clear (×) makes Radzen
+  write `default(TValue)` back through `@bind-Value` (`DropDownBase<T>.ClearAll`), and for
+  `IEnumerable<string>` that is null rather than an empty set. `BuildFilter` enumerated it straight away, so
+  clearing a Level, Environment or Company filter threw a `NullReferenceException` on the renderer — and an
+  unhandled exception there ends the Blazor circuit, so every later click, redraw and nav-menu item silently
+  did nothing. Nothing on screen said so, which is why it read as a freeze rather than as an error. The eight
+  affected properties on `SessionState` now coalesce null to an empty set in the setter, so "no filter" has one
+  representation for every reader; the same null would have hit Live's `AsCollection` and, for the "Add
+  columns…" combo, `Contains` during `BuildRenderTree`.
+
+- **The Log volume bars were drawn at the wrong height on any non-English Windows.** The chart writes its
+  geometry into inline CSS, and the percentages went through the *current* culture — so on an Italian (or
+  German, or French) locale a segment came out as `height:1,9%`, which is not a length any browser accepts.
+  The declaration was dropped, the segment fell back to its `min-height: 1px`, and only the segments whose
+  percentage happened to be a whole number were ever drawn to scale. With the sample 16 099-entry dataset the
+  busiest 10-minute bucket — 1 590 entries — rendered 3px tall, one pixel per level, while a 343-entry bucket
+  next to it rendered 20px because its INFO share worked out to exactly 14%. That is what made the y axis look
+  wrong: it read 2K against bars a few pixels high, when the axis was the only part that was right. The same
+  formatting positions the gridlines and the tick labels, so the x axis was stacking every label on the left
+  edge as well. `Pct` now formats invariantly; the tallest bar measures 102.5px of a 130px plot, or 79.5% of
+  the 2 000 the axis claims.
+
+- **The installer hash was never found in a real release's notes.** `GitHubReleaseParser` reads the
+  `<hash>  <file name>` block as a fallback for releases published before GitHub returned a per-asset
+  `digest`, but its regex ended in `[ \t]*$` under `RegexOptions.Multiline`, where `$` matches before
+  the `\n` only. GitHub returns release bodies with CRLF, so the `\r` sat between the file name and
+  the anchor and no line ever matched — the fallback silently yielded no hash, leaving a download
+  with nothing to verify against. The trailing class now admits `\r`. This passed locally and failed
+  only in CI: the test's expected notes are a raw string literal, so its newlines are whatever git
+  checked the file out with, and the repository has no `.gitattributes` while `core.autocrlf` is
+  `true`. The regression test now spells out both endings rather than inheriting either.
+
 ## [1.0.1] — 2026-09-01
 
 ### Added
@@ -50,7 +94,7 @@ _Nothing yet._
 - **The release workflow refuses a tag that is not an ancestor of `main`.** A tag trigger fires wherever the
   tag was placed, so a version tag pushed from a feature branch would otherwise publish a release built from
   unmerged code.
-- **Unit test suite** (`LogAnalyzer.Tests`, 362 tests) covering the parser, the line reader, the store, the
+- **Unit test suite** (`LogAnalyzer.Tests`, 307 tests) covering the parser, the line reader, the store, the
   tailer, the exporter and the filters — including regression tests for every fix listed below. Runs in CI
   before a release is published. The message-signature scan is held against the regex pipeline it replaced
   over the real sample logs.
@@ -91,38 +135,6 @@ _Nothing yet._
   downloads and installs it silently when missing. (`0419db2`)
 
 ### Fixed
-
-- **The Log volume bars were drawn at the wrong height on any non-English Windows.** The chart writes its
-  geometry into inline CSS, and the percentages went through the *current* culture — so on an Italian (or
-  German, or French) locale a segment came out as `height:1,9%`, which is not a length any browser accepts.
-  The declaration was dropped, the segment fell back to its `min-height: 1px`, and only the segments whose
-  percentage happened to be a whole number were ever drawn to scale. With the sample 16 099-entry dataset the
-  busiest 10-minute bucket — 1 590 entries — rendered 3px tall, one pixel per level, while a 343-entry bucket
-  next to it rendered 20px because its INFO share worked out to exactly 14%. That is what made the y axis look
-  wrong: it read 2K against bars a few pixels high, when the axis was the only part that was right. The same
-  formatting positions the gridlines and the tick labels, so the x axis was stacking every label on the left
-  edge as well. `Pct` now formats invariantly; the tallest bar measures 102.5px of a 130px plot, or 79.5% of
-  the 2 000 the axis claims.
-
-- **Removing a filter in Explorer froze the whole app.** Clicking a filter dropdown's clear (×) makes Radzen
-  write `default(TValue)` back through `@bind-Value` (`DropDownBase<T>.ClearAll`), and for
-  `IEnumerable<string>` that is null rather than an empty set. `BuildFilter` enumerated it straight away, so
-  clearing a Level, Environment or Company filter threw a `NullReferenceException` on the renderer — and an
-  unhandled exception there ends the Blazor circuit, so every later click, redraw and nav-menu item silently
-  did nothing. Nothing on screen said so, which is why it read as a freeze rather than as an error. The eight
-  affected properties on `SessionState` now coalesce null to an empty set in the setter, so "no filter" has one
-  representation for every reader; the same null would have hit Live's `AsCollection` and, for the "Add
-  columns…" combo, `Contains` during `BuildRenderTree`.
-
-- **The installer hash was never found in a real release's notes.** `GitHubReleaseParser` reads the
-  `<hash>  <file name>` block as a fallback for releases published before GitHub returned a per-asset
-  `digest`, but its regex ended in `[ \t]*$` under `RegexOptions.Multiline`, where `$` matches before
-  the `\n` only. GitHub returns release bodies with CRLF, so the `\r` sat between the file name and
-  the anchor and no line ever matched — the fallback silently yielded no hash, leaving a download
-  with nothing to verify against. The trailing class now admits `\r`. This passed locally and failed
-  only in CI: the test's expected notes are a raw string literal, so its newlines are whatever git
-  checked the file out with, and the repository has no `.gitattributes` while `core.autocrlf` is
-  `true`. The regression test now spells out both endings rather than inheriting either.
 
 - **The Browse… dialog showed two scrollbars once the window was maximised.** The listing was capped at
   `46vh` — measured against the *viewport* — while the dialog itself is a fixed 640px, so on a large screen

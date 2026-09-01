@@ -9,7 +9,7 @@
 #   https://github.com/<your-org>/AlyCE_LogAnalyzer/releases/download/v1.0.0/AlyCE-LogAnalyzer-Setup-1.0.0.exe
 #
 PackageIdentifier: TeamSystem.AlyCELogAnalyzer
-PackageVersion: 1.0.1
+PackageVersion: 1.1.1
 MinimumOSVersion: 10.0.17763.0
 # The UI is Blazor in a WebView2. The installer also provisions the runtime itself
 # (see setup.iss), but declaring it lets winget resolve it first on Windows 10.
