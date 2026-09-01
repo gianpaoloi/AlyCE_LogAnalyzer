@@ -1,5 +1,7 @@
 @inject IJSRuntime JS
 @inject NotificationService Notifications
+@inject DialogService Dialogs
+@inject UpdateChecker Updates
 
 @* No Bootstrap spacing utilities here: the padding is set in CSS instead, so the narrow sidebar
    keeps as much width as possible for the labels. *@
@@ -37,6 +39,17 @@
         </div>
     </nav>
 
+    @* Only appears once the check has come back with something newer, so the sidebar has nothing
+       extra in it on the overwhelmingly common day when the app is current. *@
+    @if (_update is not null)
+    {
+        <button type="button" class="nav-update" @onclick="ShowUpdate"
+                title="@($"Version {_update.Version} is available — click for details")">
+            <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="system_update_alt" /></span>
+            <span class="nav-update-text">Update to v@(_update.Version)</span>
+        </button>
+    }
+
     @* Pinned to the bottom of the sidebar so the running version is always on screen — it is the
        first thing a bug report needs, and it is read from the assembly, so it cannot go stale. *@
     <button type="button" class="nav-version" @onclick="CopyVersion" title="@Tooltip">
@@ -48,6 +61,42 @@
 </div>
 
 @code {
+    private UpdateInfo? _update;
+
+    /// <summary>
+    /// Asked for after the first paint rather than in OnInitialized: the sidebar must not wait on
+    /// a network round trip to github.com, which on a machine behind a proxy means waiting for a
+    /// timeout. The checker caches, so navigating between pages does not repeat the request.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var result = await Updates.CheckAsync();
+        if (!result.IsUpdateAvailable) return;
+
+        _update = result.Release;
+
+        try
+        {
+            StateHasChanged();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The window was closed, or the circuit dropped, while GitHub was answering. There is
+            // nothing left to re-render and nothing to tell anyone about.
+        }
+    }
+
+    private async Task ShowUpdate()
+    {
+        if (_update is null) return;
+
+        await Dialogs.OpenAsync<UpdateDialog>($"Version {_update.Version} is available",
+            new Dictionary<string, object?> { { "Release", _update } },
+            new DialogOptions { Width = "680px", Resizable = true, Draggable = true });
+    }
+
     private static string Tooltip =>
         AppVersion.Commit is null
             ? $"Version {AppVersion.Display} — click to copy"

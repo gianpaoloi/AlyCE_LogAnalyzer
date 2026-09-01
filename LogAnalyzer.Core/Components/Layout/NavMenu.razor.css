@@ -98,6 +98,42 @@
     color: #fff;
 }
 
+/* "Update to v1.3.0", shown above the version footer only when a newer release exists.
+   Uses the same accent as the active nav item, so it reads as part of the sidebar rather than as an
+   advert. */
+.nav-update {
+    /* Takes the auto margin off .nav-version when it is present (see the rule below), which is what
+       keeps the pair together at the bottom of the flex column. */
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: .6rem .75rem;
+    background: rgba(138,99,244,0.14);
+    border: none;
+    border-top: 1px solid rgba(255,255,255,.08);
+    border-left: 3px solid #8a63f4;
+    color: #cbb8ff;
+    font-size: .78rem;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color .2s ease, color .2s ease;
+}
+
+    .nav-update:hover {
+        background-color: rgba(138,99,244,0.26);
+        color: #fff;
+    }
+
+    /* The narrow rail cannot fit an arbitrarily long version, and clipping mid-word is worse than
+       an ellipsis — .sidebar hides the overflow, so untruncated text would just vanish. */
+    .nav-update-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
 /* Version footer, pinned to the bottom of the sidebar by the flex column below. */
 .nav-version {
     margin-top: auto;
@@ -116,6 +152,12 @@
     cursor: pointer;
     transition: color .2s ease, background-color .2s ease;
 }
+
+    /* Two auto margins would split the free space and leave a gap between the update line and the
+       version line; with the update line present it owns the margin and this one sits under it. */
+    .nav-update + .nav-version {
+        margin-top: 0;
+    }
 
     .nav-version:hover {
         background-color: rgba(255,255,255,0.06);

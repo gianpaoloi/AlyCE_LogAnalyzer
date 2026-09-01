@@ -13,6 +13,7 @@ A Windows desktop application for parsing, browsing, and filtering structured lo
 - Export filtered results to CSV or original log format
 - Collapsible load panel and side navigation to maximise screen space
 - Dark theme UI optimized for extended viewing sessions
+- Tells you when a new version has been released, and installs it for you
 
 ## System Requirements
 
@@ -144,6 +145,43 @@ That value is read from the assembly at runtime, so it cannot go stale. A **loca
 has no tag to take a version from and will show `1.0.0` (the `ApplicationDisplayVersion` fallback in
 `LogAnalyzer.Maui.csproj`) with the commit you built from — which is exactly how you can tell a dev
 build from a released one.
+
+### Staying up to date
+
+The desktop app checks for a newer release on its own. Once per run it asks GitHub for the latest
+release of this repository, compares the tag with the version it is running, and — only if the tag is
+newer — adds an **Update to v1.2.3** line above the version in the sidebar.
+
+Clicking it shows the release notes and a **Download and install** button, which downloads the
+release's `AlyCE-LogAnalyzer-Setup-{version}.exe`, checks it against the SHA256 published with the
+release, and runs it silently. The app closes while it installs and starts again on the new version.
+No admin rights are involved — the setup package is per-user, the same as a first install.
+
+| Situation | What the app offers |
+|---|---|
+| Installed with `AlyCE-LogAnalyzer-Setup-*.exe` | Download and install, in place |
+| Portable ZIP, or a build from source | The release page only — installing would leave the copy you are running behind, still on the old version, while the "update" landed in `%LOCALAPPDATA%` |
+| Self-hosted web build (`LogAnalyzer`) | The release page only — that host is a published folder you replace |
+
+A check that cannot complete — offline, behind a proxy, or past GitHub's anonymous rate limit —
+shows nothing rather than an error, and is retried later in the session.
+
+This is the app's **only outbound network request**. To switch it off, set:
+
+```json
+{ "LogAnalyzer": { "Updates": { "Enabled": false } } }
+```
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `LogAnalyzer:Updates:Enabled` | `true` | Contact GitHub at all |
+| `LogAnalyzer:Updates:Repository` | `gianpaoloi/AlyCE_LogAnalyzer` | Which repository's releases to read |
+| `LogAnalyzer:Updates:CheckIntervalHours` | `6` | How long an answer is reused before asking again |
+
+> Only versions tagged `vMAJOR.MINOR.PATCH` are offered, and comparison follows SemVer precedence:
+> `1.10.0` beats `1.9.0`, and `1.3.0` beats `1.3.0-rc1`. Because GitHub's *latest release* excludes
+> prereleases, a `v1.3.0-rc1` release is never offered as an update — deliberately, so a release
+> candidate does not reach users who did not ask for one.
 
 ### Version numbers
 

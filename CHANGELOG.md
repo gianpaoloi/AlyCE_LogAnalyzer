@@ -11,6 +11,27 @@ release is collected under *Unreleased*.
 
 ### Added
 
+- **Automatic update check against GitHub Releases.** The app asks
+  `api.github.com/repos/gianpaoloi/AlyCE_LogAnalyzer/releases/latest` once per run, compares the tag with the
+  version the running assembly reports, and — only when the tag is newer — shows an *Update to v1.2.3* line
+  above the version footer in the sidebar. Clicking it opens a dialog with the release notes, the download
+  size and a **Download and install** button: the release's setup package is downloaded to `%TEMP%`, verified
+  against the SHA256 published with the release, then run with `/SILENT` while the app closes so it can be
+  replaced. `installer/setup.iss` gained a `/UPDATED=1` switch that restarts the app after a silent install —
+  the existing launch step is `skipifsilent`, so without it the app would close to update and never come back.
+
+  Versions are compared by SemVer precedence rather than as strings: `1.10.0` is newer than `1.9.0`, `1.3.0`
+  is newer than `1.3.0-rc1`, and the SourceLink commit suffix is ignored so a local build of `1.2.3` does not
+  see the released `1.2.3` as an update.
+
+  Only a copy installed by the setup package offers to install. A portable or development build would install
+  a *second* app into `%LOCALAPPDATA%` and carry on running the old one, so it is pointed at the download page
+  instead — as is the self-hosted web build, which is a published folder someone replaces. A check that fails
+  (offline, proxy, rate limit) shows nothing at all: this runs in the background of a log viewer and must not
+  produce errors to dismiss. It is also the app's only outbound request, so it can be switched off with
+  `LogAnalyzer:Updates:Enabled=false`. New `Services/Updates/` in Core, `Services/WindowsUpdateInstaller.cs`
+  in the MAUI host, and 124 tests. *(working tree, not yet committed)*
+
 - **The running version is shown at the bottom of the navigation sidebar**, always on screen. It reads
   `AssemblyInformationalVersion` at runtime — which the SDK stamps with the version and, via SourceLink, the
   exact commit — so it reports what is actually running and cannot go stale. Clicking it copies the full

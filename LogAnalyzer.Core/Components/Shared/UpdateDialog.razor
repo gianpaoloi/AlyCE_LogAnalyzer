@@ -1,0 +1,147 @@
+@* Shown from the sidebar when a newer release exists. Also reachable when the app is up to date,
+   via the "Check for updates" entry, so it doubles as the answer to "am I current?". *@
+@inject DialogService DialogService
+@inject UpdateChecker Updates
+@inject IUpdateInstaller Installer
+
+<RadzenStack Gap="1rem" class="update-dialog">
+
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem" Wrap="FlexWrap.Wrap">
+        <RadzenText TextStyle="TextStyle.Body1" class="rz-m-0">
+            <strong>v@(Updates.CurrentVersion)</strong>
+            <RadzenIcon Icon="arrow_forward" class="update-arrow" />
+            <strong>v@(Release.Version)</strong>
+        </RadzenText>
+
+        @if (Release.IsPrerelease)
+        {
+            <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="Prerelease" IsPill="true" />
+        }
+
+        @if (Release.PublishedAt is { } published)
+        {
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
+                published @published.ToLocalTime().ToString("d MMM yyyy")
+            </RadzenText>
+        }
+    </RadzenStack>
+
+    @if (!string.IsNullOrWhiteSpace(Release.Notes))
+    {
+        @* Raw Markdown: the app has no renderer, and the notes this project publishes are tables and
+           code blocks that stay readable as text. *@
+        <pre class="update-notes">@Release.Notes</pre>
+    }
+
+    @if (_error is not null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter"
+                     Title="The update could not be installed" AllowClose="false">
+            @_error
+        </RadzenAlert>
+    }
+    else if (_busy)
+    {
+        <RadzenStack Gap="0.4rem">
+            @if (_progress?.Fraction is { } fraction)
+            {
+                <RadzenProgressBar Value="@(fraction * 100)" ShowValue="false" Mode="ProgressBarMode.Determinate" />
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
+                    Downloading @Megabytes(_progress!.Value.BytesReceived) of
+                    @Megabytes(_progress!.Value.TotalBytes) MB…
+                </RadzenText>
+            }
+            else
+            {
+                <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">Downloading…</RadzenText>
+            }
+        </RadzenStack>
+    }
+    else if (!Installer.CanInstall)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter"
+                     Title="This build cannot update itself" AllowClose="false">
+            @Installer.UnavailableReason
+        </RadzenAlert>
+    }
+    else if (!Release.HasInstaller)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter"
+                     Title="No installer in this release" AllowClose="false">
+            Release @Release.TagName has no setup package attached, so it has to be installed by hand.
+        </RadzenAlert>
+    }
+    else
+    {
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
+            @* Says what is about to happen before the button is pressed: the app closing on its own
+               is alarming if it was not announced. *@
+            Downloads @Release.InstallerName@(SizeSuffix()) and runs it. The app closes while the
+            update installs, then starts again on the new version.
+            @if (Release.InstallerSha256 is not null)
+            {
+                <text> The download is checked against the SHA256 published with the release.</text>
+            }
+        </RadzenText>
+    }
+
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+        <RadzenLink Path="@Release.ReleaseUrl" Target="_blank" Icon="open_in_new"
+                    Text="Release on GitHub" class="update-link" />
+
+        <RadzenButton Text="@(_error is null ? "Later" : "Close")" ButtonStyle="ButtonStyle.Light"
+                      class="rz-ml-auto" Disabled="@_busy" Click="@(() => DialogService.Close(false))" />
+
+        @if (Installer.CanInstall && Release.HasInstaller && _error is null)
+        {
+            <RadzenButton Text="Download and install" Icon="system_update_alt" ButtonStyle="ButtonStyle.Primary"
+                          IsBusy="@_busy" BusyText="Installing…" Disabled="@_busy" Click="@Install" />
+        }
+    </RadzenStack>
+
+</RadzenStack>
+
+@code {
+    /// <summary>The release being offered. Required — the dialog has nothing to show without it.</summary>
+    [Parameter, EditorRequired] public UpdateInfo Release { get; set; } = default!;
+
+    private bool _busy;
+    private string? _error;
+    private UpdateDownloadProgress? _progress;
+
+    private async Task Install()
+    {
+        _busy = true;
+        _error = null;
+        _progress = null;
+
+        try
+        {
+            // Progress arrives on a download thread, so the re-render has to be marshalled back.
+            var progress = new Progress<UpdateDownloadProgress>(p =>
+            {
+                _progress = p;
+                InvokeAsync(StateHasChanged);
+            });
+
+            await Installer.InstallAsync(Release, progress);
+
+            // Reached only if the installer started: the app is on its way out, so leave the dialog
+            // as it is rather than flashing a state nobody will read.
+        }
+        catch (Exception ex)
+        {
+            // Everything is reported in place. This is a user-initiated action on a dialog that is
+            // already open — an unhandled exception here would tear down the circuit instead.
+            _error = ex.Message;
+            _busy = false;
+        }
+    }
+
+    private string SizeSuffix() =>
+        Release.InstallerSize is > 0 ? $" ({Megabytes(Release.InstallerSize)} MB)" : "";
+
+    private static string Megabytes(long? bytes) =>
+        bytes is null ? "?" : (bytes.Value / 1024d / 1024d).ToString("0.#");
+}

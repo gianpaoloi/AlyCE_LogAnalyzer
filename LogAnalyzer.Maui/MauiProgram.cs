@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Logging;
 using Radzen;
 using LogAnalyzer.Services;
+using LogAnalyzer.Services.Updates;
+using LogAnalyzer.Maui.Services;
 using System.Diagnostics;
 
 namespace LogAnalyzer.Maui;
@@ -32,6 +34,18 @@ public static class MauiProgram
 			builder.Services.AddScoped<SessionState>();
 			// Recently used paths, persisted in the WebView's localStorage.
 			builder.Services.AddScoped<PathHistory>();
+
+			// Update check against this project's GitHub releases.
+			//
+			// Singleton so GitHub is asked once per run and every page shares the answer — the
+			// sidebar asks on each render, and anonymous API calls are rate limited per IP address.
+			// Built by a factory rather than by constructor injection because UpdateChecker's other
+			// parameters exist for tests and are not registered services.
+			builder.Services.AddSingleton(sp => new UpdateChecker(
+				UpdateOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>())));
+			// This host is the one that can actually update itself: it ships as a per-user Inno Setup
+			// package, and re-running that package silently is a supported upgrade.
+			builder.Services.AddSingleton<IUpdateInstaller, WindowsUpdateInstaller>();
 
 			// Default log folder - use user's Documents for portability
 			string defaultLogFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);

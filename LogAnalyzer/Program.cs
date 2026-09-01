@@ -1,5 +1,6 @@
 using LogAnalyzer.Components;
 using LogAnalyzer.Services;
+using LogAnalyzer.Services.Updates;
 using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +27,16 @@ builder.Services.AddScoped<LogWatcher>();
 builder.Services.AddScoped<SessionState>();
 // Recently used paths, persisted in the browser's localStorage.
 builder.Services.AddScoped<PathHistory>();
+
+// Update check against this project's GitHub releases. Singleton so one server asks GitHub once per
+// interval rather than once per visitor — anonymous API calls are rate limited per IP address.
+builder.Services.AddSingleton(sp => new UpdateChecker(
+    UpdateOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>())));
+// Nothing here can install anything: this host is a published folder someone replaces, and the
+// browser showing the UI is usually not even on the machine running it.
+builder.Services.AddSingleton<IUpdateInstaller>(_ => new UnsupportedUpdateInstaller(
+    "This is the self-hosted web build, which cannot update itself. Download the new version from " +
+    "GitHub and replace the published folder."));
 
 // Allow big SignalR payloads (large filtered tables pushed to the browser).
 builder.Services.Configure<Microsoft.AspNetCore.SignalR.HubOptions>(o =>

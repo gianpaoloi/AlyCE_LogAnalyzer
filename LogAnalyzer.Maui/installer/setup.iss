@@ -60,6 +60,14 @@ Filename: "{app}\{#MyAppExeName}"; \
   Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; \
   Flags: nowait postinstall skipifsilent
 
+; Restart the app after it updated itself.
+;
+; The entry above is "postinstall skipifsilent", so a silent install offers nothing and starts
+; nothing - correct for winget, but it would mean the app downloads an update, closes to let Setup
+; replace it, and never comes back. This entry runs during the install phase (no "postinstall"), so
+; it fires in silent mode too, and only when the app asked for the install by passing /UPDATED=1.
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait; Check: RelaunchAfterSelfUpdate
+
 ; ---------------------------------------------------------------------------
 ; Microsoft Edge WebView2 Runtime
 ;
@@ -78,6 +86,14 @@ const
   WebView2ClientKey = 'Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
   WebView2BootstrapperUrl = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703';
   WebView2BootstrapperFile = 'MicrosoftEdgeWebview2Setup.exe';
+
+{ True when Setup was started by the app's own updater (WindowsUpdateInstaller passes /UPDATED=1),
+  which is the only case where Setup should start the app by itself. The default keeps a hand-run
+  silent install - winget's, for instance - behaving exactly as it did before. }
+function RelaunchAfterSelfUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:UPDATED|0}') = '1';
+end;
 
 { True when the key holds a real version; an empty or all-zero "pv" is left behind by an uninstall. }
 function HasWebView2Version(RootKey: Integer; const SubKeyName: String): Boolean;
