@@ -7,6 +7,7 @@
    before the dialog is even painted. *@
 @inject DialogService DialogService
 @inject PathHistory History
+@inject ContextMenuService ContextMenuService
 
 @* The wrapper fills the dialog's height so the listing can take whatever the toolbars leave. It is a
    plain div rather than a class on RadzenStack because CSS isolation only scopes elements written in
@@ -76,6 +77,7 @@
         <div class="fb-list">
             <RadzenDataGrid Data="@_items" TItem="FsItem" Density="Density.Compact" AllowSorting="true"
                             AllowPaging="false" AllowColumnResize="true" RowSelect="OnRowSelect"
+                            CellContextMenu="OnCellContextMenu"
                             EmptyText="@(_folder is null ? "No drives available" : "Nothing to show in this folder")">
                 <Columns>
                     <RadzenDataGridColumn TItem="FsItem" Title="Name" Property="Name">
@@ -392,6 +394,21 @@
     {
         if (item.IsFolder) await OpenAsync(item.FullPath);
         else _selected = item.FullPath;
+    }
+
+    /// <summary>Right-click on a row: a file opens straight away, a folder just navigates into it.</summary>
+    private void OnCellContextMenu(DataGridCellMouseEventArgs<FsItem> args)
+    {
+        if (args.Data is not { } item) return;
+        ContextMenuService.Open(args, new List<ContextMenuItem>
+        {
+            new() { Text = item.IsFolder ? "Open folder" : "Open", Value = "open", Icon = "folder_open" },
+        }, async _ =>
+        {
+            ContextMenuService.Close();
+            if (item.IsFolder) await OpenAsync(item.FullPath);
+            else DialogService.Close(item.FullPath);
+        });
     }
 
     private static string FormatSize(long bytes) => bytes switch

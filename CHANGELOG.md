@@ -9,7 +9,28 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Right-click a log file to open it** — from the built-in file browser, and from Windows Explorer itself.
+  The Browse… dialog's grid answers a right-click with an *Open* item: a file closes the dialog and is
+  picked immediately, a folder is navigated into — one step instead of click-then-press-Select. Built on
+  Radzen's `ContextMenuService`/`CellContextMenu`, the first place in the app to use either.
+
+  Separately, the installer now registers `.log` under `SystemFileAssociations`, which adds an *Open with
+  AlyCE Log Analyzer* entry to that context menu in Explorer without touching the extension's default
+  handler — double-click still opens whatever was already associated. Picking it launches the app with the
+  path on the command line; `MainPage.LoadStartupFileIfAny` reads that once per process and hands it to
+  `LogStore`, the same way dropping a file onto the desktop window already did. Registered per-user under
+  `HKCU`, so it needs no admin rights and is removed on uninstall — and, like any registry change an
+  installer makes, it only takes effect on installs made with the updated setup package; an already-installed
+  copy won't gain the Explorer entry until it updates.
+
+  Opening a file this way also collapses the **Load files** panel, same as any other load — except this
+  load starts the instant the app launches, often before the panel exists to hear `LogStore`'s
+  `DatasetChanged` and collapse itself, which is how a file opened from Explorer used to land on a page with
+  the panel still open despite data already being loaded. The first `LoadPanel` to mount each session now
+  syncs its collapsed state with the store directly (`SessionState.LoadPanelSyncedOnce`), rather than relying
+  solely on an event that can fire before anything is listening.
 
 ## [1.1.1] — 2026-09-01
 

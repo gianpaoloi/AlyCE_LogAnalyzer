@@ -14,6 +14,17 @@ public sealed class SessionState
     public bool LoadPanelCollapsed { get; set; }
 
     /// <summary>
+    /// Whether the first <c>LoadPanel</c> mounted this session has already synced <see
+    /// cref="LoadPanelCollapsed"/> with whatever <c>LogStore</c> reports. Needed because a load
+    /// started before any page exists to observe it — the MAUI host loading a file passed on the
+    /// command line, from Explorer's right-click "Open with" — can finish before the panel
+    /// subscribes to <c>DatasetChanged</c>, so the event that would normally collapse it never
+    /// reaches a listener. Checked once so a later manual expand/collapse survives navigating
+    /// between pages instead of being overridden back to whatever the store currently says.
+    /// </summary>
+    public bool LoadPanelSyncedOnce { get; set; }
+
+    /// <summary>
     /// Backing store for the multi-select filters below, which are never null.
     /// <para>
     /// Clicking a Radzen dropdown's clear (×) writes <c>default(TValue)</c> back through

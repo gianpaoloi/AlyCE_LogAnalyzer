@@ -78,7 +78,12 @@ row without it sliding away, which is otherwise the fundamental problem with tai
 **Browse…** opens a filesystem browser — drives, then folders, then files with size and modified date,
 newest first. It browses the machine that reads the logs, which is the same machine the tail runs on, so
 local paths and UNC shares both work. Pin the folders you keep coming back to with **Add to favorites**;
-they are remembered between runs, as are the paths you have typed before.
+they are remembered between runs, as are the paths you have typed before. Right-click a file to open it
+straight away instead of clicking it and then pressing **Select**.
+
+You don't need the browser at all if you're already in Windows Explorer: right-click any `.log` file and
+choose **Open with AlyCE Log Analyzer** to launch it there directly (added by the installer — see
+[Install](#install)).
 
 ### Built-in Quick Start
 
@@ -97,6 +102,7 @@ only copy of that information.
 - Log volume time series stacked by level — drag it to filter a time window
 - Real-time log tailing / live monitoring — pick the file to watch with a built-in browser (with favorites),
   and switch auto-scroll off to read a line while the tail keeps running
+- Right-click a file to open it — in the built-in browser, or straight from Windows Explorer's context menu
 - Error and warning triage that groups occurrences by message signature
 - Export filtered results to CSV or original log format
 - Collapsible load panel and side navigation to maximise screen space

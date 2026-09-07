@@ -55,6 +55,23 @@ Name: "{group}\{#MyAppName}";                            Filename: "{app}\{#MyAp
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}";      Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}";                      Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
+; ---------------------------------------------------------------------------
+; Explorer "Open with" context-menu entry for .log files
+;
+; SystemFileAssociations adds a verb to the right-click menu of any .log file
+; without touching the extension's default handler — double-click still opens
+; whatever the user already had associated. HKA resolves to HKCU here (the
+; install is per-user, PrivilegesRequired=lowest), so no admin rights needed
+; and the entry is removed with the app (uninsdeletekey).
+; ---------------------------------------------------------------------------
+[Registry]
+Root: HKA; Subkey: "Software\Classes\SystemFileAssociations\.log\shell\AlyCELogAnalyzer"; \
+  ValueType: string; ValueName: ""; ValueData: "Open with {#MyAppName}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\SystemFileAssociations\.log\shell\AlyCELogAnalyzer"; \
+  ValueType: string; ValueName: "Icon"; ValueData: """{app}\{#MyAppExeName}"""
+Root: HKA; Subkey: "Software\Classes\SystemFileAssociations\.log\shell\AlyCELogAnalyzer\command"; \
+  ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
 [Run]
 Filename: "{app}\{#MyAppExeName}"; \
   Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; \

@@ -129,6 +129,14 @@
         // The panel is the one thing that shows progress, so it is also the only subscriber that
         // needs the (throttled) progress event.
         Store.ProgressChanged += OnChanged;
+
+        // See SessionState.LoadPanelSyncedOnce: catches a load that finished before any panel
+        // existed to hear about it.
+        if (!State.LoadPanelSyncedOnce)
+        {
+            State.LoadPanelSyncedOnce = true;
+            ApplyAutoCollapse();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
