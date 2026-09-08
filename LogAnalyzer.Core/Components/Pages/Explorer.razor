@@ -49,7 +49,8 @@ else
                stays on screen and the selection can be widened or moved. *@
             <LogVolumeChart Entries="@_chartSource" @bind-Collapsed="State.ExplorerVolumeCollapsed"
                             Range="@State.ExplorerRange" RangeChanged="OnRangeChanged"
-                            ActiveLevels="@State.ExplorerLevels" LevelToggled="OnLevelToggled" />
+                            ActiveLevels="@State.ExplorerLevels" LevelToggled="OnLevelToggled"
+                            SelectedTime="@_selectedTime" />
 
             <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-2">@_filtered.Count.ToString("N0") entries — sort or use the per-column filter icons to refine; click a row for detail</RadzenText>
 
@@ -135,6 +136,10 @@ else
 
     /// <summary><see cref="_chartSource"/> narrowed to the selected time window — what the grid shows.</summary>
     private List<LogEntry> _filtered = new();
+
+    /// <summary>Timestamp of the last row opened, marked on the volume chart so the reader can place
+    /// it in context even after the detail dialog closes.</summary>
+    private DateTime? _selectedTime;
 
     // Cached distinct values for the header combos. Stable references so the
     // RadzenDropDown keeps its selection state across grid re-renders.
@@ -232,6 +237,7 @@ else
 
     private async Task OpenDetail(LogEntry e)
     {
+        _selectedTime = e.Time;
         await DialogService.OpenAsync<LogDetail>(
             $"{e.Level} · {e.Time:HH:mm:ss.fff}",
             new Dictionary<string, object?> { { "Entry", e } },

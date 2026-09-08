@@ -119,7 +119,7 @@ public sealed class LogStore
         if (zipFiles.Count == 1)
         {
             await using var stream = File.OpenRead(zipFiles[0]);
-            await LoadFromZipAsync(stream, Path.GetFileName(zipFiles[0]), includeDebug, ct);
+            await LoadFromZipAsync(stream, zipFiles[0], includeDebug, ct);
             return;
         }
 
@@ -129,7 +129,7 @@ public sealed class LogStore
             // everything already loaded, so dropping N files cost N sorts of a growing list.
             var sources = logFiles.Select(FileSource).ToList();
             var label = logFiles.Count == 1
-                ? Path.GetFileName(logFiles[0])
+                ? logFiles[0]
                 : $"{logFiles.Count} files";
             await RunLoadAsync(sources, label, includeDebug, parallel: true, append: false, ct);
             return;

@@ -286,6 +286,7 @@ h2 { font-size: 1.05rem; margin: 0 0 .6rem; color: var(--txt); }
 .lv-bar:hover { background: rgba(255,255,255,.06); }
 .lv-bar-sel { background: rgba(33,212,253,.14); }
 .lv-bar-dim { opacity: .35; }
+.lv-bar-marked { box-shadow: inset 0 0 0 2px #ff9800; }
 .lv-seg { display: block; width: 100%; }
 .lv-xaxis { position: relative; height: 1.1rem; margin-left: calc(46px + .35rem); }
 .lv-xtick { position: absolute; top: .15rem; transform: translateX(-50%); font-size: .68rem; color: var(--muted); white-space: nowrap; }

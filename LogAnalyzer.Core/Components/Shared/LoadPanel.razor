@@ -1,11 +1,9 @@
-@* Folder input + load button + progress, built with Radzen. Reflects shared LogStore state. *@
+@* Drop zone + progress, built with Radzen. Reflects shared LogStore state. *@
 @inherits ObservingComponentBase
 @implements IDisposable
 @inject LogStore Store
-@inject IConfiguration Config
 @inject IJSRuntime JS
 @inject SessionState State
-@inject PathHistory History
 
 <RadzenCard class="rz-mb-3" Variant="Variant.Outlined">
     <div class="collapse-header @(Collapsed ? "" : "rz-mb-2")" @onclick="Toggle"
@@ -32,19 +30,10 @@
         }
     </div>
 
-    @* Kept in the DOM while collapsed so the drop zone's JS registration and the
-       typed folder path survive a collapse/expand round-trip. *@
+    @* Kept in the DOM while collapsed so the drop zone's JS registration
+       survives a collapse/expand round-trip. *@
     <div class="@(Collapsed ? "collapse-hidden" : null)">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
-        <RadzenText TextStyle="TextStyle.Body2" class="rz-mr-1"><b>Log folder</b></RadzenText>
-        @* Free-text box that also suggests previously loaded folders (see PathHistory). *@
-        <RadzenAutoComplete @bind-Value="_folder" Data="@_recentFolders"
-                            Placeholder="C:\path\to\Logs or \\server\share\Logs"
-                            OpenOnFocus="true" MinLength="0"
-                            FilterOperator="StringFilterOperator.Contains"
-                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                            Disabled="@Store.IsLoading" style="flex:1; min-width:280px"
-                            title="Type a path, or pick one you used before" />
         <RadzenCheckBox @bind-Value="Store.IncludeDebug" Name="dbg" Disabled="@Store.IsLoading" />
         <RadzenLabel Text="include DEBUG" Component="dbg" title="Including DEBUG uses much more memory" />
         @if (Store.IsLoading)
@@ -58,8 +47,6 @@
         }
         else
         {
-            <RadzenButton Text="@(Store.IsLoaded ? "Reload" : "Load")" Icon="folder_open"
-                          Click="Load" ButtonStyle="ButtonStyle.Primary" />
             <RadzenButton Text="Clear" Icon="delete_sweep" Click="Clear"
                           ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined"
                           Disabled="@(!Store.IsLoaded)" />
@@ -68,7 +55,8 @@
 
     @* The zone stays rendered while loading (it holds the JS drop registration) but ignores
        input — the busy class makes that visible instead of silently swallowing a drop. *@
-    <div class="drop-zone rz-mt-2 @(Store.IsLoading ? "drop-zone-busy" : null)" @ref="_dropZoneRef">
+    <div class="drop-zone rz-mt-2 @(Store.IsLoading ? "drop-zone-busy" : null)" @ref="_dropZoneRef"
+         title="@(Store.IsLoaded ? "Click to load log files or zip, or drop them here":"")">
         <InputFile id="@_inputId" class="drop-zone-input" OnChange="OnDropZoneSelected" accept=".log,.zip" multiple />
         @if (Store.IsLoading)
         {
@@ -80,7 +68,7 @@
         else
         {
             <RadzenIcon Icon="move_to_inbox" />
-            <span>Click to load log Files, zip in the app or Drop it</span>
+            <span>@(Store.IsLoaded ? Store.LoadedPath : "Click to load log Files, zip in the app or Drop it.")</span>
         }
     </div>
     @if (!string.IsNullOrWhiteSpace(_dropError))
@@ -115,16 +103,13 @@
 
     private void Toggle() => State.LoadPanelCollapsed = !State.LoadPanelCollapsed;
 
-    private string _folder = "";
     private string? _dropError;
     private ElementReference _dropZoneRef;
     private readonly string _inputId = $"drop-input-{Guid.NewGuid():N}";
     private bool _jsRegistered;
-    private List<string> _recentFolders = new();
 
     protected override void OnInitialized()
     {
-        _folder = Store.LoadedPath ?? Config["LogAnalyzer:DefaultLogFolder"] ?? "";
         Store.DatasetChanged += OnChanged;
         // The panel is the one thing that shows progress, so it is also the only subscriber that
         // needs the (throttled) progress event.
@@ -149,21 +134,7 @@
                 _jsRegistered = true;
             }
             catch { /* JS not yet available during pre-render */ }
-
-            // localStorage is only reachable once the component is interactive.
-            _recentFolders = await History.GetAsync(PathHistory.LogFolderKey);
-            if (_recentFolders.Count > 0) StateHasChanged();
         }
-    }
-
-    // Remembered only after a load succeeds, so typos don't end up in the suggestions.
-    private async Task Load()
-    {
-        if (string.IsNullOrWhiteSpace(_folder)) return;
-        var folder = _folder.Trim();
-        await Store.LoadAsync(folder, Store.IncludeDebug, CancellationToken.None);
-        if (string.IsNullOrEmpty(Store.LoadError))
-            _recentFolders = await History.AddAsync(PathHistory.LogFolderKey, folder);
     }
 
     private void Cancel() => Store.CancelLoad();
@@ -190,7 +161,7 @@
         {
             // GetMultipleFiles throws past the cap rather than truncating, which used to reach the
             // error boundary and blank the page.
-            _dropError = $"Too many files at once — drop at most {MaxDroppedFiles}, or load a folder.";
+            _dropError = $"Too many files at once — drop at most {MaxDroppedFiles}.";
             return;
         }
 

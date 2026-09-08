@@ -120,6 +120,12 @@
     /// <summary>Levels currently filtered on, used to light up the matching legend entries.</summary>
     [Parameter] public IEnumerable<string>? ActiveLevels { get; set; }
 
+    /// <summary>
+    /// Timestamp of a single selected entry (e.g. a grid row), marked on the bar it falls into.
+    /// Independent of <see cref="Range"/> — a row can be marked whether or not a window is filtered.
+    /// </summary>
+    [Parameter] public DateTime? SelectedTime { get; set; }
+
     /// <summary>Raised with a series key (<c>INFO</c>, <c>WARN</c>, …) when a legend entry is clicked.</summary>
     [Parameter] public EventCallback<string> LevelToggled { get; set; }
 
@@ -316,16 +322,29 @@
         return $"{b.Start:yyyy-MM-dd HH:mm:ss} · {b.Total:N0} entries{detail} — drag to filter";
     }
 
-    /// <summary>Highlight for a bar: the live drag wins, otherwise the committed window.</summary>
+    /// <summary>Highlight for a bar: the live drag wins, otherwise the committed window — plus the
+    /// marked bucket (<see cref="SelectedTime"/>) on top, since it is independent of both.</summary>
     private string? BarClass(int i)
     {
+        string? baseClass;
         if (_dragFrom is { } a && _dragTo is { } z)
-            return i >= Math.Min(a, z) && i <= Math.Max(a, z) ? "lv-bar-sel" : "lv-bar-dim";
+            baseClass = i >= Math.Min(a, z) && i <= Math.Max(a, z) ? "lv-bar-sel" : "lv-bar-dim";
+        else if (Range is { } r)
+            baseClass = r.Overlaps(_buckets[i].Start, _step) ? "lv-bar-sel" : "lv-bar-dim";
+        else
+            baseClass = null;
 
-        if (Range is { } r)
-            return r.Overlaps(_buckets[i].Start, _step) ? "lv-bar-sel" : "lv-bar-dim";
+        if (IsMarked(i))
+            baseClass = baseClass is null ? "lv-bar-marked" : $"{baseClass} lv-bar-marked";
 
-        return null;
+        return baseClass;
+    }
+
+    private bool IsMarked(int i)
+    {
+        if (SelectedTime is not { } t) return false;
+        var b = _buckets[i];
+        return t >= b.Start && t < b.Start + _step;
     }
 
     private void StartDrag(int i) { _dragFrom = i; _dragTo = i; }
