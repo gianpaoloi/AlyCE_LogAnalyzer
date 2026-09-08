@@ -9,6 +9,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.1.2] — 2026-09-08
+
 ### Added
 
 - **Right-click a log file to open it** — from the built-in file browser, and from Windows Explorer itself.
@@ -32,12 +36,19 @@ tag is collected under *Unreleased* until it is moved under a version heading.
   syncs its collapsed state with the store directly (`SessionState.LoadPanelSyncedOnce`), rather than relying
   solely on an event that can fire before anything is listening.
 
+- **Explorer grid row selection marked on the log volume chart** — opening a row's detail now marks the bar
+  it falls into with an orange outline (`LogVolumeChart`'s new `SelectedTime` parameter / `.lv-bar-marked`),
+  independent of the drag-selected time window, so a reader can place a row in context on the timeline even
+  after the detail dialog closes.
+
 ### Removed
 
 - **Folder-path loading from the Load files panel** — the "Log folder" textbox and its Load/Reload button are
   gone from `LoadPanel.razor`; the drop zone (drag/drop or click-to-pick `.log`/`.zip`) is now the only way to
   load from that panel. Once a dataset is loaded, the drop zone's text and tooltip show the loaded path in
-  place of the generic "Click to load…" prompt.
+  place of the generic "Click to load…" prompt — for a single file dropped onto the desktop window or opened
+  via Explorer, `LogStore.LoadFromPathsAsync` now keeps the full path instead of trimming it to just the
+  file name.
 
 ## [1.1.1] — 2026-09-01
 
