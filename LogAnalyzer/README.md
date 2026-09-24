@@ -51,7 +51,13 @@ DOM while collapsed, so the drop zone and a half-typed folder path survive a col
 **File Live Watch** has no load panel (it tails one file rather than loading a set), but its **Watch settings**
 card collapses the same way — same `.collapse-header` / `.collapse-hidden` styling, its own
 `SessionState.LiveSettingsCollapsed` flag, and a summary showing the watched file name plus the active text
-filter.
+filter. **Network Live Watch**'s *Listener settings* card is the same again
+(`SessionState.NetworkSettingsCollapsed`, summary = the endpoint plus the text filter).
+
+Both cards **collapse themselves on a successful start**, like the load panel does on a successful load: once
+events are arriving, the path or the port is not what you are looking at. A start that fails does *not*
+collapse — the card is where the path gets corrected or the port changed, and on the network page it also
+carries the snippet the sender needs.
 
 ## Staying responsive on a long watch
 

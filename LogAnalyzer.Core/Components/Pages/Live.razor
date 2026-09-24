@@ -330,7 +330,12 @@
 
         // Only remember a path that actually opened, so typos stay out of the suggestions.
         if (Watcher.IsWatching)
+        {
             _recentFiles = await History.AddAsync(PathHistory.LiveFileKey, path);
+            // Watching is under way: hand the space to the grid. Left open on failure, because the
+            // path is what needs fixing.
+            State.LiveSettingsCollapsed = true;
+        }
     }
 
     private Task Stop() => Watcher.StopAsync();

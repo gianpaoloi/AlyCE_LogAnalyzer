@@ -36,7 +36,8 @@ FEATURES
 ✓ Column management - add/remove/resize as needed
 ✓ Path boxes remember the folders and files you used before
 ✓ Click any row for the full entry detail, with copy-to-clipboard
-✓ Collapsible 'Load files' and 'Watch settings' panels to free up space
+✓ Collapsible 'Load files', 'Watch settings' and 'Listener settings' panels to
+  free up space - they fold on their own once a load or a watch starts
 
 
 SYSTEM REQUIREMENTS
@@ -70,7 +71,8 @@ HOW TO USE
    - Overview: Summary statistics, volume over time, and breakdown charts
    - Explorer tab: Browse all logs with advanced filtering
    - File Live Watch: Monitor a single log file in real-time
-     (collapse the 'Watch settings' header to free up space)
+     ('Watch settings' folds away once watching starts - click its header
+      to bring it back, e.g. to stop or to change file)
    - Network Live Watch: Receive log events over the network, no file needed
      (see 6. below)
    - Triage: Manage and categorize log entries
@@ -107,6 +109,8 @@ HOW TO USE
       NLog.Targets.Network package; NLog 5 has it built in)
    - On the page, set the same port and press 'Start listening'
      (the page shows the snippet for the port you typed, with a Copy button)
+   - 'Listener settings' folds away once it is listening - click its header
+     to bring it back, e.g. to stop or to change port
    - By default it listens on this machine only (127.0.0.1). Tick
      'all interfaces' to also accept events sent from other machines
    - Events appear with the same columns, filters, logger tree and row detail

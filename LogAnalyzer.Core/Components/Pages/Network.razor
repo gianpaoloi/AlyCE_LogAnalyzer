@@ -285,6 +285,13 @@
             _starting = false;
         }
 
+        if (Listener.IsListening)
+        {
+            // Bound: hand the space to the grid. Left open on failure, because the port is what
+            // needs fixing — and the snippet inside is how the sender gets pointed at it.
+            State.NetworkSettingsCollapsed = true;
+        }
+
         // Binding failures (port in use, above all) are reported in the status bar, but a toast is
         // what gets noticed on a click that otherwise appears to do nothing.
         if (!Listener.IsListening && !string.IsNullOrEmpty(Listener.LastError))

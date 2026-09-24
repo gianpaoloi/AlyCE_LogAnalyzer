@@ -134,7 +134,8 @@ only copy of that information.
 - Right-click a file to open it — in the built-in browser, or straight from Windows Explorer's context menu
 - Error and warning triage that groups occurrences by message signature
 - Export filtered results to CSV or original log format
-- Collapsible load panel and side navigation to maximise screen space
+- Collapsible load / watch panels and side navigation to maximise screen space — the panels fold themselves
+  once a load or a watch is under way
 - Dark theme UI optimized for extended viewing sessions
 - Tells you when a new version has been released, and installs it for you
 

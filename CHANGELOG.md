@@ -86,6 +86,13 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 - **The sidebar is 230px wide** (was 190px), and nav labels no longer wrap. *Network Live Watch* on the old
   rail wrapped onto three lines and pushed its icon onto a line of its own.
 
+- **Starting a watch collapses its settings card** — *Start watching* on File Live Watch and *Start listening*
+  on Network Live Watch now fold the card into its one-line summary, the way a successful load folds the
+  *Load files* panel. Once the entries are arriving, the port or the path is no longer what you are looking
+  at. Only a start that actually succeeded collapses: a path that would not open or a port already taken
+  leaves the card open, since that is where the fix is made — and on the network page, where the target
+  snippet is.
+
 ## [1.1.2] — 2026-09-08
 
 ### Added
