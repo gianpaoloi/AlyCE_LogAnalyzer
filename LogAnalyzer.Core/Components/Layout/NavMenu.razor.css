@@ -56,15 +56,36 @@
         height: 1.25rem;
     }
 
+/* Section heading above each group of nav items ("File analysis", "Live watch"). Small, uppercase and
+   muted: it labels the group without competing with the items under it for attention. An <h2> rather
+   than a <div> so the two groups are real landmarks to a screen reader, with the type reset here
+   because nothing about an h2's default size or weight suits a 230px rail. */
+.nav-group {
+    margin: 0;
+    /* Owns the gap above the first item in its group — which is why .nav-item no longer adds one. */
+    padding: 1rem 0.75rem 0.35rem 0.75rem;
+    color: #6f7787;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    /* Same reason as the nav links: .sidebar clips, so a wrapped heading is worse than a clipped one. */
+    white-space: nowrap;
+}
+
+    /* A hairline above every group but the first, so the split reads even at a glance. The first
+       group needs none — the navbar already has a border under it. */
+    .nav-group ~ .nav-group {
+        margin-top: 0.35rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid rgba(255,255,255,.07);
+    }
+
 .nav-item {
     font-size: 0.9rem;
     /* Replaces the Bootstrap px-3 the markup used to carry — half the horizontal inset. */
     padding: 0 0.5rem 0.5rem 0.5rem;
 }
-
-    .nav-item:first-of-type {
-        padding-top: 1rem;
-    }
 
     .nav-item:last-of-type {
         padding-bottom: 1rem;

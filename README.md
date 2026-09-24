@@ -26,6 +26,10 @@ Built with .NET MAUI + Blazor Hybrid. Self-contained: no .NET runtime to install
 
 ## A quick tour
 
+Five pages, grouped in the sidebar the way they divide up in practice: **File analysis** (Overview, Explorer,
+Triage) over logs already written to disk, and **Live watch** (File Live Watch, Network Live Watch) over
+events arriving as you look at them.
+
 ### Overview — is anything wrong?
 
 The landing page after a load: how many entries came in, from how many files, across how many

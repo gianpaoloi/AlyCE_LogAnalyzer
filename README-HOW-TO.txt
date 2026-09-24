@@ -68,6 +68,9 @@ HOW TO USE
    - Click the 'Load files' header to collapse the panel once you are done
 
 2. VIEWING LOGS:
+   The sidebar groups the pages in two: 'File analysis' works on log files
+   already on disk, 'Live watch' on events arriving right now.
+
    - Overview: Summary statistics, volume over time, and breakdown charts
    - Explorer tab: Browse all logs with advanced filtering
    - File Live Watch: Monitor a single log file in real-time

@@ -14,9 +14,14 @@
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    @* Two groups, because the pages answer two different questions: the first three work on a set of
+       files already on disk, the last two on events arriving right now. Plain headings rather than
+       collapsible sections — five items never need folding away, and a nav item that hides itself is
+       one you have to remember is there. *@
     <nav class="flex-column">
         @* Icons come from the Material Symbols font Radzen already ships, so they match the icons on
            every button in the app and inherit the link colour as it changes between states. *@
+        <h2 class="nav-group">File analysis</h2>
         <div class="nav-item">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="dashboard" /></span> Overview
@@ -32,6 +37,8 @@
                 <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="warning" /></span> Triage
             </NavLink>
         </div>
+
+        <h2 class="nav-group">Live watch</h2>
         <div class="nav-item">
             <NavLink class="nav-link" href="live">
                 <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="sensors" /></span> File Live Watch

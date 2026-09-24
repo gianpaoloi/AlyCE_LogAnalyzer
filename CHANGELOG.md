@@ -86,6 +86,12 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 - **The sidebar is 230px wide** (was 190px), and nav labels no longer wrap. *Network Live Watch* on the old
   rail wrapped onto three lines and pushed its icon onto a line of its own.
 
+- **The sidebar is split into two groups**, *File analysis* (Overview, Explorer, Triage) and *Live watch*
+  (File Live Watch, Network Live Watch), separated by a hairline. Five items in one flat list no longer said
+  anything about the fact that the first three work on files already on disk and the last two on events
+  arriving now. The headings are `<h2>`s, so they are landmarks to a screen reader and not merely smaller
+  text; nothing collapses, since a nav item you have to remember is hidden is worse than a long rail.
+
 - **Starting a watch collapses its settings card** — *Start watching* on File Live Watch and *Start listening*
   on Network Live Watch now fold the card into its one-line summary, the way a successful load folds the
   *Load files* panel. Once the entries are arriving, the port or the path is no longer what you are looking

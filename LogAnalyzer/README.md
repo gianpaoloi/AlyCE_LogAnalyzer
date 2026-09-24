@@ -213,6 +213,10 @@ unrecognised properties — is read past and dropped.
 
 ## Pages
 
+The sidebar groups them under two headings, because they answer two different questions — **File analysis**
+(Overview, Explorer, Triage) works on a set of files already on disk, **Live watch** (File Live Watch,
+Network Live Watch) on events arriving right now.
+
 | Page | What it does |
 |------|--------------|
 | **Overview** | Load a folder / ZIP; totals (entries, files, environments, loggers, errors, warnings), time span, log volume per time bucket stacked by level, errors & warnings per bucket, and breakdown charts by level / environment / logger. |
@@ -299,6 +303,9 @@ independent filter state.
   `#8a63f4`, accent cyan `#21d4fd`). Radzen's `material-dark` theme is re-mapped to this palette in `app.css`.
 - The left navigation can be **collapsed** with the ☰ button in the top bar; when collapsed the content area
   drops its width cap so the grids use the full window width.
+- Nav items sit under two `.nav-group` headings (`<h2>`, so they are landmarks to a screen reader rather than
+  just smaller text): *File analysis* and *Live watch*. The rail is **230px** wide and labels never wrap —
+  *Network Live Watch* on a narrower rail broke onto three lines and pushed its icon onto a line of its own.
 
 ## Notes
 
