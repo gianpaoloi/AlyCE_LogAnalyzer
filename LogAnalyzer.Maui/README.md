@@ -40,10 +40,10 @@ The runtime installs **per-user without admin rights**, which matches this per-u
 
 Identical feature set to the server app:
 
-- **Overview / Explorer / Triage / Live watch** pages.
+- **Overview / Explorer / Triage / File Live Watch** pages.
 - Load logs from a **folder / UNC path**, or by dropping / picking `.log` files or a ZIP of them. The load
   panel **collapses** into a one-line summary via its *Load files* header, on every page that shows it;
-  Live watch's *Watch settings* card collapses the same way.
+  File Live Watch's *Watch settings* card collapses the same way.
 - Both path boxes **remember the paths you used** (autocomplete, most recent first) — kept in the WebView's
   localStorage by `PathHistory`, so they survive restarts.
 - A **spinner with the current phase** (looking for files → parsing *n/m* files → sorting & computing stats)

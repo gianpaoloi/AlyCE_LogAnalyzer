@@ -309,7 +309,7 @@ h2 { font-size: 1.05rem; margin: 0 0 .6rem; color: var(--txt); }
 .side-panel .logger-chip { white-space: normal; word-break: break-all; text-align: left; }
 @media (max-width: 900px) { .side-layout { flex-direction: column; } .side-panel { width: 100%; flex-basis: auto; } }
 
-/* file browser dialog (Browse… on Live watch) — see FileBrowserDialog.razor.css
+/* file browser dialog (Browse… on File Live Watch) — see FileBrowserDialog.razor.css
  *
  * Radzen ships .rz-dialog-content as `flex: 0 1 auto; overflow: auto`, so it does not fill the
  * dialog and it scrolls anything that overflows. For this dialog the listing is what should scroll,

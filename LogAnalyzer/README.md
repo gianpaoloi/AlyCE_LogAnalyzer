@@ -48,7 +48,7 @@ source path, or the load progress). The collapsed state is shared by all pages a
 like the filters, so folding it once keeps it folded everywhere until a full page reload. The body stays in the
 DOM while collapsed, so the drop zone and a half-typed folder path survive a collapse/expand round-trip.
 
-**Live watch** has no load panel (it tails one file rather than loading a set), but its **Watch settings**
+**File live Watch** has no load panel (it tails one file rather than loading a set), but its **Watch settings**
 card collapses the same way — same `.collapse-header` / `.collapse-hidden` styling, its own
 `SessionState.LiveSettingsCollapsed` flag, and a summary showing the watched file name plus the active text
 filter.
@@ -72,7 +72,7 @@ without bound while it did. Four limits keep a long watch flat:
   and the logger tree at 2 000 loggers — known values keep counting. Otherwise every refresh got slower as
   the dropdowns and the tree grew.
 
-## Auto-scroll (Live watch)
+## Auto-scroll (File live Watch)
 
 New lines normally flow into the grid as they are read, which makes a row move while you are reading or
 clicking it. Untick **auto-scroll** to hold the view still (`SessionState.LiveAutoScroll`, on by default):
@@ -88,11 +88,11 @@ clicking it. Untick **auto-scroll** to hold the view still (`SessionState.LiveAu
 
 ## Path history
 
-Both path boxes — the **log folder** on the load panel and the **file** on Live watch — are autocompletes
+Both path boxes — the **log folder** on the load panel and the **file** on File live Watch — are autocompletes
 that suggest paths already used on this machine. Click into an empty box to see the full list
 (`OpenOnFocus`, `MinLength="0"`), or keep typing to filter it (case-insensitive *contains*).
 
-- A path is recorded **only once it works** — after a load finishes without error, for Live watch once the
+- A path is recorded **only once it works** — after a load finishes without error, for File live Watch once the
   watcher actually opened the file (`Watcher.IsWatching`), and immediately for anything picked in the file
   browser. Typos never reach the suggestions.
 - Most recent first, de-duplicated case-insensitively (Windows paths), capped at 12 entries.
@@ -109,7 +109,7 @@ that suggest paths already used on this machine. Click into an empty box to see 
 
 ## File browser (Browse…)
 
-**Live watch** has a **Browse…** button that opens `Components/Shared/FileBrowserDialog.razor`, so the file to
+**File live Watch** has a **Browse…** button that opens `Components/Shared/FileBrowserDialog.razor`, so the file to
 tail never has to be typed. It browses the machine that *reads* the logs — the server for the web host, the
 desktop for MAUI — which is the same machine `LogWatcher` tails from, so local and UNC paths both work.
 
@@ -140,7 +140,7 @@ watcher's existence check. The button reads *Opening…* and is disabled while t
 | **Overview** | Load a folder / ZIP; totals (entries, files, environments, loggers, errors, warnings), time span, log volume per time bucket stacked by level, errors & warnings per bucket, and breakdown charts by level / environment / logger. |
 | **Explorer** | Searchable, paginated grid, topped by a **log volume time series** of the filtered set that doubles as a filter (drag a time window, click a level in the legend). Per-column combo filters, resizable columns, a hidable logger tree, column picker, and download of the filtered set. Click a row for full detail incl. formatted stack trace. |
 | **Triage** | Clusters similar ERROR/WARN messages into issue groups (guids/numbers/durations/quoted values masked), ordered by frequency, with first/last-seen, affected environments and a sample stack trace. |
-| **Live watch** | Tails a single file on a local or remote **UNC** path (`\\server\share\...`) — picked with **Browse…** or typed — and shows new matching lines in real time, with the same column filters, tree, column picker, download and click-a-row detail. Its **Watch settings** card collapses like the load panel. |
+| **File live Watch** | Tails a single file on a local or remote **UNC** path (`\\server\share\...`) — picked with **Browse…** or typed — and shows new matching lines in real time, with the same column filters, tree, column picker, download and click-a-row detail. Its **Watch settings** card collapses like the load panel. |
 
 ## Explorer & Live features
 
@@ -158,7 +158,7 @@ watcher's existence check. The button reads *Opening…* and is disabled while t
   - **CSV** (`.csv`, UTF-8 + BOM for Excel; message stack-trace `\CRLF` markers become real newlines), or
   - **Log lines** (`.log`, original JSON-lines format, so the subset can be re-loaded).
 - **Row detail** – clicking any row opens the `LogDetail` dialog (draggable, resizable) with every field, the
-  message rendered with real newlines, and *Copy message* / *Copy details* buttons. On **Live watch** the row
+  message rendered with real newlines, and *Copy message* / *Copy details* buttons. On **File live Watch** the row
   is passed as a snapshot, so the tail keeps buffering behind the dialog without changing what you're reading.
 
 ## Log volume chart (Explorer)

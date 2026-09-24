@@ -59,9 +59,9 @@ fired 153 times is one row instead of 153. Click a row to expand the occurrences
 
 This is usually the fastest way into an unfamiliar log: read fifteen rows instead of fifteen thousand.
 
-### Live watch — tail a file as it is written
+### File Live Watch — tail a file as it is written
 
-![Live watch actively tailing a log file: a WATCHING badge, 761 lines read, and rows arriving with level badges](docs/screenshots/04-live-watch.png)
+![File Live Watch actively tailing a log file: a WATCHING badge, 761 lines read, and rows arriving with level badges](docs/screenshots/04-live-watch.png)
 
 Follow a log while it grows, on a local path or a UNC share. Tick **from start** to read the existing
 contents first. The same column filters apply to the tail, so you can watch only errors from one

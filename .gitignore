@@ -11,3 +11,4 @@
 # Assembled by the release workflow from CHANGELOG.md and passed to the release as body_path.
 # Only exists during a CI run, or if the notes step is rehearsed locally.
 release-notes.md
+.claude/settings.local.json
