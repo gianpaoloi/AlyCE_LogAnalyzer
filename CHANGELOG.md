@@ -9,6 +9,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.2.0] — 2026-09-24
+
 ### Added
 
 - **Network Live Watch** — a second live page that takes its entries off a **UDP socket** instead of a file,
