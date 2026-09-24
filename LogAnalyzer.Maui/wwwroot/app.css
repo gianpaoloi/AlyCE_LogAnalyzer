@@ -297,7 +297,7 @@ h2 { font-size: 1.05rem; margin: 0 0 .6rem; color: var(--txt); }
 .lv-legend-item i { width: 11px; height: 3px; border-radius: 2px; display: inline-block; }
 .lv-legend-total { color: var(--muted); font-variant-numeric: tabular-nums; }
 
-/* collapsible card header (load-files panel, live watch settings) */
+/* collapsible card header (load-files panel, watch settings, listener settings) */
 .collapse-header { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; cursor: pointer; user-select: none; }
 .collapse-header:hover { color: var(--brand); }
 .collapse-hidden { display: none; }

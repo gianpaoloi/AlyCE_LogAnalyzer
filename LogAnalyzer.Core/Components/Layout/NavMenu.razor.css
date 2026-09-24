@@ -84,6 +84,10 @@
         align-items: center;
         line-height: 3rem;
         width: 100%;
+        /* One line per item: a label that wraps inside this flex row breaks the icon out onto a
+           line of its own and makes the item three rows tall. The rail is sized for the longest
+           label instead (see MainLayout.razor.css). */
+        white-space: nowrap;
         transition: all .2s ease;
     }
 

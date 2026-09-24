@@ -9,7 +9,82 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Network Live Watch** — a second live page that takes its entries off a **UDP socket** instead of a file,
+  from NLog's [`NLogViewer` target](https://github.com/NLog/NLog/wiki/NLogViewer-target). It exists for the
+  process whose log file is on a machine you cannot reach, is rotated away before you get to it, or does not
+  exist at all because the interesting run lasts half a minute. The sender's half is one target and one rule
+  in its `NLog.config`:
+
+  ```xml
+  <target name="viewer" xsi:type="NLogViewer" address="udp://127.0.0.1:9999"
+          includeScopeProperties="true" />
+  <logger name="*" minlevel="Trace" writeTo="viewer" />
+  ```
+
+  The page shows that snippet for the port currently entered, with a *Copy* button, because a listener
+  nobody is sending to looks exactly like one that is working. The whole path was checked against a real
+  NLog 6 sender over a real socket, not just against the wiki, which is where `includeScopeProperties` comes
+  from: it defaults to false, and without it the scope properties never reach the wire, so Machine, Company,
+  Username and Cid stay empty on every row. (On NLog 6 the target itself now ships in the
+  `NLog.Targets.Network` package; NLog 5 has it built in.) Beyond the settings card it *is* File Live
+  Watch: same grid, same header filters, same logger tree, same auto-scroll freeze and *Show N new events*,
+  same row detail, same CSV / `.log` download — and the `.log` export means a capture can be re-loaded on
+  Overview or Explorer like any other log.
+
+  - `NetworkLogListener` binds **loopback by default**, so it hears a process on this machine and opens no
+    port to the network; *all interfaces* binds `0.0.0.0` for events from elsewhere. A port already taken is
+    reported in the status bar *and* as a toast, rather than leaving a page that claims to be listening.
+    Stopping publishes the events the flush had not got to yet instead of dropping them.
+  - `Log4JXmlParser` turns one `<log4j:event>` fragment into a `LogEntry`. The fragment's `log4j:` / `nlog:`
+    prefixes are never declared on it, so it is wrapped in a root that declares both and read with **DTDs
+    prohibited and no resolver** — the input comes off a socket, so entity expansion and external references
+    have to be impossible rather than merely unlikely. Levels are upper-cased (NLog sends `Warn`, the files
+    say `WARN`, and they must be one entry in the filter); a `log4j:throwable` is appended behind the same
+    `stackTrace:` marker the file format uses, so the row gets its **stack** badge and the detail dialog its
+    trace; real newlines become `\CRLF` markers, so the grid keeps one line per event.
+  - `Log4JEventSplitter` does the framing, which is not optional: the target sends **no delimiter** between
+    events, splits a payload over `maxMessageSize` (65 000 bytes) across several sends, and can put several
+    small events in one. It keeps one decode buffer **per sender** — including the `Decoder`, so a multi-byte
+    character cut in half by a datagram boundary still decodes — and cuts on `</log4j:event>`. A buffer that
+    cannot become an event is dropped at once and counted, which is what the *N datagrams ignored* badge
+    reports: "something is arriving but it isn't NLogViewer" is otherwise indistinguishable from silence.
+  - Two columns hold something a log4j event has but an AlyCE line does not, and are **renamed on this page**
+    rather than mislabelled (`LogColumns.Network`): Environment → **Machine** (`log4jmachinename`, unless the
+    sender sets an `environment` property) and Source file → **Application** (`log4japp`, falling back to the
+    sender's `address:port`). `Cid` reads *Cid / NDC*, since `log4j:NDC` stands in when no correlation id was
+    sent. The full mapping table is in
+    [the server README](LogAnalyzer/README.md#network-live-watch-nlogviewer-listener).
+  - UDP only, deliberately: nothing blocks and nothing retries, so pointing a production process at a
+    listener that is not running costs it nothing, and a receiver that cannot keep up loses datagrams instead
+    of slowing the sender down. `tcp://` and `http://` addresses are not supported, and there is no
+    authentication or encryption on the wire — it is a diagnostic channel.
+
+- **57 tests** for it, taking `LogAnalyzer.Tests` from 362 to 423: the parser against the payload the target
+  really sends (including a DTD, a truncated fragment and traffic that is not XML at all), the splitter
+  against batched, split and mid-character datagrams, and `NetworkLogListener` over a **real loopback
+  socket** — a round trip, a reassembly across two datagrams, a port already taken, and a datagram that
+  carries no event. Two of them found real faults before the feature shipped: non-XML traffic sat in the
+  reassembly buffer instead of being counted as ignored, and events received in the last 200 ms before
+  *Stop* were thrown away.
+
+### Changed
+
+- **The live page is now called *File Live Watch***, in the sidebar, the page heading and the browser title —
+  it needed a name that distinguishes it from the new network page. The route (`/live`) and the class names
+  are unchanged.
+
+- **Both live pages now share one grid and one buffer.** `Components/Shared/LiveGrid.razor` holds the columns,
+  the header filters and the logger panel; `Services/LiveEntryBuffer.cs` holds the ring, the published filter
+  values and the four caps that keep a long watch flat (see *Staying responsive on a long watch*). Each page
+  keeps only its own settings card, its own producer (`LogWatcher` / `NetworkLogListener`) and its own filter
+  state in `SessionState`. Behaviour is unchanged — the point was not to have a second copy of the tuning
+  that took several releases to get right, and the buffer can now be tested without a renderer (14 of the new
+  tests do exactly that).
+
+- **The sidebar is 230px wide** (was 190px), and nav labels no longer wrap. *Network Live Watch* on the old
+  rail wrapped onto three lines and pushed its icon onto a line of its own.
 
 ## [1.1.2] — 2026-09-08
 

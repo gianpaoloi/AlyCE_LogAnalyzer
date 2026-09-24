@@ -40,7 +40,7 @@ The runtime installs **per-user without admin rights**, which matches this per-u
 
 Identical feature set to the server app:
 
-- **Overview / Explorer / Triage / File Live Watch** pages.
+- **Overview / Explorer / Triage / File Live Watch / Network Live Watch** pages.
 - Load logs from a **folder / UNC path**, or by dropping / picking `.log` files or a ZIP of them. The load
   panel **collapses** into a one-line summary via its *Load files* header, on every page that shows it;
   File Live Watch's *Watch settings* card collapses the same way.
@@ -57,6 +57,12 @@ Identical feature set to the server app:
 - Filters and panel states persist across navigation (`SessionState`, scoped per WebView).
 - Dark navy/purple theme (Radzen `material-dark`, re-mapped in `app.css`).
 - Live tailing of a local/UNC file.
+- Live receiving over the network: **Network Live Watch** binds a UDP port (loopback by default) and shows
+  the events an application pushes at it from NLog's `NLogViewer` target, with no log file in between. The
+  page carries the target snippet to paste into the sender's `NLog.config`. `NetworkLogListener` is a
+  singleton here, so a capture survives a WebView reload and only one socket per run holds the port —
+  see [the server README](../LogAnalyzer/README.md#network-live-watch-nlogviewer-listener) for the wire
+  format and the field mapping.
 
 ## How this app was built (port from the server project)
 
@@ -65,11 +71,12 @@ Models, services and every page/component now live in **`LogAnalyzer.Core`** and
 — they are no longer copied per project, so a change lands in the server app and here at once:
 
 - **`Models/`** — `LogEntry`, `LogFilter`, `LogColumns`, `Stats`, `TimeRange`.
-- **`Services/`** — `LogParser`, `LogStore`, `LogWatcher`, `LogExport`, `MessageNormalizer`,
+- **`Services/`** — `LogParser`, `LogStore`, `LogWatcher`, `NetworkLogListener`, `Log4JXmlParser`,
+  `Log4JEventSplitter`, `LiveEntryBuffer`, `LogExport`, `MessageNormalizer`,
   `SessionState`, `PathHistory`, `ChartColors`.
-- **`Components/Pages/`** — `Home` (Overview), `Explorer`, `Triage`, `Live`, `QuickStart`.
+- **`Components/Pages/`** — `Home` (Overview), `Explorer`, `Triage`, `Live`, `Network`, `QuickStart`.
 - **`Components/Shared/`** — `LoadPanel` (collapsible header), `LoadProgress` (spinner + load phase),
-  `LogVolumeChart`, `LevelBadge`, `LogDetail`, `LoggerTree`.
+  `LogVolumeChart`, `LiveGrid` (the grid both live pages render), `LevelBadge`, `LogDetail`, `LoggerTree`.
 - **`Components/Layout/`** — `MainLayout` (+ collapsible sidebar CSS), `NavMenu`.
 
 This project keeps only the MAUI shell (`MauiProgram.cs`, `MainPage.xaml`, `Components/Routes.razor`,

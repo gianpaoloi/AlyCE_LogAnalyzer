@@ -21,6 +21,7 @@ public class SessionStateTests
     {
         "ExplorerLevels", "ExplorerEnvironments", "ExplorerCompanies", "ExplorerColumns",
         "LiveLevels", "LiveEnvironments", "LiveCompanies", "LiveColumns",
+        "NetworkLevels", "NetworkEnvironments", "NetworkCompanies", "NetworkColumns",
     };
 
     public static TheoryData<string> MultiSelectFilters()

@@ -23,6 +23,10 @@ builder.Services.AddRadzenComponents();
 // path the machine can reach. Bind it to localhost, or put it behind auth before exposing it.
 builder.Services.AddScoped<LogStore>();
 builder.Services.AddScoped<LogWatcher>();
+// Receives NLogViewer events over UDP. Scoped for the same reason as the watcher — but note that
+// the port is a machine-wide resource: a second circuit that starts the listener on the same port
+// gets "already in use" rather than a share of the events, which is reported on the page.
+builder.Services.AddScoped<NetworkLogListener>();
 // Per-circuit UI state so filters persist across page navigation.
 builder.Services.AddScoped<SessionState>();
 // Recently used paths, persisted in the browser's localStorage.

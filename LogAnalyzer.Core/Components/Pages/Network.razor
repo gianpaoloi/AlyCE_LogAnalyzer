@@ -1,0 +1,365 @@
+@page "/network"
+@inject NetworkLogListener Listener
+@inject SessionState State
+@inject DialogService DialogService
+@inject IJSRuntime JS
+@inject NotificationService Notifications
+@inherits ObservingComponentBase
+@implements IDisposable
+
+<PageTitle>Network Live Watch · AlyCE Log Analyzer</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H4">Network Live Watch</RadzenText>
+<RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted rz-mb-2">
+    Receive events pushed over UDP by NLog's <b>NLogViewer</b> target, with no log file involved — so an
+    application can be watched while it runs, even when it writes nowhere you can reach.
+</RadzenText>
+
+<RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+    <div class="collapse-header @(State.NetworkSettingsCollapsed ? "" : "rz-mb-2")" @onclick="ToggleSettings"
+         title="@(State.NetworkSettingsCollapsed ? "Expand listener settings" : "Collapse listener settings")">
+        <RadzenIcon Icon="@(State.NetworkSettingsCollapsed ? "expand_more" : "expand_less")" />
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0"><b>Listener settings</b></RadzenText>
+        @if (State.NetworkSettingsCollapsed)
+        {
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">@SettingsSummary()</RadzenText>
+        }
+    </div>
+
+    @* Kept in the DOM while collapsed so the header combos don't lose their popup state. *@
+    <div class="@(State.NetworkSettingsCollapsed ? "collapse-hidden" : null)">
+    <RadzenStack Gap="0.75rem">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+            <RadzenLabel Text="UDP port" Component="port" />
+            <RadzenNumeric @bind-Value="State.NetworkPort" Name="port" Min="1" Max="65535" ShowUpDown="false"
+                           Disabled="@Listener.IsListening" Style="width:110px"
+                           title="Must match the port in the sender's address, e.g. udp://127.0.0.1:9999" />
+            <RadzenCheckBox @bind-Value="State.NetworkAllInterfaces" Name="ai" Disabled="@Listener.IsListening" />
+            <RadzenLabel Text="all interfaces" Component="ai"
+                         title="Off: loopback only (this machine). On: also accept events sent from other machines — this opens a port" />
+            @* Stays enabled while listening — freezing the grid mid-stream is exactly what it is for. *@
+            <RadzenCheckBox @bind-Value="State.NetworkAutoScroll" @bind-Value:after="OnAutoScrollChanged" Name="nas" />
+            <RadzenLabel Text="auto-scroll" Component="nas"
+                         title="Off: the grid keeps showing the events on screen while the listener keeps buffering" />
+            @if (Listener.IsListening)
+            {
+                <RadzenButton Text="Stop" Icon="stop" Click="Stop" ButtonStyle="ButtonStyle.Danger" />
+            }
+            else
+            {
+                <RadzenButton Text="@(_starting ? "Binding…" : "Start listening")" Icon="play_arrow" Click="Start"
+                              ButtonStyle="ButtonStyle.Primary" Disabled="@_starting" />
+            }
+            <RadzenButton Text="Clear" Icon="clear_all" Click="Clear" ButtonStyle="ButtonStyle.Light" />
+            <RadzenSplitButton Text="Download" Icon="download" Click="OnDownload" ButtonStyle="ButtonStyle.Success">
+                <ChildContent>
+                    <RadzenSplitButtonItem Text="CSV (.csv)" Value="csv" />
+                    <RadzenSplitButtonItem Text="Log lines (.log)" Value="json" />
+                </ChildContent>
+            </RadzenSplitButton>
+            <RadzenButton Icon="account_tree" Text="@(State.NetworkShowLoggers ? "Hide loggers" : "Loggers")"
+                          Click="@(() => State.NetworkShowLoggers = !State.NetworkShowLoggers)" ButtonStyle="ButtonStyle.Secondary" />
+        </RadzenStack>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+            @* Applies to the buffered events as well as to the incoming ones, so editing it changes
+               what is on screen straight away instead of only affecting what arrives next. *@
+            <RadzenTextBox @bind-Value="State.NetworkText" @bind-Value:after="OnTextFilterChanged"
+                           Placeholder="text filter…" style="flex:1; min-width:220px" />
+            <RadzenDropDown @bind-Value="State.NetworkColumns" Multiple="true" AllowClear="true" Chips="true"
+                            Placeholder="Add columns…" Data="@LogColumns.Network"
+                            TextProperty="Title" ValueProperty="Key" TValue="IEnumerable<string>" Style="width:300px" />
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">Filter Level / Machine / Time / Message from the column headers</RadzenText>
+        </RadzenStack>
+
+        @* The sender's half of the setup. Shown here rather than only in the README because a page
+           that is listening correctly and a page nobody is sending to look exactly the same. *@
+        <div class="net-config">
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-mb-1">
+                Add this to the sending application's <span class="mono">NLog.config</span> (restart it afterwards):
+            </RadzenText>
+            <div class="net-config-row">
+                <pre class="net-config-snippet mono">@TargetSnippet</pre>
+                <RadzenButton Icon="content_copy" Text="Copy" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                              Click="CopySnippet" title="Copy the target and rule to the clipboard" />
+            </div>
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-mt-1 rz-mb-0">
+                On <b>NLog 6</b> the target ships in the <span class="mono">NLog.Targets.Network</span> package
+                (NLog 5 has it built in). <span class="mono">includeScopeProperties</span> is what fills the
+                Machine, Company, Username and Cid columns.
+            </RadzenText>
+        </div>
+    </RadzenStack>
+    </div>
+</RadzenCard>
+
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-2" Wrap="FlexWrap.Wrap">
+    @if (Listener.IsListening)
+    {
+        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="listening" />
+        <span class="mono">@Listener.Endpoint</span>
+    }
+    else
+    {
+        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="idle" />
+    }
+    <RadzenText TextStyle="TextStyle.Body2">· @Listener.TotalEntries.ToString("N0") events · @_buffer.BufferedCount.ToString("N0") buffered</RadzenText>
+    @if (Listener.LastActivity is { } la)
+    {
+        <RadzenText TextStyle="TextStyle.Body2">· last @la.ToString("HH:mm:ss")</RadzenText>
+    }
+    @* Datagrams that carried no event are the one thing that tells "nobody is sending" apart from
+       "something is sending, but not log4j XML". *@
+    @if (Listener.Ignored > 0)
+    {
+        <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="@($"{Listener.Ignored:N0} datagrams ignored")"
+                     title="Received on this port but not recognised as NLogViewer (log4j XML) events" />
+    }
+    @if (!string.IsNullOrEmpty(Listener.LastError))
+    {
+        <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="@Listener.LastError" />
+    }
+    @if (!State.NetworkAutoScroll)
+    {
+        <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="auto-scroll off" />
+        <RadzenButton Text="@(_buffer.PendingCount > 0 ? $"Show {_buffer.PendingCount:N0} new events" : "Resume")" Icon="play_arrow"
+                      ButtonStyle="ButtonStyle.Warning" Variant="Variant.Outlined" Size="ButtonSize.Small"
+                      Click="ResumeAutoScroll"
+                      title="Turn auto-scroll back on and catch up with the stream" />
+    }
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">· click a row for detail</RadzenText>
+</RadzenStack>
+
+@* Machine, not Environment: a log4j event has no environment field, so the listener puts the
+   sending machine's name in that column. See Log4JXmlParser. *@
+<LiveGrid Data="@_buffer.Snapshot" EnvironmentTitle="Machine"
+          @bind-Levels="State.NetworkLevels" @bind-Levels:after="OnDisplayFilterChanged"
+          @bind-Environments="State.NetworkEnvironments" @bind-Environments:after="OnDisplayFilterChanged"
+          @bind-Companies="State.NetworkCompanies" @bind-Companies:after="OnDisplayFilterChanged"
+          @bind-LoggerPrefix="State.NetworkLoggerPrefix" @bind-LoggerPrefix:after="OnDisplayFilterChanged"
+          Columns="@State.NetworkColumns" AvailableColumns="@LogColumns.Network"
+          LevelOptions="@_buffer.Levels" EnvironmentOptions="@_buffer.Environments" CompanyOptions="@_buffer.Companies"
+          Loggers="@_buffer.Loggers" ShowLoggers="@State.NetworkShowLoggers"
+          RowSelect="@OpenDetail" />
+
+@code {
+    // Same throttle as File Live Watch, and for the same reason: a busy application can push events
+    // far faster than a browser can render them, so one loop redraws at most this often, only when
+    // something changed, and awaits each render so it can never outrun the renderer.
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromMilliseconds(400);
+    private readonly CancellationTokenSource _refreshCts = new();
+
+    /// <summary>The received events and everything collected from them. See <see cref="LiveEntryBuffer"/>.</summary>
+    private readonly LiveEntryBuffer _buffer = new();
+
+    private bool _starting;     // guards against a second Start while the socket is being bound
+
+    /// <summary>
+    /// What to paste into the sender's NLog configuration for the port shown in the UI.
+    /// <para>
+    /// <c>includeScopeProperties</c> is not part of the minimal target from NLog's own docs, but
+    /// without it the scope properties never reach the wire — verified against NLog 6 — and the
+    /// Machine, Company, Username and Cid columns stay empty for every event.
+    /// </para>
+    /// </summary>
+    private string TargetSnippet =>
+        $"""
+        <target name="viewer" xsi:type="NLogViewer" address="udp://{SnippetHost}:{State.NetworkPort}"
+                includeScopeProperties="true" />
+        <logger name="*" minlevel="Trace" writeTo="viewer" />
+        """;
+
+    /// <summary>
+    /// Loopback while the listener is bound to it; otherwise this machine's name, since an
+    /// application on another machine cannot reach us on 127.0.0.1.
+    /// </summary>
+    private string SnippetHost =>
+        State.NetworkAllInterfaces ? System.Environment.MachineName.ToLowerInvariant() : "127.0.0.1";
+
+    protected override void OnInitialized()
+    {
+        // The buffer is per-page, so a fresh page has nothing to hold still: follow the stream again
+        // even if auto-scroll was off when the user navigated away.
+        State.NetworkAutoScroll = true;
+        // The text filter does survive navigation, so the buffer has to start out agreeing with the box.
+        _buffer.TextFilter = State.NetworkText;
+
+        Listener.EntriesAppended += OnEntries;
+        Listener.StatusChanged += OnStatus;
+        _ = RefreshLoopAsync(_refreshCts.Token);
+    }
+
+    /// <summary>Single throttled refresh for everything the background listener changes.</summary>
+    private async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(RefreshInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                if (!_buffer.TakeDirty()) continue;
+
+                var rebuild = _buffer.TakeBufferDirty();
+                await InvokeAsync(() =>
+                {
+                    // Not while frozen: the rows are meant to hold still, and handing Radzen a new
+                    // Data reference makes it re-filter, re-sort and re-page for no visible change.
+                    if (rebuild && !_buffer.IsFrozen) Rebuild();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Page disposed.
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit already gone; nothing left to refresh.
+        }
+        finally
+        {
+            // Disposed here rather than in Dispose(), which would race this loop's own
+            // WaitForNextTickAsync — see File Live Watch.
+            _refreshCts.Dispose();
+        }
+    }
+
+    /// <summary>Ingest. Runs on the listener's flush thread; the buffer does the work off the renderer.</summary>
+    private void OnEntries(IReadOnlyList<LogEntry> entries) => _buffer.Ingest(entries);
+
+    private void Rebuild() => _buffer.Rebuild(new LiveDisplayFilter(
+        State.NetworkLevels, State.NetworkEnvironments, State.NetworkCompanies,
+        State.NetworkLoggerPrefix, State.NetworkText));
+
+    private void OnDisplayFilterChanged()
+    {
+        Rebuild();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// The text box gates the ingest as well as the display, so the buffer has to be told before it
+    /// is re-filtered against the new value.
+    /// </summary>
+    private void OnTextFilterChanged()
+    {
+        _buffer.TextFilter = State.NetworkText;
+        OnDisplayFilterChanged();
+    }
+
+    /// <summary>Freezes the buffer as it is now, or releases it and catches up with the stream.</summary>
+    private void OnAutoScrollChanged()
+    {
+        _buffer.Freeze(!State.NetworkAutoScroll);
+        Rebuild();
+    }
+
+    private void ResumeAutoScroll()
+    {
+        State.NetworkAutoScroll = true;
+        OnAutoScrollChanged();
+    }
+
+    private void ToggleSettings() => State.NetworkSettingsCollapsed = !State.NetworkSettingsCollapsed;
+
+    /// <summary>One-line recap of the folded panel: where it is listening, and any text filter.</summary>
+    private string SettingsSummary()
+    {
+        var where = Listener.IsListening
+            ? Listener.Endpoint!
+            : $"udp://{(State.NetworkAllInterfaces ? "0.0.0.0" : "127.0.0.1")}:{State.NetworkPort} (idle)";
+        return string.IsNullOrWhiteSpace(State.NetworkText) ? where : $"{where} · text \"{State.NetworkText}\"";
+    }
+
+    private async Task Start()
+    {
+        if (_starting) return;
+
+        _starting = true;
+        try
+        {
+            await Listener.StartAsync(State.NetworkPort, State.NetworkAllInterfaces);
+        }
+        finally
+        {
+            _starting = false;
+        }
+
+        // Binding failures (port in use, above all) are reported in the status bar, but a toast is
+        // what gets noticed on a click that otherwise appears to do nothing.
+        if (!Listener.IsListening && !string.IsNullOrEmpty(Listener.LastError))
+        {
+            Notifications.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Could not start listening",
+                Detail = Listener.LastError,
+                Duration = 6000,
+            });
+        }
+    }
+
+    private Task Stop() => Listener.StopAsync();
+
+    private void Clear()
+    {
+        _buffer.Clear();
+        Rebuild();
+    }
+
+    // Export the currently displayed snapshot (CSV by default; .log = the app's own JSON lines, so
+    // a captured stream can be re-loaded from Overview or Explorer afterwards).
+    private async Task OnDownload(RadzenSplitButtonItem? item)
+    {
+        var rows = _buffer.Snapshot;
+        if (rows.Count == 0) return;
+        var json = item?.Value == "json";
+        var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        var name = json ? $"network-logs-{stamp}.log" : $"network-logs-{stamp}.csv";
+
+        await using var stream = await LogExport.OpenExportAsync(rows, json);
+        using var streamRef = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("downloadFileFromStream", name, streamRef);
+    }
+
+    // Same detail dialog as the other grids. The entry is a snapshot, so the listener can keep
+    // receiving behind the dialog without changing what is on screen.
+    private async Task OpenDetail(LogEntry e)
+    {
+        await DialogService.OpenAsync<LogDetail>(
+            $"{e.Level} · {e.Time:HH:mm:ss.fff}",
+            new Dictionary<string, object?> { { "Entry", e } },
+            new DialogOptions { Width = "900px", Height = "auto", Resizable = true, Draggable = true });
+    }
+
+    private async Task CopySnippet()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("copyTextToClipboard", TargetSnippet);
+            Notifications.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Copied",
+                Detail = "NLog target and rule copied to the clipboard.",
+                Duration = 3000,
+            });
+        }
+        catch
+        {
+            // No clipboard (policy, or a non-secure context). The snippet is on screen to be read off.
+        }
+    }
+
+    // Raised from the listener's threads: flag it and let the refresh loop pick it up.
+    private void OnStatus() => _buffer.MarkDirty();
+
+    public void Dispose()
+    {
+        Listener.EntriesAppended -= OnEntries;
+        Listener.StatusChanged -= OnStatus;
+        _refreshCts.Cancel();
+        // The loop disposes its own token source once it has unwound.
+        // The listener keeps running so the capture survives navigating to Explorer and back.
+    }
+}

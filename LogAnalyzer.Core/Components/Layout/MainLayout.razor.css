@@ -102,9 +102,10 @@ main {
     }
 
     .sidebar {
-        /* Narrow rail: the four labels are short, so the space is better given to the content.
-           NavMenu.razor.css trims the brand and the nav-item padding to match. */
-        width: 190px;
+        /* Narrow rail, but wide enough for the longest label on one line: at 190px "Network Live
+           Watch" wrapped onto three lines and pushed its icon off on its own. NavMenu.razor.css
+           trims the brand and the nav-item padding to match, and keeps the labels on one line. */
+        width: 230px;
         height: 100vh;
         position: sticky;
         top: 0;

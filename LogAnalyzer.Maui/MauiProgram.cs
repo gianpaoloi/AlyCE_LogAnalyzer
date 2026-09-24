@@ -31,6 +31,9 @@ public static class MauiProgram
 			// one user with one window, and the loaded dataset should survive a WebView reload.
 			builder.Services.AddSingleton<LogStore>();
 			builder.Services.AddSingleton<LogWatcher>();
+			// Receives NLogViewer events over UDP; singleton so a capture survives a WebView reload,
+			// and so only one socket per run can be bound to the port.
+			builder.Services.AddSingleton<NetworkLogListener>();
 			builder.Services.AddScoped<SessionState>();
 			// Recently used paths, persisted in the WebView's localStorage.
 			builder.Services.AddScoped<PathHistory>();

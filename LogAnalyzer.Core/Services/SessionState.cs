@@ -126,4 +126,56 @@ public sealed class SessionState
     /// screen so a row can be read or clicked while the tail keeps buffering behind it.
     /// </summary>
     public bool LiveAutoScroll { get; set; } = true;
+
+    // ---- Network Live Watch ----
+    // Its own set rather than a share of the Live ones: the two pages buffer different sources and
+    // are meant to be usable side by side, so a level filter set on one must not narrow the other.
+    private IEnumerable<string> _networkLevels = Array.Empty<string>();
+    private IEnumerable<string> _networkEnvironments = Array.Empty<string>();
+    private IEnumerable<string> _networkCompanies = Array.Empty<string>();
+    private IEnumerable<string> _networkColumns = LogColumns.DefaultKeys;
+
+    public IEnumerable<string> NetworkLevels
+    {
+        get => _networkLevels;
+        set => _networkLevels = NoneIfNull(value);
+    }
+
+    /// <summary>The Environment column, which for a log4j event holds the sending machine.</summary>
+    public IEnumerable<string> NetworkEnvironments
+    {
+        get => _networkEnvironments;
+        set => _networkEnvironments = NoneIfNull(value);
+    }
+
+    public IEnumerable<string> NetworkCompanies
+    {
+        get => _networkCompanies;
+        set => _networkCompanies = NoneIfNull(value);
+    }
+
+    public string? NetworkText { get; set; }
+    public string? NetworkLoggerPrefix { get; set; }
+
+    public IEnumerable<string> NetworkColumns
+    {
+        get => _networkColumns;
+        set => _networkColumns = NoneIfNull(value);
+    }
+
+    public bool NetworkShowLoggers { get; set; }
+
+    /// <summary>UDP port to listen on. Matches the sample NLog target in the docs.</summary>
+    public int NetworkPort { get; set; } = NetworkLogListener.DefaultPort;
+
+    /// <summary>
+    /// False binds the loopback address only — enough for a sender configured with
+    /// <c>udp://127.0.0.1:9999</c>, and it leaves no port open to the network.
+    /// </summary>
+    public bool NetworkAllInterfaces { get; set; }
+
+    public bool NetworkSettingsCollapsed { get; set; }
+
+    /// <summary>See <see cref="LiveAutoScroll"/>; same idea, for the received events.</summary>
+    public bool NetworkAutoScroll { get; set; } = true;
 }

@@ -13,11 +13,15 @@ namespace LogAnalyzer.Models;
 /// </summary>
 public sealed class LogEntry
 {
-    /// <summary>Marker that separates the human part of a message from its stack trace.</summary>
-    private const string StackTraceMarker = "stackTrace:";
+    /// <summary>
+    /// Marker that separates the human part of a message from its stack trace. Public because the
+    /// network listener has to *compose* a message in this shape from a log4j event's separate
+    /// message/throwable elements, and both sides must agree on the spelling.
+    /// </summary>
+    public const string StackTraceMarker = "stackTrace:";
 
-    /// <summary>What the emitter writes instead of a real line break.</summary>
-    private const string CrLfMarker = "\\CRLF";
+    /// <summary>What the emitter writes instead of a real line break. See <see cref="StackTraceMarker"/>.</summary>
+    public const string CrLfMarker = "\\CRLF";
 
     private const int NotComputed = -2;
 

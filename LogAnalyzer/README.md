@@ -1,4 +1,4 @@
-# AlyCE Log Analyzer
+﻿# AlyCE Log Analyzer
 
 A Blazor Server app (UI built with the free **[Radzen.Blazor](https://blazor.radzen.com)** component
 library, **material-dark** theme) for analyzing TeamSystem AlyCE JSON-lines log files (`all_*.log`).
@@ -48,7 +48,7 @@ source path, or the load progress). The collapsed state is shared by all pages a
 like the filters, so folding it once keeps it folded everywhere until a full page reload. The body stays in the
 DOM while collapsed, so the drop zone and a half-typed folder path survive a collapse/expand round-trip.
 
-**File live Watch** has no load panel (it tails one file rather than loading a set), but its **Watch settings**
+**File Live Watch** has no load panel (it tails one file rather than loading a set), but its **Watch settings**
 card collapses the same way — same `.collapse-header` / `.collapse-hidden` styling, its own
 `SessionState.LiveSettingsCollapsed` flag, and a summary showing the watched file name plus the active text
 filter.
@@ -58,7 +58,11 @@ filter.
 A tail that runs for hours produces faster than a browser can render, and several things used to grow
 without bound while it did. Four limits keep a long watch flat:
 
-- **One throttled refresh.** `Live.razor` no longer queues a render per poll (plus one per status change).
+These apply to **both** live pages: the buffer, the caps and the ring live in `LiveEntryBuffer`, which
+`Live.razor` and `Network.razor` share, and the network listener adds a cap of its own (a 200 ms publish
+batch instead of one event per datagram).
+
+- **One throttled refresh.** Neither live page queues a render per poll (plus one per status change).
   A single loop refreshes at most every 400 ms, only when something changed, and **awaits** each render, so
   it can never outrun the renderer and the render queue cannot pile up. User actions still render at once.
 - **Capped read per poll.** `LogWatcher` decodes at most 4 MB per tick instead of the whole remainder;
@@ -72,7 +76,7 @@ without bound while it did. Four limits keep a long watch flat:
   and the logger tree at 2 000 loggers — known values keep counting. Otherwise every refresh got slower as
   the dropdowns and the tree grew.
 
-## Auto-scroll (File live Watch)
+## Auto-scroll (File Live Watch)
 
 New lines normally flow into the grid as they are read, which makes a row move while you are reading or
 clicking it. Untick **auto-scroll** to hold the view still (`SessionState.LiveAutoScroll`, on by default):
@@ -88,11 +92,11 @@ clicking it. Untick **auto-scroll** to hold the view still (`SessionState.LiveAu
 
 ## Path history
 
-Both path boxes — the **log folder** on the load panel and the **file** on File live Watch — are autocompletes
+Both path boxes — the **log folder** on the load panel and the **file** on File Live Watch — are autocompletes
 that suggest paths already used on this machine. Click into an empty box to see the full list
 (`OpenOnFocus`, `MinLength="0"`), or keep typing to filter it (case-insensitive *contains*).
 
-- A path is recorded **only once it works** — after a load finishes without error, for File live Watch once the
+- A path is recorded **only once it works** — after a load finishes without error, for File Live Watch once the
   watcher actually opened the file (`Watcher.IsWatching`), and immediately for anything picked in the file
   browser. Typos never reach the suggestions.
 - Most recent first, de-duplicated case-insensitively (Windows paths), capped at 12 entries.
@@ -109,7 +113,7 @@ that suggest paths already used on this machine. Click into an empty box to see 
 
 ## File browser (Browse…)
 
-**File live Watch** has a **Browse…** button that opens `Components/Shared/FileBrowserDialog.razor`, so the file to
+**File Live Watch** has a **Browse…** button that opens `Components/Shared/FileBrowserDialog.razor`, so the file to
 tail never has to be typed. It browses the machine that *reads* the logs — the server for the web host, the
 desktop for MAUI — which is the same machine `LogWatcher` tails from, so local and UNC paths both work.
 
@@ -133,6 +137,74 @@ desktop for MAUI — which is the same machine `LogWatcher` tails from, so local
 Starting a watch is off the UI thread for the same reason: a wrong path used to freeze the page inside the
 watcher's existence check. The button reads *Opening…* and is disabled while the path is being resolved.
 
+## Network Live Watch (NLogViewer listener)
+
+The second live page takes its entries off a **UDP socket** instead of a file, from NLog's
+[`NLogViewer` target](https://github.com/NLog/NLog/wiki/NLogViewer-target) — for a process whose log file is
+somewhere you cannot reach, is rotated away too quickly, or does not exist because the interesting run lasts
+half a minute. The sender's half of the setup is one target and one rule:
+
+```xml
+<target name="viewer" xsi:type="NLogViewer" address="udp://127.0.0.1:9999"
+        includeScopeProperties="true" />
+<logger name="*" minlevel="Trace" writeTo="viewer" />
+```
+
+The page shows that snippet for the port currently entered, with a **Copy** button, because a listener that
+nobody is sending to looks exactly like one that is working. Two things about the sender side, both verified
+against NLog 6 rather than read off the wiki:
+
+- **`includeScopeProperties="true"` is not optional in practice.** It defaults to false, and without it the
+  scope properties never reach the wire — so Machine, Company, Username and Cid stay empty on every row.
+  Event properties (`logger.Info("… {orderId}", id)`) are included without it.
+- On **NLog 6** the target lives in the **`NLog.Targets.Network`** package (NLog 5 has it built in). It is
+  auto-loaded once referenced, so no `<extensions>` entry is needed.
+
+- **Binding.** `NetworkLogListener.StartAsync(port, allInterfaces)` binds `127.0.0.1` by default — enough for
+  a sender on this machine, and it opens no port to the network. *all interfaces* binds `0.0.0.0` for events
+  from other machines. A port already taken (a second copy of the app, or the real NLog viewer) is reported
+  as such in the status bar and as a toast, rather than leaving a page that claims to be listening.
+- **Wire format.** `Log4JXmlEventLayout` — a `<log4j:event>` XML fragment per event, with **no delimiter**
+  between events and with the `log4j:` / `nlog:` prefixes never declared on it. `Log4JXmlParser` wraps each
+  fragment in a root that declares both and reads it with DTDs prohibited and no resolver: the input comes
+  off a socket, so entity expansion and external references must be impossible, not merely unlikely.
+- **Framing.** One datagram usually carries one event, but neither direction can be relied on: the target
+  splits a payload over `maxMessageSize` (65 000 bytes) across several sends, and several small events can
+  share one. `Log4JEventSplitter` keeps one decode buffer **per sender** and cuts on `</log4j:event>`, so a
+  split event is reassembled and a batched datagram is unpacked. A buffer that cannot become an event is
+  dropped at once and counted (the *N datagrams ignored* badge); one that opens an event and never closes it
+  is dropped at 4 MB.
+- **Batching.** Events are published to the page every 200 ms rather than one at a time, because each batch
+  costs the page a lock and a rebuild of the header-combo values. Stopping publishes what is still queued
+  instead of dropping it.
+- **UDP, deliberately.** Nothing blocks and nothing retries, so pointing a production process at a listener
+  that is not running costs it nothing — and a receiver that cannot keep up loses datagrams rather than
+  slowing the sender down. `tcp://` and `http://` addresses are *not* supported by this listener. There is no
+  authentication or encryption on the wire either: it is a diagnostic channel, and *all interfaces* accepts
+  log events from anything that can reach the port.
+
+### How a log4j event becomes a `LogEntry`
+
+A log4j event and an AlyCE log line do not carry the same fields, so the mapping is explicit — and the two
+columns that hold something else are **renamed on this page** (`LogColumns.Network`) rather than mislabelled:
+
+| Column | Comes from | Notes |
+|---|---|---|
+| Time | `timestamp` attribute | Epoch milliseconds (UTC), shown in local time. An ISO string is also accepted. |
+| Level | `level` attribute | Upper-cased, so NLog's `Warn` and a file's `WARN` are one level in the filter. |
+| **Machine** | `log4jmachinename` property | The Environment column, renamed: an event has no environment field. An explicit `environment` property wins when the sender sets one. |
+| Company | `company` property | A scope property (`ScopeContext.PushProperty("company", …)`) or an event property. |
+| Message | `log4j:message` | Real newlines are stored as `\CRLF` markers, as in the file format. |
+| Logger | `logger` attribute | Feeds the logger tree unchanged. |
+| Thread | `thread` attribute | |
+| Username | `username` / `user` property | |
+| **Cid / NDC** | `cid` / `correlationid` property | Falls back to `log4j:NDC`, the sender's own nested context. |
+| **Application** | `log4japp` property | The Source file column, renamed. Falls back to the sender's `address:port`. |
+| *stack trace* | `log4j:throwable` | Appended behind a `stackTrace:` marker, so the row gets its **stack** badge and the detail dialog its trace. `log4j:locationInfo` (with `includeCallSite` / `includeSourceInfo`) is prepended to it as an `at …` line. |
+
+Everything else an event may carry — `nlog:eventSequenceNumber`, the assembly in `nlog:locationInfo`,
+unrecognised properties — is read past and dropped.
+
 ## Pages
 
 | Page | What it does |
@@ -140,11 +212,17 @@ watcher's existence check. The button reads *Opening…* and is disabled while t
 | **Overview** | Load a folder / ZIP; totals (entries, files, environments, loggers, errors, warnings), time span, log volume per time bucket stacked by level, errors & warnings per bucket, and breakdown charts by level / environment / logger. |
 | **Explorer** | Searchable, paginated grid, topped by a **log volume time series** of the filtered set that doubles as a filter (drag a time window, click a level in the legend). Per-column combo filters, resizable columns, a hidable logger tree, column picker, and download of the filtered set. Click a row for full detail incl. formatted stack trace. |
 | **Triage** | Clusters similar ERROR/WARN messages into issue groups (guids/numbers/durations/quoted values masked), ordered by frequency, with first/last-seen, affected environments and a sample stack trace. |
-| **File live Watch** | Tails a single file on a local or remote **UNC** path (`\\server\share\...`) — picked with **Browse…** or typed — and shows new matching lines in real time, with the same column filters, tree, column picker, download and click-a-row detail. Its **Watch settings** card collapses like the load panel. |
+| **File Live Watch** | Tails a single file on a local or remote **UNC** path (`\\server\share\...`) — picked with **Browse…** or typed — and shows new matching lines in real time, with the same column filters, tree, column picker, download and click-a-row detail. Its **Watch settings** card collapses like the load panel. |
+| **Network Live Watch** | Listens on a **UDP port** for events pushed by NLog's `NLogViewer` target — no log file involved — and shows them in the same grid, with the same filters, tree, column picker, download and click-a-row detail. Its **Listener settings** card collapses the same way, and carries the target snippet to paste into the sender's `NLog.config`. See [above](#network-live-watch-nlogviewer-listener). |
 
 ## Explorer & Live features
 
-- **Fixed columns** – Time, Level, Environment, **Company**, Message.
+The two live pages render **one component**, `Components/Shared/LiveGrid.razor` — same columns, same header
+filters, same logger panel — and buffer through **one class**, `Services/LiveEntryBuffer.cs`, which is where
+the caps in [Staying responsive on a long watch](#staying-responsive-on-a-long-watch) live. Each page keeps
+only its own settings card, its own producer (`LogWatcher` / `NetworkLogListener`) and its own filter state.
+
+- **Fixed columns** – Time, Level, Environment (**Machine** on Network Live Watch), **Company**, Message.
 - **Per-column combo filters** – Level, Environment and Company each have a multi-select combo **in the column
   header** (populated with the distinct values from the data). Selections persist when the combo is reopened
   and drive the filtering directly. Time / Message keep the built-in simple filters.
@@ -158,7 +236,7 @@ watcher's existence check. The button reads *Opening…* and is disabled while t
   - **CSV** (`.csv`, UTF-8 + BOM for Excel; message stack-trace `\CRLF` markers become real newlines), or
   - **Log lines** (`.log`, original JSON-lines format, so the subset can be re-loaded).
 - **Row detail** – clicking any row opens the `LogDetail` dialog (draggable, resizable) with every field, the
-  message rendered with real newlines, and *Copy message* / *Copy details* buttons. On **File live Watch** the row
+  message rendered with real newlines, and *Copy message* / *Copy details* buttons. On **File Live Watch** the row
   is passed as a snapshot, so the tail keeps buffering behind the dialog without changing what you're reading.
 
 ## Log volume chart (Explorer)
@@ -202,11 +280,12 @@ expect a short pause per filter change.
 ## Filters persist across navigation
 
 Filter state (levels, environments, companies, text, logger-tree selection, the volume chart's time window,
-chosen columns, panel toggle, the load-panel / volume-chart / watch-settings collapsed states, plus the Live
-path / "from start") is held in a **scoped
+chosen columns, panel toggle, the load-panel / volume-chart / watch-settings / listener-settings collapsed
+states, plus the Live path / "from start" and the Network port / "all interfaces") is held in a **scoped
 `SessionState`** service, which in Blazor Server lives for
 the whole SignalR circuit — so filters survive moving between pages and return when you come back. They reset
-only on a full page reload / reconnect. Explorer and Live keep their own independent filter state.
+only on a full page reload / reconnect. Explorer, File Live Watch and Network Live Watch each keep their own
+independent filter state.
 
 ## Layout / navigation
 
@@ -223,6 +302,10 @@ only on a full page reload / reconnect. Explorer and Live keep their own indepen
 - Stack traces are stored inline in `message` with `\CRLF` markers; the UI renders them as real newlines.
 - The live watcher polls the file (default 750 ms) rather than using `FileSystemWatcher`, so it works over
   network shares and while another process is writing.
+- The network listener binds a UDP port on the machine running this host, which for the web build is the
+  **server**, not the browser: a sender has to reach *that* machine, and `udp://127.0.0.1` only works for a
+  process running on it. `NetworkLogListener` is scoped like `LogWatcher`, so a second circuit starting a
+  listener on the same port is told the port is in use rather than quietly sharing the events.
 - The whole app runs in `InteractiveServer` render mode (set once on `Routes`/`HeadOutlet` in `App.razor`).
 
 ## Layout
@@ -236,12 +319,14 @@ server app and `LogAnalyzer.Maui` reference. This project only holds the web hos
   Models/     LogEntry, LogFilter, LogStats/TimeBucket/MessageGroup, LogColumns (optional columns),
               TimeRange (chart selection)
   Services/   LogParser, MessageNormalizer, LogStore (dataset + folder/ZIP loading), LogWatcher (live tail),
-              LogExport (CSV / JSON-lines), SessionState (per-circuit UI state),
+              NetworkLogListener (UDP NLogViewer listener), Log4JXmlParser (log4j event -> LogEntry),
+              Log4JEventSplitter (per-sender framing), LiveEntryBuffer (ring + caps, shared by both
+              live pages), LogExport (CSV / JSON-lines), SessionState (per-circuit UI state),
               PathHistory (recent paths in localStorage), ChartColors
   Components/
-    Pages/    Home(Overview), Explorer, Triage, Live, QuickStart, NotFound
+    Pages/    Home(Overview), Explorer, Triage, Live, Network, QuickStart, NotFound
     Shared/   LoadPanel (collapsible header), LoadProgress (spinner + phase), LogVolumeChart,
-              LevelBadge, LoggerTree, LogDetail
+              LiveGrid (the grid both live pages render), LevelBadge, LoggerTree, LogDetail
     Layout/   MainLayout (collapsible sidebar), NavMenu
 Components/ App.razor, Routes.razor, Pages/Error.razor (host shell only)
 wwwroot/    app.css (dark theme + component styles),

@@ -1,0 +1,131 @@
+@* The grid both live pages show: the same columns, the same header filters and the same logger
+   panel, whether the entries came from a tailed file or from the network listener. Only the
+   settings card above it differs, so that is what each page keeps for itself.
+
+   The filter values are bound through (@bind-Levels and friends): each page keeps its own
+   selections in SessionState, and adds @bind-…:after to rebuild its buffer's snapshot. *@
+
+<div class="side-layout">
+    <div class="side-main">
+        @* Data is a cached list, not a fresh one per render: it used to be rebuilt (under the
+           buffer lock) on every single render, which also handed Radzen a new reference each time
+           and made it re-filter, re-sort and re-page the whole buffer. *@
+        <RadzenDataGrid Data="@Data" TItem="LogEntry" AllowPaging="true" PageSize="50"
+                        Density="Density.Compact" AllowSorting="true" AllowFiltering="true" FilterMode="FilterMode.Simple"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
+                        RowSelect="@OnRowSelect"
+                        PagerHorizontalAlign="HorizontalAlign.Center" ShowPagingSummary="true">
+            <Columns>
+                <RadzenDataGridColumn TItem="LogEntry" Title="Time" Property="Time" Width="130px">
+                    <Template Context="e"><span class="mono">@e.Time.ToString("HH:mm:ss.fff")</span></Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="LogEntry" Title="Level" Property="Level" Width="200px" Filterable="false">
+                    <HeaderTemplate>
+                        <div class="col-filter">
+                            <span class="col-filter-title">Level</span>
+                            <RadzenDropDown Value="@Levels" ValueChanged="@LevelsChanged"
+                                            Multiple="true" AllowClear="true" Chips="true"
+                                            Placeholder="All levels" Data="@LevelOptions" TValue="IEnumerable<string>" Style="width:100%" />
+                        </div>
+                    </HeaderTemplate>
+                    <Template Context="e"><LevelBadge Level="@e.Level" /></Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="LogEntry" Title="Environment" Property="Environment" Width="240px" Filterable="false">
+                    <HeaderTemplate>
+                        <div class="col-filter">
+                            <span class="col-filter-title">@EnvironmentTitle</span>
+                            <RadzenDropDown Value="@Environments" ValueChanged="@EnvironmentsChanged"
+                                            Multiple="true" AllowClear="true" Chips="true"
+                                            Placeholder="@($"All {EnvironmentTitle.ToLowerInvariant()}s")" Data="@EnvironmentOptions"
+                                            TValue="IEnumerable<string>" Style="width:100%" />
+                        </div>
+                    </HeaderTemplate>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="LogEntry" Title="Company" Property="Company" Width="220px" Filterable="false">
+                    <HeaderTemplate>
+                        <div class="col-filter">
+                            <span class="col-filter-title">Company</span>
+                            <RadzenDropDown Value="@Companies" ValueChanged="@CompaniesChanged"
+                                            Multiple="true" AllowClear="true" Chips="true"
+                                            Placeholder="All companies" Data="@CompanyOptions" TValue="IEnumerable<string>" Style="width:100%" />
+                        </div>
+                    </HeaderTemplate>
+                    <Template Context="e"><span class="mono">@e.Company</span></Template>
+                </RadzenDataGridColumn>
+                @foreach (var col in AvailableColumns.Where(c => Columns.Contains(c.Key)))
+                {
+                    @* Keyed, so adding or removing a column moves the existing ones instead of
+                       making Radzen tear down and re-register the whole column collection. *@
+                    <RadzenDataGridColumn @key="col.Key" TItem="LogEntry" Title="@col.Title" Width="@col.Width" Filterable="false" Sortable="false">
+                        <Template Context="e"><span class="mono">@col.Value(e)</span></Template>
+                    </RadzenDataGridColumn>
+                }
+                <RadzenDataGridColumn TItem="LogEntry" Title="Message" Property="Message">
+                    <Template Context="e">
+                        @e.ShortMessage
+                        @if (e.HasStackTrace)
+                        {
+                            <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="stack" class="rz-ml-1" />
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </div>
+    @if (ShowLoggers)
+    {
+        <div class="side-panel">
+            <RadzenCard Variant="Variant.Outlined">
+                @* The published copy, not the live tally: LoggerTree enumerates this while the
+                   producer thread is still counting into the tally, which is not safe on a
+                   Dictionary. *@
+                <LoggerTree Loggers="@Loggers" Selected="@LoggerPrefix" SelectedChanged="@LoggerPrefixChanged" />
+            </RadzenCard>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>The rows to render — a snapshot, so the producer can keep appending behind it.</summary>
+    [Parameter] public IEnumerable<LogEntry> Data { get; set; } = Array.Empty<LogEntry>();
+
+    [Parameter] public IEnumerable<string> Levels { get; set; } = Array.Empty<string>();
+    [Parameter] public EventCallback<IEnumerable<string>> LevelsChanged { get; set; }
+
+    [Parameter] public IEnumerable<string> Environments { get; set; } = Array.Empty<string>();
+    [Parameter] public EventCallback<IEnumerable<string>> EnvironmentsChanged { get; set; }
+
+    [Parameter] public IEnumerable<string> Companies { get; set; } = Array.Empty<string>();
+    [Parameter] public EventCallback<IEnumerable<string>> CompaniesChanged { get; set; }
+
+    /// <summary>Logger prefix picked in the tree. Null means no logger filter.</summary>
+    [Parameter] public string? LoggerPrefix { get; set; }
+    [Parameter] public EventCallback<string?> LoggerPrefixChanged { get; set; }
+
+    /// <summary>Keys of the optional columns to show, out of <see cref="AvailableColumns"/>.</summary>
+    [Parameter] public IEnumerable<string> Columns { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// The optional columns this page offers — the same set the page's <em>Add columns…</em> picker
+    /// is bound to, so the titles in the picker and in the grid cannot drift apart.
+    /// </summary>
+    [Parameter] public IReadOnlyList<LogColumn> AvailableColumns { get; set; } = LogColumns.Optional;
+
+    /// <summary>Values offered by the three header combos, as collected from what has arrived.</summary>
+    [Parameter] public IEnumerable<string> LevelOptions { get; set; } = Array.Empty<string>();
+    [Parameter] public IEnumerable<string> EnvironmentOptions { get; set; } = Array.Empty<string>();
+    [Parameter] public IEnumerable<string> CompanyOptions { get; set; } = Array.Empty<string>();
+
+    [Parameter] public IReadOnlyDictionary<string, int> Loggers { get; set; } = new Dictionary<string, int>();
+    [Parameter] public bool ShowLoggers { get; set; }
+
+    [Parameter] public EventCallback<LogEntry> RowSelect { get; set; }
+
+    /// <summary>
+    /// What the Environment column is called. The network listener has no environment field of its
+    /// own and puts the sending machine there, so that page says so rather than mislabelling it.
+    /// </summary>
+    [Parameter] public string EnvironmentTitle { get; set; } = "Environment";
+
+    private Task OnRowSelect(LogEntry entry) => RowSelect.InvokeAsync(entry);
+}

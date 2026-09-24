@@ -12,7 +12,7 @@ Built with .NET MAUI + Blazor Hybrid. Self-contained: no .NET runtime to install
 
 ## Contents
 
-- [A quick tour](#a-quick-tour) — what the four pages do
+- [A quick tour](#a-quick-tour) — what the five pages do
 - [Features](#features)
 - [System requirements](#system-requirements)
 - [Install](#install) — [winget](#install-via-winget-wip) · [manual](#manual-install)
@@ -71,6 +71,33 @@ Untick **auto-scroll** to freeze the view on the lines currently shown — the t
 buffering behind it, and a *Show N new lines* button catches you up. That means you can read or click a
 row without it sliding away, which is otherwise the fundamental problem with tailing a busy log.
 
+### Network Live Watch — no file at all
+
+Some processes are awkward to read from a file: the log is on a machine you cannot reach, it is rotated
+away before you get there, or the interesting run lasts thirty seconds. This page listens for log events
+pushed straight at it over the network by [NLog's `NLogViewer`
+target](https://github.com/NLog/NLog/wiki/NLogViewer-target), so an application can be watched while it
+runs without writing anything you have to find.
+
+Add the target to the sending application's `NLog.config` and restart it:
+
+```xml
+<target name="viewer" xsi:type="NLogViewer" address="udp://127.0.0.1:9999"
+        includeScopeProperties="true" />
+<logger name="*" minlevel="Trace" writeTo="viewer" />
+```
+
+(`includeScopeProperties` is what fills the Machine, Company, Username and Cid columns — it defaults to off.
+On NLog 6 the target ships in the `NLog.Targets.Network` package; NLog 5 has it built in.)
+
+Then set the same port on the page and press **Start listening**. The page shows the snippet for the port
+you picked, with a **Copy** button, so there is nothing to remember. Events arrive with the same columns,
+filters, logger tree, auto-scroll freeze and detail dialog as a tailed file — and **Download** writes them
+out as `.log` lines, so a capture can be re-loaded on Overview or Explorer afterwards like any other log.
+
+By default it binds the loopback address only, so it hears an application on this machine and opens no
+port to the network. Tick **all interfaces** to also accept events from other machines.
+
 ### Pick a file instead of typing a path
 
 ![The Browse dialog: a filesystem browser with favourites, listing folders and files with size and modified date](docs/screenshots/06-file-browser.png)
@@ -102,6 +129,8 @@ only copy of that information.
 - Log volume time series stacked by level — drag it to filter a time window
 - Real-time log tailing / live monitoring — pick the file to watch with a built-in browser (with favorites),
   and switch auto-scroll off to read a line while the tail keeps running
+- Live monitoring over the network, with no log file involved — receives events from NLog's `NLogViewer`
+  target over UDP, into the same grid, filters and export
 - Right-click a file to open it — in the built-in browser, or straight from Windows Explorer's context menu
 - Error and warning triage that groups occurrences by message signature
 - Export filtered results to CSV or original log format

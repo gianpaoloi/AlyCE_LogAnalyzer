@@ -1,0 +1,30 @@
+/* The NLog target snippet shown in the listener settings. Scoped to this page: it is the only
+   place in the app that shows a block of configuration to copy. */
+
+.net-config {
+    border-top: 1px solid var(--rz-base-300, rgba(255, 255, 255, 0.12));
+    padding-top: 0.6rem;
+}
+
+.net-config-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.net-config-snippet {
+    flex: 1;
+    min-width: 320px;
+    margin: 0;
+    padding: 0.5rem 0.7rem;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.28);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    /* Wraps rather than scrolls: the two lines are meant to be read, and a horizontal scrollbar
+       inside a settings card is worse than a wrapped attribute. */
+    white-space: pre-wrap;
+    word-break: break-word;
+    user-select: all;
+}

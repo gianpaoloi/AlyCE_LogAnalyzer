@@ -29,6 +29,8 @@ FEATURES
 ✓ Interactive filtering and search across all columns
 ✓ Log volume chart over time, stacked by level and driven by your filters
 ✓ Real-time log monitoring and live tailing
+✓ Live monitoring over the network - receives log events pushed by NLog's
+  NLogViewer target over UDP, with no log file involved
 ✓ Export filtered logs to CSV or original format
 ✓ Dark theme interface for extended viewing
 ✓ Column management - add/remove/resize as needed
@@ -67,11 +69,14 @@ HOW TO USE
 2. VIEWING LOGS:
    - Overview: Summary statistics, volume over time, and breakdown charts
    - Explorer tab: Browse all logs with advanced filtering
-   - Live: Monitor a single log file in real-time
+   - File Live Watch: Monitor a single log file in real-time
      (collapse the 'Watch settings' header to free up space)
+   - Network Live Watch: Receive log events over the network, no file needed
+     (see 6. below)
    - Triage: Manage and categorize log entries
-   - In Explorer and Live, click any row to open the full entry: all fields,
-     the complete message with the stack trace, and buttons to copy it
+   - In Explorer and both Live pages, click any row to open the full entry:
+     all fields, the complete message with the stack trace, and buttons to
+     copy it
 
 3. FILTERING:
    - Use column headers to filter by level, logger, message content
@@ -90,6 +95,28 @@ HOW TO USE
 
 5. EXPORTING:
    - Use Download button to export filtered results as CSV or original .log files
+
+6. NETWORK LIVE WATCH (no log file):
+   - Add this to the sending application's NLog.config, then restart it:
+       <target name="viewer" xsi:type="NLogViewer"
+               address="udp://127.0.0.1:9999"
+               includeScopeProperties="true" />
+       <logger name="*" minlevel="Trace" writeTo="viewer" />
+     (includeScopeProperties is what fills the Machine / Company / Username /
+      Cid columns - it is off by default. On NLog 6 the target comes from the
+      NLog.Targets.Network package; NLog 5 has it built in)
+   - On the page, set the same port and press 'Start listening'
+     (the page shows the snippet for the port you typed, with a Copy button)
+   - By default it listens on this machine only (127.0.0.1). Tick
+     'all interfaces' to also accept events sent from other machines
+   - Events appear with the same columns, filters, logger tree and row detail
+     as a tailed file. Two columns hold something else and say so:
+     'Machine' (the sending machine) and 'Application' (the sending app)
+   - Download writes them as .log lines, so a capture can be loaded again
+     from Overview or Explorer afterwards
+   - If nothing appears: check the port matches, check the application was
+     restarted, and watch the 'N datagrams ignored' badge - it means
+     something is arriving that is not an NLogViewer event
 
 
 TROUBLESHOOTING
