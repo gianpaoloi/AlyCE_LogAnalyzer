@@ -23,23 +23,25 @@ public partial class MainPage : ContentPage
 			element.AllowDrop = true;
 			_dropHooksAttached = true;
 
-			element.DragOver += (_, args) =>
+			// DragEnter has to be handled as well as DragOver: the WebView2 forwards whatever reaches
+			// it to Chromium, and a Chromium that saw the enter but none of the over/drop/leave that
+			// follow leaves the Explorer thumbnail frozen where the pointer came in.
+			void OnDragEnterOrOver(object _, Microsoft.UI.Xaml.DragEventArgs args)
 			{
 				args.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
 				args.DragUIOverride.IsContentVisible = false;
 				args.DragUIOverride.IsGlyphVisible = false;
 				args.DragUIOverride.IsCaptionVisible = false;
 				args.Handled = true;
-			};
+			}
 
-			// Dragging back out of the window also leaves Chromium's thumbnail behind.
-			element.DragLeave += (_, _) => WinUI.DragImageHelper.Dismiss();
+			element.DragEnter += OnDragEnterOrOver;
+			element.DragOver += OnDragEnterOrOver;
 
 			element.Drop += async (_, args) =>
 			{
 				args.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
 				args.Handled = true;
-				WinUI.DragImageHelper.Dismiss();
 
 				if (!args.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
 					return;
