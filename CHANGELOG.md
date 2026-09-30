@@ -9,7 +9,15 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Dropping a file onto the desktop window left its thumbnail stuck on screen.** The WinUI WebView2 hands
+  the drag to Chromium, which registers Explorer's drag image with the shell's drag-image helper; the app
+  handles the drop itself on the XAML side, so Chromium never saw the matching Drop / DragLeave and the
+  thumbnail stayed where the pointer let go (a known WinUI bug, microsoft-ui-xaml#10576 / #7366, with no
+  official workaround). The new `DragImageHelper` tells the process-wide `IDropTargetHelper` the drag has
+  left, on drop and when a drag exits the window without dropping. A failure there is only logged, so it
+  can never cost the drop.
 
 ## [1.2.0] — 2026-09-24
 

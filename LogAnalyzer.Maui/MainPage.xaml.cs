@@ -32,10 +32,14 @@ public partial class MainPage : ContentPage
 				args.Handled = true;
 			};
 
+			// Dragging back out of the window also leaves Chromium's thumbnail behind.
+			element.DragLeave += (_, _) => WinUI.DragImageHelper.Dismiss();
+
 			element.Drop += async (_, args) =>
 			{
 				args.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
 				args.Handled = true;
+				WinUI.DragImageHelper.Dismiss();
 
 				if (!args.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
 					return;
