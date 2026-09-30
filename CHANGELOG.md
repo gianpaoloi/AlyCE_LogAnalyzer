@@ -9,6 +9,12 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+### Changed
+
+- **The update dialog renders the release notes as Markdown** (`RadzenMarkdown`, already part of Radzen)
+  instead of showing the raw text in a `<pre>` block, so headings, lists, tables and code blocks read as
+  they do on GitHub. The notes come off the network, so embedded HTML is escaped rather than rendered.
+
 ### Fixed
 
 - **Dropping a file onto the desktop window left its thumbnail stuck on screen.** The WinUI WebView2 hands

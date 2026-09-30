@@ -16,8 +16,8 @@ public sealed record UpdateInfo
     public string? Title { get; init; }
 
     /// <summary>
-    /// The release notes, as the Markdown GitHub stores. Shown as text — the app has no Markdown
-    /// renderer, and the notes this project publishes read acceptably either way.
+    /// The release notes, as the Markdown GitHub stores. Rendered by <c>UpdateDialog</c> with
+    /// <c>RadzenMarkdown</c>, embedded HTML escaped.
     /// </summary>
     public string? Notes { get; init; }
 

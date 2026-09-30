@@ -9,20 +9,53 @@
     opacity: 0.6;
 }
 
-/* Release notes are Markdown shown as text, so the block has to preserve their line breaks while
-   still wrapping a long line rather than forcing the dialog wider. */
+/* Rendered release notes: scrolls inside the dialog, and a long line or wide table wraps or
+   scrolls rather than forcing the dialog wider. */
 .update-notes {
-    margin: 0;
-    padding: 0.75rem;
-    max-height: 16rem;
+    padding: 0.25rem 0.75rem;
+    max-height: 20rem;
     overflow: auto;
-    white-space: pre-wrap;
     word-break: break-word;
-    font-size: 0.8rem;
-    line-height: 1.45;
+    font-size: 0.85rem;
+    line-height: 1.5;
     background: var(--rz-base-background-color);
     border: 1px solid var(--rz-border-color);
     border-radius: var(--rz-border-radius);
+}
+
+/* The notes' headings are section labels inside a dialog, not page titles. */
+.update-notes ::deep h1,
+.update-notes ::deep h2,
+.update-notes ::deep h3,
+.update-notes ::deep h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0.75rem 0 0.35rem;
+}
+
+.update-notes ::deep p,
+.update-notes ::deep ul,
+.update-notes ::deep ol {
+    margin: 0.35rem 0;
+}
+
+.update-notes ::deep ul,
+.update-notes ::deep ol {
+    padding-left: 1.25rem;
+}
+
+.update-notes ::deep pre {
+    overflow-x: auto;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    white-space: pre;
+    word-break: normal;
+}
+
+.update-notes ::deep table {
+    display: block;
+    overflow-x: auto;
+    font-size: 0.8rem;
 }
 
 /* Radzen renders a link as inline text; this lines it up with the buttons beside it. */

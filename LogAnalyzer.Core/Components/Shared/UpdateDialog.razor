@@ -28,9 +28,10 @@
 
     @if (!string.IsNullOrWhiteSpace(Release.Notes))
     {
-        @* Raw Markdown: the app has no renderer, and the notes this project publishes are tables and
-           code blocks that stay readable as text. *@
-        <pre class="update-notes">@Release.Notes</pre>
+        @* The notes come off the network, so embedded HTML is shown as text rather than rendered. *@
+        <div class="update-notes">
+            <RadzenMarkdown Text="@Release.Notes" AllowHtml="false" AutoLinkHeadingDepth="0" />
+        </div>
     }
 
     @if (_error is not null)
