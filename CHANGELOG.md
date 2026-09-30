@@ -9,6 +9,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.2.1] — 2026-09-30
+
 ### Changed
 
 - **The update dialog renders the release notes as Markdown** (`RadzenMarkdown`, already part of Radzen)
