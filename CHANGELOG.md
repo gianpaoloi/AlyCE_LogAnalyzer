@@ -9,6 +9,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.2.2] — 2026-10-02
+
 ### Added
 
 - **Paste log lines straight from the clipboard.** Copy a sequence of JSON log lines (from a file, a
