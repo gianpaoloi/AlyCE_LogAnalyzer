@@ -47,6 +47,9 @@
         }
         else
         {
+            <RadzenButton Text="Paste" Icon="content_paste" Click="PasteFromClipboard"
+                          ButtonStyle="ButtonStyle.Primary" Variant="Variant.Outlined"
+                          title="Load log lines copied to the clipboard (or press Ctrl+V anywhere on the page)" />
             <RadzenButton Text="Clear" Icon="delete_sweep" Click="Clear"
                           ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined"
                           Disabled="@(!Store.IsLoaded)" />
@@ -107,6 +110,7 @@
     private ElementReference _dropZoneRef;
     private readonly string _inputId = $"drop-input-{Guid.NewGuid():N}";
     private bool _jsRegistered;
+    private DotNetObjectReference<LoadPanel>? _selfRef;
 
     protected override void OnInitialized()
     {
@@ -131,6 +135,8 @@
             try
             {
                 await JS.InvokeVoidAsync("registerNativeDropInput", _dropZoneRef, _inputId);
+                _selfRef = DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("registerLogPaste", _selfRef, _inputId);
                 _jsRegistered = true;
             }
             catch { /* JS not yet available during pre-render */ }
@@ -143,6 +149,46 @@
     {
         Store.Clear();
         _dropError = null;
+    }
+
+    /// <summary>
+    /// Paste button. Reading the clipboard can be refused by the browser (no secure context, or the
+    /// permission was denied); Ctrl+V still works then, so the message says so.
+    /// </summary>
+    private async Task PasteFromClipboard()
+    {
+        string? text = null;
+        try { text = await JS.InvokeAsync<string?>("readClipboardText"); }
+        catch { /* JS unavailable */ }
+
+        if (text is null)
+        {
+            _dropError = "Clipboard access is blocked here — press Ctrl+V on the page instead.";
+            return;
+        }
+
+        await LoadPastedText(text);
+    }
+
+    /// <summary>Ctrl+V anywhere on the page outside an input field (see registerLogPaste).</summary>
+    [JSInvokable]
+    public Task OnTextPasted(string text) => InvokeAsync(() => LoadPastedText(text));
+
+    private async Task LoadPastedText(string text)
+    {
+        if (Store.IsLoading) return;
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            _dropError = "The clipboard is empty.";
+            StateHasChanged();
+            return;
+        }
+
+        _dropError = null;
+        // Time-stamped so successive pastes stay distinguishable in the source column and the path.
+        var name = $"clipboard-{DateTime.Now:HHmmss}";
+        await Store.LoadFromTextAsync(text, name, Store.IncludeDebug, CancellationToken.None);
     }
 
     /// <summary>Most files one drop may carry. Above this the drop is refused with a message.</summary>
@@ -228,6 +274,10 @@
         Store.DatasetChanged -= OnChanged;
         Store.ProgressChanged -= OnChanged;
         if (_jsRegistered)
+        {
             _ = JS.InvokeVoidAsync("unregisterNativeDropInput", _dropZoneRef);
+            _ = JS.InvokeVoidAsync("unregisterLogPaste", _inputId);
+        }
+        _selfRef?.Dispose();
     }
 }

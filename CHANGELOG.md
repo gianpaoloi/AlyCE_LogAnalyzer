@@ -9,7 +9,13 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Paste log lines straight from the clipboard.** Copy a sequence of JSON log lines (from a file, a
+  ticket, a chat…) and either press **Ctrl+V** anywhere on a page with the load panel — outside a text
+  field — or click the new **Paste** button. The lines are appended to whatever is loaded, like a dropped
+  file, under a `clipboard-HHmmss` source name. Text with no recognizable log line is refused with a
+  message instead of loading an empty set; DEBUG-only text points at the *include DEBUG* switch.
 
 ## [1.2.1] — 2026-09-30
 

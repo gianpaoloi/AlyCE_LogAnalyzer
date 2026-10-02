@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text;
 using LogAnalyzer.Models;
 
 namespace LogAnalyzer.Services;
@@ -265,6 +266,42 @@ public sealed class LogStore
                 try { File.Delete(temp); } catch { /* best effort */ }
             }
         }
+    }
+
+    /// <summary>
+    /// Appends log lines pasted from the clipboard, exactly as if they had been dropped as one .log
+    /// file named <paramref name="name"/>. Text with no parseable line is refused with an error
+    /// instead of publishing an empty dataset.
+    /// </summary>
+    public async Task LoadFromTextAsync(string text, string name, bool includeDebug, CancellationToken ct)
+    {
+        if (IsLoading) return;
+
+        var bytes = Encoding.UTF8.GetBytes(text ?? string.Empty);
+        if (!ContainsLogLine(bytes, includeDebug))
+        {
+            LoadError = includeDebug || !ContainsLogLine(bytes, includeDebug: true)
+                ? "The clipboard holds no recognizable log lines."
+                : "The clipboard holds only DEBUG lines — tick \"include DEBUG\" to load them.";
+            RaiseDataset();
+            return;
+        }
+
+        var source = new LoadSource(name, bytes.Length, () => new MemoryStream(bytes, writable: false));
+        await RunLoadAsync(new List<LoadSource> { source }, name, includeDebug, parallel: false, append: true, ct);
+    }
+
+    private static bool ContainsLogLine(byte[] bytes, bool includeDebug)
+    {
+        var parser = new LogParser();
+        using var lines = new Utf8LineReader(new MemoryStream(bytes, writable: false));
+        while (lines.TryReadLine(out var line))
+        {
+            var entry = parser.TryParse(line, string.Empty);
+            if (entry is not null && (includeDebug || !LogLevels.IsDebug(entry.Level))) return true;
+        }
+
+        return false;
     }
 
     /// <summary>

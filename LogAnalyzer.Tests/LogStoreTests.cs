@@ -324,6 +324,62 @@ public class LogStoreTests : IDisposable
         Assert.Equal(4, store.Stats!.FileCount);
     }
 
+    [Fact]
+    public async Task Loads_pasted_text_with_windows_line_endings()
+    {
+        // Shape copied from a real AlyCE log, including the escaped \CRLF stack trace in the message.
+        var text = string.Join("\r\n",
+            """{"time":"2026-10-02 09:25:31.8932","level":"INFO","threadid":".NET TP Worker","caller":"X.Y(Y.cs:153)","message":"Environment: UserName='u'"}""",
+            """{"time":"2026-10-02 09:25:32.4421","level":"ERROR","threadid":".NET TP Worker","caller":"X.Z(Z.cs:142)","message":"Path: /api/auth_tsid/token: \\CRLFNo authentication handler\\CRLF   at A.B()"}""",
+            "") + "\r\n";
+
+        var store = new LogStore();
+        await store.LoadFromTextAsync(text, "clipboard", includeDebug: false, CancellationToken.None);
+
+        Assert.Null(store.LoadError);
+        Assert.Equal(new[] { "INFO", "ERROR" }, store.Entries.Select(e => e.Level));
+        Assert.Equal("clipboard", store.Entries[0].SourceFile);
+        Assert.Equal("clipboard", store.LoadedPath);
+    }
+
+    [Fact]
+    public async Task Pasted_text_is_appended_to_the_loaded_dataset()
+    {
+        WriteLog("a.log", Line("2026-07-08 10:00:00.0000", "INFO", "one"));
+        var store = new LogStore();
+        await store.LoadAsync(_dir, includeDebug: false, CancellationToken.None);
+
+        await store.LoadFromTextAsync(Line("2026-07-08 09:00:00.0000", "WARN", "pasted"),
+                                      "clipboard", includeDebug: false, CancellationToken.None);
+
+        Assert.Equal(new[] { "pasted", "one" }, store.Entries.Select(e => e.Message));
+        Assert.Equal(2, store.Stats!.FileCount);
+    }
+
+    [Fact]
+    public async Task Pasted_text_without_log_lines_is_refused_and_keeps_the_dataset()
+    {
+        WriteLog("a.log", Line("2026-07-08 10:00:00.0000", "INFO", "one"));
+        var store = new LogStore();
+        await store.LoadAsync(_dir, includeDebug: false, CancellationToken.None);
+
+        await store.LoadFromTextAsync("just some text\nnot json", "clipboard", includeDebug: false, CancellationToken.None);
+
+        Assert.NotNull(store.LoadError);
+        Assert.Single(store.Entries);
+    }
+
+    [Fact]
+    public async Task Pasted_debug_only_text_explains_the_include_debug_switch()
+    {
+        var store = new LogStore();
+        await store.LoadFromTextAsync(Line("2026-07-08 10:00:00.0000", "DEBUG", "d"),
+                                      "clipboard", includeDebug: false, CancellationToken.None);
+
+        Assert.Contains("DEBUG", store.LoadError);
+        Assert.False(store.IsLoaded);
+    }
+
     /// <summary>Mimics a Blazor Server browser-file stream: async reads only, forward only.</summary>
     private sealed class AsyncOnlyStream(byte[] data) : Stream
     {

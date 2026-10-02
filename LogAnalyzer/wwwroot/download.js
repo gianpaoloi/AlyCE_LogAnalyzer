@@ -116,3 +116,45 @@ window.pathHistorySave = (key, values) => {
         localStorage.setItem(key, JSON.stringify(values ?? []));
     } catch { }
 };
+
+// Pasting log lines from the clipboard (see LoadPanel).
+// readClipboardText backs the Paste button; it returns null when the clipboard API is missing or
+// blocked, so the caller can point the user at Ctrl+V, which needs no permission at all.
+window.readClipboardText = async () => {
+    try {
+        if (navigator.clipboard && navigator.clipboard.readText)
+            return await navigator.clipboard.readText();
+    } catch { }
+    return null;
+};
+
+// Ctrl+V anywhere on the page loads the pasted text — unless the user is typing into a field,
+// where pasting must keep its normal meaning.
+window.registerLogPaste = (dotNetRef, ownerId) => {
+    if (window.__logPasteHandler) document.removeEventListener('paste', window.__logPasteHandler);
+
+    const handler = (e) => {
+        const target = e.target;
+        if (target && (target.isContentEditable ||
+            ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+
+        const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+        if (!text || !text.trim()) return;
+
+        e.preventDefault();
+        dotNetRef.invokeMethodAsync('OnTextPasted', text);
+    };
+
+    document.addEventListener('paste', handler);
+    window.__logPasteHandler = handler;
+    window.__logPasteOwner = ownerId;
+};
+
+window.unregisterLogPaste = (ownerId) => {
+    // Navigating mounts the next page's panel before the old one is disposed; only the panel
+    // that registered last may take the listener down.
+    if (window.__logPasteOwner !== ownerId || !window.__logPasteHandler) return;
+    document.removeEventListener('paste', window.__logPasteHandler);
+    delete window.__logPasteHandler;
+    delete window.__logPasteOwner;
+};
