@@ -8,7 +8,9 @@ public readonly record struct LiveDisplayFilter(
     IEnumerable<string> Environments,
     IEnumerable<string> Companies,
     string? LoggerPrefix,
-    string? Text);
+    string? Text,
+    string? Message = null,
+    TimeRange? Range = null);
 
 /// <summary>
 /// The buffer behind a live page: it takes batches of entries from a background producer — the file
@@ -214,7 +216,7 @@ public sealed class LiveEntryBuffer
 
     /// <summary>
     /// Rebuilds <see cref="Snapshot"/>: the buffer (or the frozen copy) narrowed by the text box,
-    /// the level, environment and company combos and the logger tree. Always called on the renderer,
+    /// the level, environment and company combos, the message and time headers and the logger tree. Always called on the renderer,
     /// and never while holding <see cref="_gate"/> — the copy is taken first, the filtering runs on
     /// it.
     /// </summary>
@@ -235,6 +237,13 @@ public sealed class LiveEntryBuffer
         // buffered under the previous one instead of leaving them on screen.
         if (!string.IsNullOrWhiteSpace(text))
             q = q.Where(e => e.Message.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0);
+        // The Message and Time column headers. Display-only: unlike the text box they do not gate
+        // the tail, so widening them brings back what is still buffered.
+        var message = filter.Message;
+        if (!string.IsNullOrWhiteSpace(message))
+            q = q.Where(e => e.Message.IndexOf(message, StringComparison.OrdinalIgnoreCase) >= 0);
+        if (filter.Range is { } range)
+            q = q.Where(e => range.Contains(e.Time));
         Snapshot = q.ToList();
     }
 

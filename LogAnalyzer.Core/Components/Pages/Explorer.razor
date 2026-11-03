@@ -52,16 +52,26 @@ else
                             ActiveLevels="@State.ExplorerLevels" LevelToggled="OnLevelToggled"
                             SelectedTime="@_selectedTime" />
 
-            <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-2">@_filtered.Count.ToString("N0") entries — sort or use the per-column filter icons to refine; click a row for detail</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-2">@_filtered.Count.ToString("N0") entries — sort or use the column-header filters to refine; click a row for detail</RadzenText>
 
             <RadzenDataGrid @ref="_grid" Data="@_filtered" TItem="LogEntry" AllowPaging="true" PageSize="50"
-                            AllowSorting="true" AllowFiltering="true" FilterMode="FilterMode.Simple"
-                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            AllowSorting="true"
                             Density="Density.Compact" PagerHorizontalAlign="HorizontalAlign.Center"
                             RowSelect="OpenDetail" AllowColumnResize="true"
                             PageSizeOptions="@(new[]{25,50,100,200})" ShowPagingSummary="true">
                 <Columns>
-                    <RadzenDataGridColumn TItem="LogEntry" Title="Time" Width="165px" Property="Time" SortOrder="SortOrder.Descending">
+                    @* Every filter lives in its column header, so they all sit on one line; Radzen's own
+                       filter row put Time and Message on a second one. The time filter is the same window
+                       the volume chart selects, so either one moves the other. *@
+                    <RadzenDataGridColumn TItem="LogEntry" Title="Time" Width="200px" Property="Time" SortOrder="SortOrder.Descending">
+                        <HeaderTemplate>
+                            <div class="col-filter">
+                                <span class="col-filter-title">Time</span>
+                                <TimeRangeFilter Range="@State.ExplorerRange" RangeChanged="OnRangeChanged"
+                                                 FirstTime="@Store.Stats?.FirstTime" LastTime="@Store.Stats?.LastTime"
+                                                 Tooltip="Filter by time window (or drag on the volume chart)" />
+                            </div>
+                        </HeaderTemplate>
                         <Template Context="e"><span class="mono">@e.Time.ToString("MM-dd HH:mm:ss.fff")</span></Template>
                     </RadzenDataGridColumn>
                     <RadzenDataGridColumn TItem="LogEntry" Title="Level" Width="200px" Property="Level" Filterable="false">
@@ -106,6 +116,15 @@ else
                         </RadzenDataGridColumn>
                     }
                     <RadzenDataGridColumn TItem="LogEntry" Title="Message" Property="Message" Sortable="false">
+                        <HeaderTemplate>
+                            <div class="col-filter">
+                                <span class="col-filter-title">Message</span>
+                                <div @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                                    <RadzenTextBox @bind-Value="State.ExplorerMessage" @bind-Value:after="Apply"
+                                                   Placeholder="message contains…" Style="width:100%" />
+                                </div>
+                            </div>
+                        </HeaderTemplate>
                         <Template Context="e">
                             @e.ShortMessage
                             @if (e.HasStackTrace)
@@ -178,7 +197,13 @@ else
     private void Apply()
     {
         if (!Store.IsLoaded) return;
-        _chartSource = Store.Query(BuildFilter()).ToList();
+        var query = Store.Query(BuildFilter());
+        // The header's message box narrows on top of the toolbar search, as the grid's own
+        // message filter used to.
+        var message = State.ExplorerMessage;
+        if (!string.IsNullOrWhiteSpace(message))
+            query = query.Where(e => e.Message.Contains(message, StringComparison.OrdinalIgnoreCase));
+        _chartSource = query.ToList();
         ApplyRange();
     }
 
@@ -216,7 +241,7 @@ else
         State.ExplorerLevels = new List<string>();
         State.ExplorerEnvironments = new List<string>();
         State.ExplorerCompanies = new List<string>();
-        State.ExplorerText = State.ExplorerLogger = State.ExplorerLoggerPrefix = null;
+        State.ExplorerText = State.ExplorerMessage = State.ExplorerLogger = State.ExplorerLoggerPrefix = null;
         State.ExplorerRange = null;
         Apply();
     }

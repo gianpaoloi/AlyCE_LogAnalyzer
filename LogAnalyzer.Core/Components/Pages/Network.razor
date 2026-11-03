@@ -136,6 +136,8 @@
           @bind-Environments="State.NetworkEnvironments" @bind-Environments:after="OnDisplayFilterChanged"
           @bind-Companies="State.NetworkCompanies" @bind-Companies:after="OnDisplayFilterChanged"
           @bind-LoggerPrefix="State.NetworkLoggerPrefix" @bind-LoggerPrefix:after="OnDisplayFilterChanged"
+          @bind-Message="State.NetworkMessage" @bind-Message:after="OnDisplayFilterChanged"
+          @bind-Range="State.NetworkRange" @bind-Range:after="OnDisplayFilterChanged"
           Columns="@State.NetworkColumns" AvailableColumns="@LogColumns.Network"
           LevelOptions="@_buffer.Levels" EnvironmentOptions="@_buffer.Environments" CompanyOptions="@_buffer.Companies"
           Loggers="@_buffer.Loggers" ShowLoggers="@State.NetworkShowLoggers"
@@ -229,7 +231,7 @@
 
     private void Rebuild() => _buffer.Rebuild(new LiveDisplayFilter(
         State.NetworkLevels, State.NetworkEnvironments, State.NetworkCompanies,
-        State.NetworkLoggerPrefix, State.NetworkText));
+        State.NetworkLoggerPrefix, State.NetworkText, State.NetworkMessage, State.NetworkRange));
 
     private void OnDisplayFilterChanged()
     {

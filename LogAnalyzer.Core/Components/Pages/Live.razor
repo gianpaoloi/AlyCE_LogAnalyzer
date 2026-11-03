@@ -115,6 +115,8 @@
           @bind-Environments="State.LiveEnvironments" @bind-Environments:after="OnDisplayFilterChanged"
           @bind-Companies="State.LiveCompanies" @bind-Companies:after="OnDisplayFilterChanged"
           @bind-LoggerPrefix="State.LiveLoggerPrefix" @bind-LoggerPrefix:after="OnDisplayFilterChanged"
+          @bind-Message="State.LiveMessage" @bind-Message:after="OnDisplayFilterChanged"
+          @bind-Range="State.LiveRange" @bind-Range:after="OnDisplayFilterChanged"
           Columns="@State.LiveColumns" AvailableColumns="@LogColumns.Optional"
           LevelOptions="@_buffer.Levels" EnvironmentOptions="@_buffer.Environments" CompanyOptions="@_buffer.Companies"
           Loggers="@_buffer.Loggers" ShowLoggers="@State.LiveShowLoggers"
@@ -209,7 +211,8 @@
     private void OnEntries(IReadOnlyList<LogEntry> entries) => _buffer.Ingest(entries);
 
     private void Rebuild() => _buffer.Rebuild(new LiveDisplayFilter(
-        State.LiveLevels, State.LiveEnvironments, State.LiveCompanies, State.LiveLoggerPrefix, State.LiveText));
+        State.LiveLevels, State.LiveEnvironments, State.LiveCompanies, State.LiveLoggerPrefix, State.LiveText,
+        State.LiveMessage, State.LiveRange));
 
     private void OnDisplayFilterChanged()
     {

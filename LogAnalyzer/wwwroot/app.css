@@ -162,6 +162,17 @@ h2 { font-size: 1.05rem; margin: 0 0 .6rem; color: var(--txt); }
 /* per-column header filter (combo lives in the header, so selection persists) */
 .col-filter { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 2px 0; }
 .col-filter-title { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+/* Time column header: a button styled like the neighbouring dropdowns, opening the from/to popup */
+.time-filter-button { display: flex; align-items: center; justify-content: space-between; gap: .4rem; width: 100%;
+    height: var(--rz-input-height); padding: 0 .6rem; font: inherit; font-size: var(--rz-input-font-size);
+    color: var(--rz-input-value-color, var(--rz-text-color)); background: var(--rz-input-background-color);
+    border: var(--rz-input-border); border-radius: var(--rz-border-radius); cursor: pointer; text-align: left; }
+.time-filter-button:hover { border: var(--rz-input-hover-border, var(--rz-input-border)); }
+.time-filter-button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.time-filter-placeholder { color: var(--rz-input-placeholder-color, var(--muted)); }
+.time-filter-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+.time-filter-popup { position: fixed; z-index: 1001; display: flex; flex-direction: column; gap: .5rem; box-sizing: border-box; padding: .75rem; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
 /* keep the header row from clipping the chips / dropdown */
 .rz-datatable .rz-column-title, .rz-grid-table th .rz-cell-data { overflow: visible; white-space: normal; }
 

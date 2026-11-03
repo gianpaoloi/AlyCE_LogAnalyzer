@@ -68,6 +68,9 @@ public sealed class SessionState
     }
 
     public string? ExplorerText { get; set; }
+
+    /// <summary>The Message column header's own "contains" filter, applied on top of <see cref="ExplorerText"/>.</summary>
+    public string? ExplorerMessage { get; set; }
     public string? ExplorerLogger { get; set; }
     public string? ExplorerLoggerPrefix { get; set; }
 
@@ -109,6 +112,10 @@ public sealed class SessionState
 
     public string? LiveText { get; set; }
     public string? LiveLoggerPrefix { get; set; }
+
+    /// <summary>Message and Time column header filters. Display-only, unlike <see cref="LiveText"/>.</summary>
+    public string? LiveMessage { get; set; }
+    public TimeRange? LiveRange { get; set; }
 
     public IEnumerable<string> LiveColumns
     {
@@ -156,6 +163,8 @@ public sealed class SessionState
 
     public string? NetworkText { get; set; }
     public string? NetworkLoggerPrefix { get; set; }
+    public string? NetworkMessage { get; set; }
+    public TimeRange? NetworkRange { get; set; }
 
     public IEnumerable<string> NetworkColumns
     {

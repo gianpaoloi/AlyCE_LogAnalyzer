@@ -158,3 +158,9 @@ window.unregisterLogPaste = (ownerId) => {
     delete window.__logPasteHandler;
     delete window.__logPasteOwner;
 };
+
+// Where a header control sits in the window, so TimeRangeFilter can place its panel beside it.
+window.getAnchorRect = (el) => {
+    const r = el.getBoundingClientRect();
+    return { left: r.left, top: r.top, bottom: r.bottom, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
+};

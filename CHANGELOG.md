@@ -9,7 +9,13 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Explorer, File Live Watch and Network Live Watch: every column filter sits on one header line.**
+  Time and Message used Radzen's separate filter row; they are now header controls like Level,
+  Environment and Company. The Time filter opens a From/To picker. In the Explorer it is the same window
+  the volume chart selects, so dragging on the chart updates it and vice versa; Reset clears both. On the
+  live pages an empty "To" stays open, so lines that arrive later keep showing.
 
 ## [1.2.2] — 2026-10-02
 

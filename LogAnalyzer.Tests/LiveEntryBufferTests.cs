@@ -34,6 +34,31 @@ public class LiveEntryBufferTests
     }
 
     [Fact]
+    public void The_message_header_narrows_the_snapshot_case_insensitively()
+    {
+        _buffer.Ingest(new[] { Entry("Login OK"), Entry("login failed"), Entry("other") });
+
+        _buffer.Rebuild(NoFilter with { Message = "LOGIN" });
+
+        Assert.Equal(new[] { "login failed", "Login OK" }, _buffer.Snapshot.Select(e => e.Message));
+    }
+
+    [Fact]
+    public void The_time_header_keeps_only_the_window_and_an_open_end_keeps_everything_after()
+    {
+        var t = new DateTime(2026, 11, 3, 9, 0, 0);
+        _buffer.Ingest(Enumerable.Range(0, 5)
+            .Select(i => new LogEntry { Message = $"m{i}", Level = "INFO", Logger = "A.B", Time = t.AddMinutes(i) })
+            .ToArray());
+
+        _buffer.Rebuild(NoFilter with { Range = new TimeRange(t.AddMinutes(1), t.AddMinutes(3)) });
+        Assert.Equal(new[] { "m3", "m2", "m1" }, _buffer.Snapshot.Select(e => e.Message));
+
+        _buffer.Rebuild(NoFilter with { Range = new TimeRange(t.AddMinutes(3), DateTime.MaxValue) });
+        Assert.Equal(new[] { "m4", "m3" }, _buffer.Snapshot.Select(e => e.Message));
+    }
+
+    [Fact]
     public void The_newest_entries_come_first()
     {
         _buffer.Ingest(new[] { Entry("one"), Entry("two"), Entry("three") });

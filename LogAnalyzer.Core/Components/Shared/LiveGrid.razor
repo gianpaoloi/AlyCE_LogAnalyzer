@@ -11,12 +11,19 @@
            buffer lock) on every single render, which also handed Radzen a new reference each time
            and made it re-filter, re-sort and re-page the whole buffer. *@
         <RadzenDataGrid Data="@Data" TItem="LogEntry" AllowPaging="true" PageSize="50"
-                        Density="Density.Compact" AllowSorting="true" AllowFiltering="true" FilterMode="FilterMode.Simple"
-                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnResize="true"
+                        Density="Density.Compact" AllowSorting="true" AllowColumnResize="true"
                         RowSelect="@OnRowSelect"
                         PagerHorizontalAlign="HorizontalAlign.Center" ShowPagingSummary="true">
             <Columns>
-                <RadzenDataGridColumn TItem="LogEntry" Title="Time" Property="Time" Width="130px">
+                @* Every filter lives in its column header, on one line — as in the Explorer. *@
+                <RadzenDataGridColumn TItem="LogEntry" Title="Time" Property="Time" Width="200px">
+                    <HeaderTemplate>
+                        <div class="col-filter">
+                            <span class="col-filter-title">Time</span>
+                            <TimeRangeFilter Range="@Range" RangeChanged="@RangeChanged"
+                                             FromPlaceholder="any time" ToPlaceholder="still running" />
+                        </div>
+                    </HeaderTemplate>
                     <Template Context="e"><span class="mono">@e.Time.ToString("HH:mm:ss.fff")</span></Template>
                 </RadzenDataGridColumn>
                 <RadzenDataGridColumn TItem="LogEntry" Title="Level" Property="Level" Width="200px" Filterable="false">
@@ -61,6 +68,15 @@
                     </RadzenDataGridColumn>
                 }
                 <RadzenDataGridColumn TItem="LogEntry" Title="Message" Property="Message">
+                    <HeaderTemplate>
+                        <div class="col-filter">
+                            <span class="col-filter-title">Message</span>
+                            <div @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                                <RadzenTextBox Value="@Message" ValueChanged="@MessageChanged"
+                                               Placeholder="message contains…" Style="width:100%" />
+                            </div>
+                        </div>
+                    </HeaderTemplate>
                     <Template Context="e">
                         @e.ShortMessage
                         @if (e.HasStackTrace)
@@ -97,6 +113,14 @@
 
     [Parameter] public IEnumerable<string> Companies { get; set; } = Array.Empty<string>();
     [Parameter] public EventCallback<IEnumerable<string>> CompaniesChanged { get; set; }
+
+    /// <summary>Message column header filter ("contains"). Null means no filter.</summary>
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public EventCallback<string?> MessageChanged { get; set; }
+
+    /// <summary>Time column header filter. Null means no window.</summary>
+    [Parameter] public TimeRange? Range { get; set; }
+    [Parameter] public EventCallback<TimeRange?> RangeChanged { get; set; }
 
     /// <summary>Logger prefix picked in the tree. Null means no logger filter.</summary>
     [Parameter] public string? LoggerPrefix { get; set; }

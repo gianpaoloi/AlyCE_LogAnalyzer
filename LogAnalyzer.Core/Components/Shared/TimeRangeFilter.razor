@@ -1,0 +1,131 @@
+@inject IJSRuntime JS
+
+@* Time column header filter: a button styled like the neighbouring header dropdowns that opens a
+   From/To picker as a floating panel. Shared by the Explorer and the live grids.
+
+   A side left empty is filled from FirstTime / LastTime when the host knows them (the Explorer's
+   loaded dataset); otherwise it stays open-ended, which is what a live tail wants — lines keep
+   arriving after any "to" the user could pick. *@
+
+<div class="time-filter" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+    <button type="button" class="time-filter-button" @ref="_button" @onclick="Toggle"
+            title="@Tooltip">
+        <span class="@(Range is null ? "time-filter-placeholder" : null)">@Label</span>
+        <RadzenIcon Icon="schedule" />
+    </button>
+
+    @* The panel is position:fixed, placed against the button's measured rectangle. It is not left in
+       the header's flow, so it cannot push the other column headers around, and the transparent
+       backdrop turns any click outside it into a dismiss. *@
+    @if (_open)
+    {
+        <div class="time-filter-backdrop" @onclick="Dismiss"></div>
+        <div class="time-filter-popup" style="@_panelStyle">
+            <RadzenLabel Text="From" Component="@_fromId" />
+            <RadzenDatePicker @bind-Value="_from" Name="@_fromId" ShowTime="true" ShowSeconds="true"
+                              DateFormat="yyyy-MM-dd HH:mm:ss" TValue="DateTime?" Placeholder="@FromPlaceholder" />
+            <RadzenLabel Text="To" Component="@_toId" />
+            <RadzenDatePicker @bind-Value="_to" Name="@_toId" ShowTime="true" ShowSeconds="true"
+                              DateFormat="yyyy-MM-dd HH:mm:ss" TValue="DateTime?" Placeholder="@ToPlaceholder" />
+            <div class="time-filter-actions">
+                <RadzenButton Text="Clear" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="Clear" />
+                <RadzenButton Text="Apply" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="Apply" />
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public TimeRange? Range { get; set; }
+    [Parameter] public EventCallback<TimeRange?> RangeChanged { get; set; }
+
+    /// <summary>Fills an empty "From" on apply. Null leaves that side open.</summary>
+    [Parameter] public DateTime? FirstTime { get; set; }
+
+    /// <summary>Fills an empty "To" on apply. Null leaves that side open.</summary>
+    [Parameter] public DateTime? LastTime { get; set; }
+
+    [Parameter] public string Tooltip { get; set; } = "Filter by time window";
+    [Parameter] public string FromPlaceholder { get; set; } = "start of log";
+    [Parameter] public string ToPlaceholder { get; set; } = "end of log";
+
+    /// <summary>Panel width in px, used to keep it inside the window's right edge.</summary>
+    private const double PanelWidth = 280;
+
+    /// <summary>Rough panel height, used to decide whether it fits below the button.</summary>
+    private const double PanelHeight = 320;
+
+    private ElementReference _button;
+    private bool _open;
+    private string _panelStyle = string.Empty;
+    private DateTime? _from;
+    private DateTime? _to;
+    private readonly string _fromId = $"time-from-{Guid.NewGuid():N}";
+    private readonly string _toId = $"time-to-{Guid.NewGuid():N}";
+
+    /// <summary>An open side is stored as Min/MaxValue; it reads as "…" rather than year 0001.</summary>
+    private string Label => Range switch
+    {
+        null => "All times",
+        { From: var f, To: var t } when f == DateTime.MinValue => $"… → {t:MM/dd HH:mm:ss}",
+        { From: var f, To: var t } when t == DateTime.MaxValue => $"{f:MM/dd HH:mm:ss} → …",
+        { } r => r.ToString(),
+    };
+
+    private async Task Toggle()
+    {
+        if (_open)
+        {
+            _open = false;
+            return;
+        }
+
+        // Starts from the current window, however it was set (here, or dragged on a chart).
+        _from = Range?.From is { } f && f != DateTime.MinValue ? f : null;
+        _to = Range?.To is { } t && t != DateTime.MaxValue ? t : null;
+
+        var rect = await JS.InvokeAsync<AnchorRect>("getAnchorRect", _button);
+        _panelStyle = PositionFor(rect);
+        _open = true;
+    }
+
+    /// <summary>
+    /// Below the button when there is room for the panel, otherwise above it; horizontally aligned to
+    /// the button and kept inside the window.
+    /// </summary>
+    private string PositionFor(AnchorRect r)
+    {
+        var left = Math.Clamp(r.Left, 8, Math.Max(8, r.ViewportWidth - PanelWidth - 8));
+        var belowFits = r.Bottom + PanelHeight + 8 <= r.ViewportHeight;
+
+        return belowFits
+            ? $"left:{left:0}px; top:{r.Bottom + 4:0}px; width:{PanelWidth:0}px;"
+            : $"left:{left:0}px; bottom:{r.ViewportHeight - r.Top + 4:0}px; width:{PanelWidth:0}px;";
+    }
+
+    private void Dismiss() => _open = false;
+
+    private async Task Apply()
+    {
+        TimeRange? range = null;
+        if (_from is not null || _to is not null)
+        {
+            var from = _from ?? FirstTime ?? DateTime.MinValue;
+            var to = _to ?? LastTime ?? DateTime.MaxValue;
+            range = from <= to ? new TimeRange(from, to) : new TimeRange(to, from);
+        }
+
+        _open = false;
+        await RangeChanged.InvokeAsync(range);
+    }
+
+    private async Task Clear()
+    {
+        _from = _to = null;
+        await Apply();
+    }
+
+    /// <summary>The button's position in the window, as measured by <c>getAnchorRect</c> in download.js.</summary>
+    private sealed record AnchorRect(
+        double Left, double Top, double Bottom, double ViewportWidth, double ViewportHeight);
+}
