@@ -9,6 +9,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.2.3] — 2026-11-03
+
 ### Changed
 
 - **Explorer, File Live Watch and Network Live Watch: every column filter sits on one header line.**

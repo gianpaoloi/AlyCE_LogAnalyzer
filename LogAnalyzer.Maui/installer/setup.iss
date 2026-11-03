@@ -3,7 +3,7 @@
 ; Or override version: iscc /DMyAppVersion=1.2.3 setup.iss
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.2.2"
+  #define MyAppVersion "1.2.3"
 #endif
 
 #define MyAppName      "AlyCE Log Analyzer"
