@@ -38,8 +38,9 @@
     Leave CHANGELOG.md alone and only update the version numbers.
 
 .PARAMETER Tag
-    Create the annotated git tag v<version> after a successful bump. Refuses to run if the working
-    tree is dirty, because the tag has to point at a commit that already contains the new version.
+    Tag-only mode: create the annotated git tag v<version> on HEAD. Edits nothing, so run it after
+    the bump has been committed. Refuses to run if the working tree is dirty, if the tag already
+    exists, or if HEAD does not carry this version (checked against the winget manifest).
     Never pushes - the push command is printed for you to run.
 
 .PARAMETER Force
@@ -132,6 +133,37 @@ function Save-RepoFile($File, [string] $Text) {
         throw "Refusing to write an empty $($File.Relative)."
     }
     [System.IO.File]::WriteAllText($File.Path, $Text, [System.Text.UTF8Encoding]::new($File.HasBom))
+}
+
+# ---------------------------------------------------------------------------------------------
+# Tag-only mode. Runs after the bump has been committed: it tags HEAD and edits nothing. Running
+# the bump again would fail on the CHANGELOG section that already exists, so it is kept apart.
+# ---------------------------------------------------------------------------------------------
+
+if ($Tag) {
+    $dirty = @(git status --porcelain)
+    if ($dirty.Count -gt 0) {
+        throw "Not tagging: the working tree has uncommitted changes. Commit the version bump first."
+    }
+
+    git rev-parse -q --verify "refs/tags/v$full" 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) { throw "Tag v$full already exists." }
+
+    $manifestCheck = Get-RepoFile 'winget/manifests/TeamSystem.AlyCELogAnalyzer.yaml'
+    if ($manifestCheck.Text -notmatch "(?m)^PackageVersion:[ \t]*$([regex]::Escape($full))[ \t]*\r?$") {
+        throw "HEAD does not carry version $full (winget PackageVersion differs). Bump and commit first."
+    }
+
+    if ($PSCmdlet.ShouldProcess("v$full", 'create annotated git tag')) {
+        git tag -a "v$full" -m "AlyCE Log Analyzer $full"
+        if ($LASTEXITCODE -ne 0) { throw "git tag failed for v$full." }
+        Write-Host "Created local tag v$full on HEAD (not pushed)." -ForegroundColor Green
+    }
+
+    Write-Host ''
+    Write-Host 'Next step:' -ForegroundColor Cyan
+    Write-Host "  git push; git push origin v$full    # this publishes the release"
+    return
 }
 
 # Every planned change lands here first; nothing is written until all of them are known good.
@@ -334,37 +366,16 @@ if ($notesWarning) {
     Write-Warning $notesWarning
 }
 
-# ---------------------------------------------------------------------------------------------
-# Optional tag. Guarded: the tag must point at a commit that already has the new version in it.
-# ---------------------------------------------------------------------------------------------
-
-if ($Tag) {
-    $dirty = @(git status --porcelain)
-    if ($dirty.Count -gt 0) {
-        Write-Host ''
-        Write-Warning ("Not tagging: the working tree has uncommitted changes, so v$full would point " +
-                       "at a commit without the version bump. Commit first, then re-run with -Tag.")
-    }
-    elseif ($PSCmdlet.ShouldProcess("v$full", 'create annotated git tag')) {
-        git tag -a "v$full" -m "AlyCE Log Analyzer $full"
-        if ($LASTEXITCODE -ne 0) { throw "git tag failed for v$full." }
-        Write-Host "Created local tag v$full (not pushed)." -ForegroundColor Green
-    }
-}
-
 Write-Host ''
 Write-Host 'Next steps:' -ForegroundColor Cyan
-Write-Host '  1. Write the release notes under the new CHANGELOG heading, if they are not there yet.'
+if (-not $NoChangelog) {
+    Write-Host "  1. Check the release notes under the new [$full] CHANGELOG heading; the workflow publishes them verbatim."
+}
 Write-Host '  2. dotnet test LogAnalyzer.Tests/LogAnalyzer.Tests.csproj -c Release'
 Write-Host "  3. dotnet msbuild LogAnalyzer.Maui/LogAnalyzer.Maui.csproj -getProperty:ApplicationDisplayVersion -getProperty:ApplicationVersion"
 Write-Host "  4. git add -A; git commit -m `"Set version $full`""
-if (-not $Tag) {
-    Write-Host "  5. ./set-version.ps1 $full -Tag        # tags the commit you just made"
-    Write-Host "  6. git push; git push origin v$full    # this publishes the release"
-}
-else {
-    Write-Host "  5. git push; git push origin v$full    # this publishes the release"
-}
+Write-Host "  5. ./set-version.ps1 $full -Tag          # tags the commit from step 4, edits nothing"
+Write-Host "  6. git push; git push origin v$full      # this publishes the release"
 Write-Host ''
 Write-Host 'The winget manifests still carry {{INSTALLER_URL}} and {{SHA256}} placeholders; those are' -ForegroundColor DarkGray
 Write-Host 'filled in from the release notes after the workflow has published the installer.' -ForegroundColor DarkGray
