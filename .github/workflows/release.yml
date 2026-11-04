@@ -187,7 +187,7 @@ jobs:
       # 12. Keep the built artifacts even if the release step fails
       # ---------------------------------------------------------------
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: alyce-loganalyzer-${{ steps.version.outputs.VERSION }}
@@ -356,7 +356,7 @@ jobs:
       # 14. Create GitHub Release
       # ---------------------------------------------------------------
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.TAG }}
           name: "AlyCE Log Analyzer ${{ steps.version.outputs.VERSION }}"
