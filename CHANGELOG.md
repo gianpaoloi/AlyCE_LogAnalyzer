@@ -9,6 +9,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.2.4] — 2026-11-04
+
 ### Added
 
 - **Feedback page: suggest a feature or report a problem.** A new **Feedback** link in the top bar opens a
