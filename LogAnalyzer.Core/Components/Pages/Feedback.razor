@@ -1,0 +1,94 @@
+@page "/feedback"
+@inject UpdateChecker Updates
+
+<PageTitle>Feedback · AlyCE Log Analyzer</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H4">Feedback</RadzenText>
+<RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted rz-mb-3">
+    Suggest a feature, or report a problem. This opens a new issue on GitHub with your text filled in —
+    nothing is sent until you press <b>Submit new issue</b> there.
+</RadzenText>
+
+<RadzenCard Variant="Variant.Outlined" class="feedback-card">
+    <RadzenStack Gap="0.75rem">
+        <RadzenLabel Text="What is this about?" Component="kind" />
+        <RadzenDropDown @bind-Value="_kind" Data="@_kinds" TextProperty="Text" ValueProperty="Value"
+                        TValue="IssueKind" Name="kind" Style="max-width:320px" />
+
+        <RadzenLabel Text="Title" Component="title" />
+        <RadzenTextBox @bind-Value="_title" Name="title" Immediate="true" MaxLength="@IssueLink.MaxTitleLength"
+                       Placeholder="A short summary, e.g. “Export keeps the time filter”" />
+
+        <RadzenLabel Text="Details" Component="details" />
+        <RadzenTextArea @bind-Value="_details" Name="details" Immediate="true" Rows="8" MaxLength="4000"
+                        Placeholder="@_detailsHint" />
+
+        <RadzenCheckBox @bind-Value="_includeVersion" Name="ver" Immediate="true" />
+        <RadzenLabel Text="@_versionLabel" Component="ver" />
+
+        <div class="feedback-actions">
+            @* An anchor rather than a button: the WebView hands a target="_blank" link to the system
+               browser, which is how the About link leaves the app too. Without a title there is
+               nothing to file, so the link is left without an href and the button goes inert. *@
+            <a class="btn btn-primary @(_canSubmit ? null : "disabled")"
+               href="@(_canSubmit ? _issueUrl : null)" target="_blank" rel="noopener noreferrer"
+               aria-disabled="@(!_canSubmit)">
+                <RadzenIcon Icon="open_in_new" /> Submit new issue on GitHub
+            </a>
+            @if (!_canSubmit)
+            {
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-m-0">Enter a title to continue.</RadzenText>
+            }
+        </div>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    private sealed record KindOption(string Text, IssueKind Value);
+
+    private static readonly IReadOnlyList<KindOption> _kinds =
+    [
+        new("Feature suggestion", IssueKind.Feature),
+        new("Problem or bug", IssueKind.Bug),
+    ];
+
+    private IssueKind _kind = IssueKind.Feature;
+    private string? _title;
+    private string? _details;
+    private bool _includeVersion = true;
+
+    private string _detailsHint => _kind == IssueKind.Bug
+        ? "What did you do, what did you expect, and what happened instead?"
+        : "What would you like the app to do, and why would it help?";
+
+    private readonly string _versionLabel =
+        $"Include the app version ({AppVersion.Display}) so the report can be tied to this build";
+
+    private bool _canSubmit => !string.IsNullOrWhiteSpace(_title);
+
+    private string _issueUrl => IssueLink.Build(
+        Updates.Options.Repository,
+        _kind,
+        _title,
+        _details,
+        _includeVersion ? AppVersion.Full : null);
+}
+
+<style>
+    .feedback-card {
+        max-width: 60rem;
+    }
+
+    .feedback-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .feedback-actions .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+</style>

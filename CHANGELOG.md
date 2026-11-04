@@ -9,7 +9,13 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Feedback page: suggest a feature or report a problem.** A new **Feedback** link in the top bar opens a
+  form with a title, details and a choice of *Feature suggestion* or *Problem or bug*. The form builds a
+  new issue on GitHub, pre-filled with your text and labelled `enhancement` or `bug`, and the app version
+  is added to the report unless you untick it. Nothing is sent from the app: the issue is only created when
+  you press **Submit new issue** on GitHub.
 
 ## [1.2.3] — 2026-11-03
 
