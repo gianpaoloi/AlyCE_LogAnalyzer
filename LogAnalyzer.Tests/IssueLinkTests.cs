@@ -47,9 +47,11 @@ public class IssueLinkTests
     }
 
     [Fact]
-    public void Version_is_appended_to_the_body_when_given()
+    public void Footer_is_appended_after_the_text_with_a_separator()
     {
-        var query = Query(IssueLink.Build(Repo, IssueKind.Bug, "T", "Steps", "1.2.3+abc"));
+        var footer = IssueLink.Footer("AlyCE Log Analyzer 1.2.3+abc");
+
+        var query = Query(IssueLink.Build(Repo, IssueKind.Bug, "T", "Steps", footer));
 
         Assert.Equal("Steps\n\n---\nAlyCE Log Analyzer 1.2.3+abc", query["body"]);
     }
@@ -58,11 +60,9 @@ public class IssueLinkTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void Version_is_left_out_when_absent(string? version)
+    public void Footer_is_empty_when_there_is_nothing_to_add(string? content)
     {
-        var query = Query(IssueLink.Build(Repo, IssueKind.Feature, "T", "Only this", version));
-
-        Assert.Equal("Only this", query["body"]);
+        Assert.Equal(string.Empty, IssueLink.Footer(content));
     }
 
     [Fact]
@@ -77,23 +77,24 @@ public class IssueLinkTests
     }
 
     [Fact]
-    public void A_very_long_description_is_shortened_to_fit_and_keeps_the_version()
+    public void A_very_long_text_is_shortened_to_fit_and_the_footer_is_kept_whole()
     {
         // Every character encodes to three characters, so this would overflow the limit many times over.
-        var details = string.Concat(Enumerable.Repeat("é€", 5000));
+        var text = string.Concat(Enumerable.Repeat("é€", 5000));
+        var footer = IssueLink.Footer("### Environment\n- App version: 1.2.3");
 
-        var url = IssueLink.Build(Repo, IssueKind.Bug, "T", details, "1.2.3");
+        var url = IssueLink.Build(Repo, IssueKind.Bug, "T", text, footer);
 
         Assert.True(url.Length <= IssueLink.MaxUrlLength, $"URL is {url.Length} characters");
         var body = Query(url)["body"];
         Assert.Contains("description shortened to fit", body);
-        Assert.EndsWith("AlyCE Log Analyzer 1.2.3", body);
+        Assert.EndsWith("- App version: 1.2.3", body);
     }
 
     [Fact]
-    public void A_short_description_is_not_marked_as_shortened()
+    public void A_short_text_is_not_marked_as_shortened()
     {
-        var body = Query(IssueLink.Build(Repo, IssueKind.Bug, "T", "Short", "1.2.3"))["body"];
+        var body = Query(IssueLink.Build(Repo, IssueKind.Bug, "T", "Short", IssueLink.Footer("v")))["body"];
 
         Assert.DoesNotContain("shortened", body);
     }
@@ -110,5 +111,40 @@ public class IssueLinkTests
     public void Blank_repository_is_rejected()
     {
         Assert.Throws<ArgumentException>(() => IssueLink.Build(" ", IssueKind.Feature, "T", "B", null));
+    }
+
+    [Fact]
+    public void Search_url_queries_issues_for_the_title()
+    {
+        var url = IssueLink.SearchUrl(Repo, "Export ignores & time");
+
+        const string prefix = $"https://github.com/{Repo}/issues?q=";
+        Assert.StartsWith(prefix, url);
+        Assert.Equal("is:issue Export ignores & time", Uri.UnescapeDataString(url[prefix.Length..]));
+    }
+
+    [Fact]
+    public void Bug_body_lists_only_the_answered_sections_in_order()
+    {
+        var body = IssueLink.BugBody(new BugSteps(
+            Page: "Explorer",
+            Steps: "1. Load the folder\n2. Click Download",
+            Expected: "  ",
+            Actual: "The file is empty",
+            Frequency: "Every time",
+            Input: null));
+
+        Assert.Equal(
+            "### Where in the app\nExplorer\n\n" +
+            "### Steps to reproduce\n1. Load the folder\n2. Click Download\n\n" +
+            "### Actual behaviour\nThe file is empty\n\n" +
+            "### How often it happens\nEvery time",
+            body);
+    }
+
+    [Fact]
+    public void Bug_body_is_empty_when_nothing_is_answered()
+    {
+        Assert.Equal(string.Empty, IssueLink.BugBody(new BugSteps(null, null, null, null, null, null)));
     }
 }

@@ -9,7 +9,7 @@
     nothing is sent until you press <b>Submit new issue</b> there.
 </RadzenText>
 
-<RadzenCard Variant="Variant.Outlined" class="feedback-card">
+<RadzenCard Variant="Variant.Outlined" class="feedback-card rz-mb-3">
     <RadzenStack Gap="0.75rem">
         <RadzenLabel Text="What is this about?" Component="kind" />
         <RadzenDropDown @bind-Value="_kind" Data="@_kinds" TextProperty="Text" ValueProperty="Value"
@@ -17,14 +17,49 @@
 
         <RadzenLabel Text="Title" Component="title" />
         <RadzenTextBox @bind-Value="_title" Name="title" Immediate="true" MaxLength="@IssueLink.MaxTitleLength"
-                       Placeholder="A short summary, e.g. “Export keeps the time filter”" />
+                       Placeholder="@_titlePlaceholder" />
 
-        <RadzenLabel Text="Details" Component="details" />
-        <RadzenTextArea @bind-Value="_details" Name="details" Immediate="true" Rows="8" MaxLength="4000"
-                        Placeholder="@_detailsHint" />
+        @if (_kind == IssueKind.Bug)
+        {
+            <RadzenLabel Text="Where in the app did it happen?" Component="page" />
+            <RadzenDropDown @bind-Value="_page" Data="@Pages" AllowClear="true" Name="page"
+                            Placeholder="Choose a page…" Style="max-width:320px" />
 
-        <RadzenCheckBox @bind-Value="_includeVersion" Name="ver" Immediate="true" />
-        <RadzenLabel Text="@_versionLabel" Component="ver" />
+            <RadzenLabel Text="Which kind of input were you reading?" Component="input" />
+            <RadzenDropDown @bind-Value="_input" Data="@Inputs" AllowClear="true" Name="input"
+                            Placeholder="Choose one…" Style="max-width:320px" />
+
+            <RadzenLabel Text="Steps to reproduce" Component="steps" />
+            <RadzenTextArea @bind-Value="_steps" Name="steps" Immediate="true" Rows="5" MaxLength="3000"
+                            Placeholder="1. Open the app&#10;2. Load the folder …&#10;3. Click … " />
+
+            <RadzenLabel Text="What did you expect to happen?" Component="expected" />
+            <RadzenTextArea @bind-Value="_expected" Name="expected" Immediate="true" Rows="2" MaxLength="1500" />
+
+            <RadzenLabel Text="What happened instead?" Component="actual" />
+            <RadzenTextArea @bind-Value="_actual" Name="actual" Immediate="true" Rows="2" MaxLength="1500" />
+
+            <RadzenLabel Text="How often does it happen?" Component="frequency" />
+            <RadzenDropDown @bind-Value="_frequency" Data="@Frequencies" AllowClear="true" Name="frequency"
+                            Placeholder="Choose one…" Style="max-width:320px" />
+        }
+        else
+        {
+            <RadzenLabel Text="Details" Component="details" />
+            <RadzenTextArea @bind-Value="_details" Name="details" Immediate="true" Rows="8" MaxLength="4000"
+                            Placeholder="What would you like the app to do, and why would it help?" />
+        }
+
+        <RadzenCheckBox @bind-Value="_includeEnvironment" Name="env" Immediate="true" />
+        <RadzenLabel Text="@_environmentLabel" Component="env" />
+        @if (_kind == IssueKind.Bug && _includeEnvironment)
+        {
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-m-0">
+                Sent: app version, Windows version and build, CPU architecture, .NET runtime, number of processors,
+                memory, display language and the local time you filed it. Not sent: your user name, the computer
+                name, file names or paths, or anything from your logs.
+            </RadzenText>
+        }
 
         <div class="feedback-actions">
             @* An anchor rather than a button: the WebView hands a target="_blank" link to the system
@@ -35,7 +70,13 @@
                aria-disabled="@(!_canSubmit)">
                 <RadzenIcon Icon="open_in_new" /> Submit new issue on GitHub
             </a>
-            @if (!_canSubmit)
+            @if (_canSubmit)
+            {
+                <a class="btn btn-outline-secondary" href="@_searchUrl" target="_blank" rel="noopener noreferrer">
+                    <RadzenIcon Icon="travel_explore" /> Search existing issues first
+                </a>
+            }
+            else
             {
                 <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-m-0">Enter a title to continue.</RadzenText>
             }
@@ -43,8 +84,30 @@
     </RadzenStack>
 </RadzenCard>
 
+<RadzenCard Variant="Variant.Outlined" class="feedback-card">
+    <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-2"><b>Before you submit</b></RadzenText>
+    <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-mb-2">
+        Optional — these are reminders, not requirements. Ticking them does not change what is sent.
+    </RadzenText>
+    <div class="feedback-checklist">
+        @foreach (var item in _kind == IssueKind.Bug ? _bugChecklist : _featureChecklist)
+        {
+            <label class="feedback-check">
+                <RadzenCheckBox @bind-Value="item.Done" TValue="bool" />
+                <span>@item.Text</span>
+            </label>
+        }
+    </div>
+</RadzenCard>
+
 @code {
     private sealed record KindOption(string Text, IssueKind Value);
+
+    private sealed class CheckItem(string text)
+    {
+        public string Text { get; } = text;
+        public bool Done { get; set; }
+    }
 
     private static readonly IReadOnlyList<KindOption> _kinds =
     [
@@ -52,26 +115,74 @@
         new("Problem or bug", IssueKind.Bug),
     ];
 
+    private static readonly string[] Pages =
+    [
+        "Overview", "Explorer", "Triage", "File Live Watch", "Network Live Watch",
+        "Quick Start", "Feedback", "Not sure",
+    ];
+
+    private static readonly string[] Inputs =
+    [
+        "A local log file", "A folder of log files", "A ZIP archive", "A live file being tailed",
+        "Network Live Watch (UDP events)", "Lines pasted from the clipboard", "Not sure",
+    ];
+
+    private static readonly string[] Frequencies = ["Every time", "Sometimes", "Happened once"];
+
+    // Rebuilt on each visit, so ticks do not survive leaving the page.
+    private readonly List<CheckItem> _bugChecklist =
+    [
+        new("I can repeat the steps in order, starting from opening the app."),
+        new("I wrote what I expected to happen and what happened instead."),
+        new("I checked whether it still happens after restarting the app."),
+        new("I described the input (file type, folder, live file or network) without attaching the file."),
+        new("I removed passwords, tokens, customer names and personal data from anything I pasted."),
+        new("I searched existing issues for the same problem."),
+        new("If it looks wrong on screen, I will add a screenshot on GitHub."),
+    ];
+
+    private readonly List<CheckItem> _featureChecklist =
+    [
+        new("I described the problem I am trying to solve, not only the button I want."),
+        new("I gave an example of when I would use it."),
+        new("I searched existing issues for the same suggestion."),
+    ];
+
     private IssueKind _kind = IssueKind.Feature;
     private string? _title;
     private string? _details;
-    private bool _includeVersion = true;
-
-    private string _detailsHint => _kind == IssueKind.Bug
-        ? "What did you do, what did you expect, and what happened instead?"
-        : "What would you like the app to do, and why would it help?";
-
-    private readonly string _versionLabel =
-        $"Include the app version ({AppVersion.Display}) so the report can be tied to this build";
+    private string? _page;
+    private string? _input;
+    private string? _steps;
+    private string? _expected;
+    private string? _actual;
+    private string? _frequency;
+    private bool _includeEnvironment = true;
 
     private bool _canSubmit => !string.IsNullOrWhiteSpace(_title);
 
+    private string _environmentLabel => _kind == IssueKind.Bug
+        ? $"Include my machine details (app {AppVersion.Display}, Windows, runtime) so the problem can be reproduced"
+        : $"Include the app version ({AppVersion.Display}) so the request can be tied to this build";
+
+    private string _issueText => _kind == IssueKind.Bug
+        ? IssueLink.BugBody(new BugSteps(_page, _steps, _expected, _actual, _frequency, _input))
+        : _details ?? string.Empty;
+
+    private string _titlePlaceholder => _kind == IssueKind.Bug
+        ? "What goes wrong, in one line — e.g. “Export ignores the time filter”"
+        : "A short summary, e.g. “Export keeps the time filter”";
+
+    // A bug always carries the app version, even with the machine details unticked: without it no
+    // maintainer can tell which build the report is about.
+    private string _issueFooter => _kind == IssueKind.Bug
+        ? IssueLink.Footer(MachineInfo.Describe(AppVersion.Full, includeMachine: _includeEnvironment))
+        : (_includeEnvironment ? IssueLink.Footer($"AlyCE Log Analyzer {AppVersion.Full}") : string.Empty);
+
     private string _issueUrl => IssueLink.Build(
-        Updates.Options.Repository,
-        _kind,
-        _title,
-        _details,
-        _includeVersion ? AppVersion.Full : null);
+        Updates.Options.Repository, _kind, _title, _issueText, _issueFooter);
+
+    private string _searchUrl => IssueLink.SearchUrl(Updates.Options.Repository, _title);
 }
 
 <style>
@@ -90,5 +201,18 @@
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
+    }
+
+    .feedback-checklist {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .feedback-check {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        cursor: pointer;
     }
 </style>

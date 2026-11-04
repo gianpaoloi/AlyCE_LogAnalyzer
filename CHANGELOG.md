@@ -13,9 +13,13 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 - **Feedback page: suggest a feature or report a problem.** A new **Feedback** link in the top bar opens a
   form with a title, details and a choice of *Feature suggestion* or *Problem or bug*. The form builds a
-  new issue on GitHub, pre-filled with your text and labelled `enhancement` or `bug`, and the app version
-  is added to the report unless you untick it. Nothing is sent from the app: the issue is only created when
-  you press **Submit new issue** on GitHub.
+  new issue on GitHub, pre-filled with your text and labelled `enhancement` or `bug`. Nothing is sent from
+  the app: the issue is only created when you press **Submit new issue** on GitHub.
+- **Bug reports ask the questions a maintainer needs.** Choosing *Problem or bug* shows a page picker, the
+  input kind, steps to reproduce, expected and actual behaviour, and how often it happens. A **Before you
+  submit** checklist and a **Search existing issues** link sit beside the form. The report includes machine
+  details (Windows version, CPU architecture, .NET runtime, memory, culture, local time) unless you untick
+  them; the user name, computer name and file paths are never included.
 
 ## [1.2.3] — 2026-11-03
 
