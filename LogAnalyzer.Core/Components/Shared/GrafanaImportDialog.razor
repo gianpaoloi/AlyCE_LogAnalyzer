@@ -9,7 +9,8 @@
 
     @* 1. Paste the link. *@
     <RadzenStack Gap="0.4rem">
-        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b>Paste the Grafana link</b></RadzenText>
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b><a href="@ExploreHref()" target="_blank" rel="noopener noreferrer"
+                title="Open Grafana Explore in a new tab (the link in the box, if it is a web address)">Paste the Grafana link</a></b></RadzenText>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
             <RadzenTextBox @bind-Value="_link" Change="ApplyLink" style="flex:1; min-width:240px"
                            Placeholder="https://teamsystem.grafana.net/a/grafana-lokiexplore-app/explore/…"
@@ -18,7 +19,7 @@
                           title="Fill the fields from the pasted link" />
         </RadzenStack>
         <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
-            The team, service, environment, datasource and time range are read from the link. Nothing is sent
+            The team, service, environment, level, field and line filters, datasource and time range are read from the link. Nothing is sent
             to Grafana until you press Import.
         </RadzenText>
     </RadzenStack>
@@ -71,7 +72,35 @@
                              Component="gfLinkRange" />
             </RadzenStack>
         }
-        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted mono">@SelectorPreview</RadzenText>
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted mono">@QueryPreview</RadzenText>
+        @* Filters from the link (level, field, line text). Edit, remove or add rows; they are sent with the query. *@
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">Filters (from the link, editable)</RadzenText>
+        @foreach (var row in _fieldRows)
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+                <RadzenTextBox @bind-Value="row.Name" Placeholder="field, e.g. detected_level" style="flex:1 1 180px; min-width:150px" />
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0">=</RadzenText>
+                <RadzenTextBox @bind-Value="row.Value" Placeholder="value, e.g. error" style="flex:1 1 180px; min-width:150px" />
+                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text" Size="ButtonSize.Small"
+                              Click="@(() => RemoveField(row))" title="Remove this filter" />
+            </RadzenStack>
+        }
+        @foreach (var row in _lineRows)
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+                <RadzenTextBox @bind-Value="row.Text" Placeholder="line contains…" style="flex:1 1 260px; min-width:200px" />
+                <RadzenCheckBox @bind-Value="row.CaseInsensitive" Name="@($"gfCase{row.GetHashCode()}")" />
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0">any case</RadzenText>
+                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text" Size="ButtonSize.Small"
+                              Click="@(() => RemoveLine(row))" title="Remove this filter" />
+            </RadzenStack>
+        }
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+            <RadzenButton Text="Add field filter" Icon="add" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
+                          Size="ButtonSize.ExtraSmall" Click="AddField" />
+            <RadzenButton Text="Add line filter" Icon="add" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
+                          Size="ButtonSize.ExtraSmall" Click="AddLine" />
+        </RadzenStack>
     </RadzenStack>
 
     @* 4. Where to connect. *@
@@ -93,11 +122,23 @@
     <RadzenStack Gap="0.4rem">
         <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b>Sign-in</b></RadzenText>
         @* onfocus selects the whole value, so pasting a new cookie replaces the remembered one. *@
-        <input type="password" class="rz-textbox" style="width:100%" autocomplete="off" onfocus="this.select()"
-               placeholder="grafana_session cookie (from your signed-in browser)"
-               @bind="_sessionCookie" @bind:event="oninput" />
-        <input type="password" class="rz-textbox" style="width:100%" autocomplete="off" onfocus="this.select()"
-               placeholder="or a service account token" @bind="_token" @bind:event="oninput" />
+        <RadzenSelectBar TValue="bool" Data="@_signInModes" TextProperty="Text" ValueProperty="UsesToken" @bind-Value="_useToken" />
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+            @if (!_useToken)
+            {
+                <input type="password" class="rz-textbox" style="flex:1; min-width:0" autocomplete="off" onfocus="this.select()"
+                       placeholder="grafana_session cookie (from your signed-in browser)"
+                       @bind="_sessionCookie" @bind:event="oninput" />
+            }
+            else
+            {
+                <input type="password" class="rz-textbox" style="flex:1; min-width:0" autocomplete="off" onfocus="this.select()"
+                       placeholder="service account token" @bind="_token" @bind:event="oninput" />
+            }
+            <RadzenButton Icon="help_outline" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Text" Size="ButtonSize.Small"
+                          Click="@(() => ShowSignInHelp(_useToken))"
+                          title="Where to find the grafana_session cookie or a service account token" />
+        </RadzenStack>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
             <RadzenCheckBox @bind-Value="_remember" Name="gfRemember" />
             <RadzenLabel Text="Remember sign-in on this computer" Component="gfRemember"
@@ -106,10 +147,8 @@
                           Variant="Variant.Text" Size="ButtonSize.ExtraSmall" Click="ForgetSignIn" />
         </RadzenStack>
         <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
-            To copy <span class="mono">grafana_session</span> (Edge or Chrome), with Grafana open and signed in:
-            1) press F12; 2) open the Application tab (Storage in Firefox); 3) under Cookies, click the Grafana
-            address; 4) copy the Value of the row named <span class="mono">grafana_session</span>.
-            It stops working when your Grafana session ends. Full steps are in docs/grafana-analysis-template.md.
+            Click <b>?</b> for where to find the @(_useToken ? "service account token" : "grafana_session cookie").
+            @(_useToken ? "The token works until you revoke it in Grafana." : "The cookie stops working when your Grafana session ends.")
         </RadzenText>
     </RadzenStack>
 
@@ -147,10 +186,37 @@
     private int _windowMinutes = 10080;
     private DateTimeOffset? _linkFrom;
     private DateTimeOffset? _linkTo;
+    /// <summary>One editable field filter row (name = value).</summary>
+    private sealed class FieldRow
+    {
+        public string Name { get; set; } = "";
+        public string Value { get; set; } = "";
+    }
+
+    /// <summary>One editable line filter row.</summary>
+    private sealed class LineRow
+    {
+        public string Text { get; set; } = "";
+        public bool CaseInsensitive { get; set; }
+    }
+
+    private List<FieldRow> _fieldRows = new();
+    private List<LineRow> _lineRows = new();
     private bool _useLinkRange;
     private string _token = "";
     private string _sessionCookie = "";
     private bool _remember = true;
+
+    /// <summary>The two sign-in modes; the selector shows one at a time.</summary>
+    private sealed record SignInMode(string Text, bool UsesToken);
+
+    private readonly List<SignInMode> _signInModes = new()
+    {
+        new SignInMode("grafana_session cookie (SSO)", false),
+        new SignInMode("Service account token", true),
+    };
+
+    private bool _useToken;
 
     private List<GrafanaPreset> _presets = new();
     private string? _selectedPreset;
@@ -172,6 +238,7 @@
             _baseUrl = signIn.BaseUrl;
             _token = signIn.Token ?? "";
             _sessionCookie = signIn.SessionCookie ?? "";
+            _useToken = signIn.UseToken;
             if (signIn.DatasourceUid.Length > 0)
             {
                 _datasourceUid = signIn.DatasourceUid;
@@ -192,6 +259,12 @@
         StateHasChanged();
     }
 
+    private async Task ShowSignInHelp(bool useToken) =>
+        await DialogService.OpenAsync<GrafanaSignInHelp>(
+            useToken ? "Service account token" : "grafana_session cookie",
+            new Dictionary<string, object?> { ["UseToken"] = useToken },
+            new DialogOptions { Width = "560px" });
+
     private async Task ForgetSignIn()
     {
         await Presets.ForgetSignInAsync();
@@ -202,15 +275,24 @@
         _remember = false;
     }
 
-    private GrafanaCredential Credential() => new(
-        string.IsNullOrWhiteSpace(_token) ? null : _token.Trim(),
-        string.IsNullOrWhiteSpace(_sessionCookie) ? null : _sessionCookie.Trim());
+    /// <summary>Only the secret of the current sign-in mode is used; the other box is ignored.</summary>
+    private GrafanaCredential Credential() => _useToken
+        ? new GrafanaCredential(Blank(_token), null)
+        : new GrafanaCredential(null, Blank(_sessionCookie));
+
+    private static string? Blank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private string CredentialHint() => _useToken
+        ? "Paste a service account token first."
+        : "Paste the grafana_session cookie first.";
 
     private LokiQuery CurrentQuery() => new(
         _baseUrl.Trim(), _datasourceUid.Trim(), _team.Trim(), _serviceName.Trim(), _environment.Trim(),
         TimeSpan.FromMinutes(_windowMinutes),
         Start: _useLinkRange ? _linkFrom : null,
-        End: _useLinkRange ? _linkTo : null);
+        End: _useLinkRange ? _linkTo : null,
+        Fields: FieldFilters(),
+        LineFilters: LineFilters());
 
     private bool HasLabel() =>
         !string.IsNullOrWhiteSpace(_team) || !string.IsNullOrWhiteSpace(_serviceName) || !string.IsNullOrWhiteSpace(_environment);
@@ -219,9 +301,47 @@
         Uri.TryCreate(_baseUrl.Trim(), UriKind.Absolute, out var uri) &&
         (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp);
 
-    private string SelectorPreview => HasLabel()
-        ? GrafanaLokiClient.BuildSelector(CurrentQuery())
+    /// <summary>
+    /// Where the "Paste the Grafana link" label goes: the web address in the box when it is one, otherwise
+    /// the Explore page of the Grafana address in the Connection box.
+    /// </summary>
+    private string ExploreHref()
+    {
+        if (Uri.TryCreate(_link.Trim(), UriKind.Absolute, out var typed) &&
+            (typed.Scheme == Uri.UriSchemeHttps || typed.Scheme == Uri.UriSchemeHttp))
+        {
+            return typed.AbsoluteUri;
+        }
+
+        var address = ValidAddress() ? _baseUrl.Trim().TrimEnd('/') : "https://teamsystem.grafana.net";
+        return address + "/a/grafana-lokiexplore-app/explore";
+    }
+
+    private string QueryPreview => HasLabel()
+        ? GrafanaLokiClient.BuildQuery(CurrentQuery())
         : "Paste the link, or enter at least one of team, service_name or environment.";
+
+    private void AddField() => _fieldRows.Add(new FieldRow());
+
+    private void AddLine() => _lineRows.Add(new LineRow());
+
+    private void RemoveField(FieldRow row) => _fieldRows.Remove(row);
+
+    private void RemoveLine(LineRow row) => _lineRows.Remove(row);
+
+    /// <summary>Rows with an empty name or value are left out, so a half-typed filter does not reach the query.</summary>
+    private List<LokiFieldMatch> FieldFilters() => _fieldRows
+        .Where(r => r.Name.Trim().Length > 0 && r.Value.Trim().Length > 0)
+        .Select(r => new LokiFieldMatch(r.Name.Trim(), r.Value.Trim()))
+        .ToList();
+
+    private List<LokiLineFilter> LineFilters() => _lineRows
+        .Where(r => r.Text.Trim().Length > 0)
+        .Select(r => new LokiLineFilter(r.Text.Trim(), r.CaseInsensitive))
+        .ToList();
+
+    private bool FieldNamesValid() =>
+        _fieldRows.All(r => r.Name.Trim().Length == 0 || GrafanaLokiClient.IsLabelName(r.Name.Trim()));
 
     /// <summary>Makes sure the time-range list offers the window, adding it when a link uses another one.</summary>
     private void EnsureWindow(int minutes)
@@ -250,6 +370,11 @@
         _team = parsed.Team;
         _serviceName = parsed.ServiceName;
         _environment = parsed.Environment;
+        // A new link replaces the filter rows; edits made before it are not kept.
+        _fieldRows = (parsed.Fields ?? Array.Empty<LokiFieldMatch>())
+            .Select(f => new FieldRow { Name = f.Name, Value = f.Value }).ToList();
+        _lineRows = (parsed.LineFilters ?? Array.Empty<LokiLineFilter>())
+            .Select(l => new LineRow { Text = l.Text, CaseInsensitive = l.CaseInsensitive }).ToList();
 
         if (parsed.WindowMinutes is int minutes)
         {
@@ -324,7 +449,7 @@
         var credential = Credential();
         if (credential.IsEmpty)
         {
-            _error = "Paste the grafana_session cookie or a service account token first.";
+            _error = CredentialHint();
             return false;
         }
 
@@ -355,12 +480,18 @@
         }
         if (Credential().IsEmpty)
         {
-            _error = "Paste the grafana_session cookie or a service account token.";
+            _error = CredentialHint();
             return;
         }
         if (!HasLabel())
         {
             _error = "Paste the Grafana link, or enter at least one of team, service_name or environment.";
+            return;
+        }
+
+        if (!FieldNamesValid())
+        {
+            _error = "A field name may only contain letters, digits and underscores, for example cid or detected_level.";
             return;
         }
 
@@ -378,7 +509,7 @@
 
         var credential = Credential();
         if (_remember)
-            await Presets.SaveSignInAsync(new GrafanaSignIn(_baseUrl.Trim(), _datasourceUid.Trim(), credential.Token, credential.SessionCookie));
+            await Presets.SaveSignInAsync(new GrafanaSignIn(_baseUrl.Trim(), _datasourceUid.Trim(), credential.Token, credential.SessionCookie, _useToken));
         else
             await Presets.ForgetSignInAsync();
 

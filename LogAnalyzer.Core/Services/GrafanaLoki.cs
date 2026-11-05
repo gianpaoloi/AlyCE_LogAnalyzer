@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace LogAnalyzer.Services;
 
@@ -17,7 +18,9 @@ public sealed record LokiQuery(
     string Environment,
     TimeSpan Window,
     DateTimeOffset? Start = null,
-    DateTimeOffset? End = null)
+    DateTimeOffset? End = null,
+    IReadOnlyList<LokiFieldMatch>? Fields = null,
+    IReadOnlyList<LokiLineFilter>? LineFilters = null)
 {
     /// <summary>Short name shown as the source of the loaded entries.</summary>
     public string Label
@@ -31,6 +34,15 @@ public sealed record LokiQuery(
         }
     }
 }
+
+/// <summary>
+/// A filter on a parsed field, applied after the stream selector: <c>detected_level="error"</c> or
+/// <c>cid="axoteam"</c>. Taken from the Explore link's level and field pickers.
+/// </summary>
+public sealed record LokiFieldMatch(string Name, string Value);
+
+/// <summary>A line filter: the log line must contain <see cref="Text"/> (in any case when asked).</summary>
+public sealed record LokiLineFilter(string Text, bool CaseInsensitive = false);
 
 /// <summary>A Loki datasource the token can see: its uid (used in the proxy URL) and display name.</summary>
 public sealed record LokiDatasource(string Uid, string Name);
@@ -116,9 +128,42 @@ public sealed class GrafanaLokiClient : IDisposable
     private static void AddMatcher(List<string> matchers, string label, string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
-        var escaped = value.Trim().Replace("\\", "\\\\").Replace("\"", "\\\"");
-        matchers.Add($"{label}=\"{escaped}\"");
+        matchers.Add($"{label}=\"{EscapeLogQl(value.Trim())}\"");
     }
+
+    /// <summary>
+    /// The full LogQL: the stream selector, then the line filters, then the field filters. Field filters
+    /// need <c>| json</c> first, because fields such as cid are inside the JSON line.
+    /// </summary>
+    public static string BuildQuery(LokiQuery query)
+    {
+        var logql = new StringBuilder(BuildSelector(query));
+        foreach (var filter in query.LineFilters ?? Array.Empty<LokiLineFilter>())
+        {
+            var text = filter.CaseInsensitive ? "(?i)" + Regex.Escape(filter.Text) : filter.Text;
+            logql.Append(filter.CaseInsensitive ? " |~ \"" : " |= \"").Append(EscapeLogQl(text)).Append('"');
+        }
+
+        if (query.Fields is { Count: > 0 } fields)
+        {
+            logql.Append(" | json");
+            foreach (var field in fields)
+            {
+                if (!IsLabelName(field.Name))
+                    throw new ArgumentException($"'{field.Name}' is not a valid field name.");
+                logql.Append($" | {field.Name}=\"{EscapeLogQl(field.Value)}\"");
+            }
+        }
+
+        return logql.ToString();
+    }
+
+    private static string EscapeLogQl(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+    private static readonly Regex LabelNamePattern = new(@"^[A-Za-z_][A-Za-z0-9_]*$");
+
+    /// <summary>True for a name Loki accepts as a label or field (letters, digits, underscore; no leading digit).</summary>
+    public static bool IsLabelName(string name) => LabelNamePattern.IsMatch(name);
 
     /// <summary>
     /// Writes every line the query matches in <paramref name="query"/>'s window, oldest first, to
@@ -133,7 +178,7 @@ public sealed class GrafanaLokiClient : IDisposable
                                             DateTimeOffset now, CancellationToken ct,
                                             Action<int>? onPage = null)
     {
-        var selector = BuildSelector(query);
+        var logql = BuildQuery(query);
         // An absolute range (from a link) is used as given; otherwise the window ends now.
         var endNs = ToUnixNanoseconds(query.End ?? now);
         var cursorNs = ToUnixNanoseconds(query.Start ?? (now - query.Window));
@@ -151,7 +196,7 @@ public sealed class GrafanaLokiClient : IDisposable
 
         while (true)
         {
-            var page = await FetchPageAsync(url, selector, credential, cursorNs, endNs, ct);
+            var page = await FetchPageAsync(url, logql, credential, cursorNs, endNs, ct);
             if (page.Count == 0) break;
 
             page.Sort((a, b) => a.Ns.CompareTo(b.Ns));
@@ -191,10 +236,10 @@ public sealed class GrafanaLokiClient : IDisposable
     }
 
     private async Task<List<(long Ns, string Line)>> FetchPageAsync(
-        string url, string selector, GrafanaCredential credential, long startNs, long endNs, CancellationToken ct)
+        string url, string logql, GrafanaCredential credential, long startNs, long endNs, CancellationToken ct)
     {
         var requestUri = url +
-            $"?query={Uri.EscapeDataString(selector)}&start={startNs}&end={endNs}" +
+            $"?query={Uri.EscapeDataString(logql)}&start={startNs}&end={endNs}" +
             $"&limit={PageSize}&direction=forward";
 
         using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);

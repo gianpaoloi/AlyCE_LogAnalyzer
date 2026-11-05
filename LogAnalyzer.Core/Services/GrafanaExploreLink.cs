@@ -4,8 +4,8 @@ namespace LogAnalyzer.Services;
 
 /// <summary>
 /// What a Grafana Explore link (the address bar URL of a Loki logs view) says: the Grafana address,
-/// the Loki datasource uid, the team / service_name / environment label filters and the time window.
-/// Empty strings or a null window mean the link did not say.
+/// the Loki datasource uid, the team / service_name / environment label filters, the time window, and
+/// the level / field / line-text filters. Empty strings or a null window mean the link did not say.
 /// </summary>
 public sealed record GrafanaExploreLink(
     string BaseUrl,
@@ -15,7 +15,9 @@ public sealed record GrafanaExploreLink(
     string Environment,
     int? WindowMinutes,
     DateTimeOffset? From = null,
-    DateTimeOffset? To = null);
+    DateTimeOffset? To = null,
+    IReadOnlyList<LokiFieldMatch>? Fields = null,
+    IReadOnlyList<LokiLineFilter>? LineFilters = null);
 
 /// <summary>
 /// Reads a Grafana Explore link pasted from the browser. Nothing is fetched: the link only tells the
@@ -57,7 +59,9 @@ public static partial class GrafanaExploreLinkParser
             Environment: environment ?? "",
             WindowMinutes: RelativeWindowMinutes(from),
             From: AbsoluteTime(from),
-            To: AbsoluteTime(to));
+            To: AbsoluteTime(to),
+            Fields: FieldMatches(pairs, "var-levels").Concat(FieldMatches(pairs, "var-fields")).ToList(),
+            LineFilters: LineFilters(pairs));
     }
 
     /// <summary>An absolute time in the link is epoch milliseconds. "now" and relative values give null.</summary>
@@ -83,6 +87,60 @@ public static partial class GrafanaExploreLinkParser
         return null;
     }
 
+    /// <summary>
+    /// Single-value filters (<c>name|=|value</c>) from the level and field pickers, e.g.
+    /// <c>detected_level|=|error</c> or <c>cid|=|…</c>. Only plain equality is read: a "not equal" or
+    /// regex filter is skipped rather than guessed.
+    /// </summary>
+    private static List<LokiFieldMatch> FieldMatches(IEnumerable<(string Key, string Value)> pairs, string key)
+    {
+        var matches = new List<LokiFieldMatch>();
+        foreach (var (_, filter) in pairs.Where(p => p.Key == key))
+        {
+            var parts = filter.Split('|', 3);
+            if (parts.Length != 3 || parts[1] != "=" || !GrafanaLokiClient.IsLabelName(parts[0])) continue;
+
+            var value = FieldValue(parts[2]);
+            if (value.Length > 0) matches.Add(new LokiFieldMatch(parts[0], value));
+        }
+
+        return matches;
+    }
+
+    /// <summary>
+    /// The value of a field filter. A field parsed from the JSON line is written as
+    /// <c>{"parser":"json"__gfc__"value":"axoteam"},axoteam</c>; the value is taken from inside the braces.
+    /// Otherwise it is the first value, as for the label filters.
+    /// </summary>
+    private static string FieldValue(string raw)
+    {
+        // The multi-value prefix can come before the wrapper, so it is removed first.
+        var text = raw.StartsWith(MultiValuePrefix, StringComparison.Ordinal) ? raw[MultiValuePrefix.Length..] : raw;
+        if (text.StartsWith('{'))
+        {
+            var inner = FieldJsonValue().Match(text);
+            if (inner.Success) return inner.Groups[1].Value;
+        }
+
+        return text.Split(',').Select(v => v.Trim()).FirstOrDefault(v => v.Length > 0) ?? "";
+    }
+
+    /// <summary>Line text filters (<c>flags|=|text</c>). A "caseInsensitive" flag makes the match ignore case.</summary>
+    private static List<LokiLineFilter> LineFilters(IEnumerable<(string Key, string Value)> pairs)
+    {
+        var filters = new List<LokiLineFilter>();
+        foreach (var (_, filter) in pairs.Where(p => p.Key == "var-lineFilters"))
+        {
+            var parts = filter.Split('|', 3);
+            if (parts.Length != 3 || parts[1].Replace("__gfp__", "") != "=" || parts[2].Length == 0) continue;
+
+            var caseInsensitive = parts[0].Split(',').Contains("caseInsensitive");
+            filters.Add(new LokiLineFilter(parts[2], caseInsensitive));
+        }
+
+        return filters;
+    }
+
     /// <summary>Turns Grafana's relative <c>now-7d</c> style start into minutes. Absolute times give null.</summary>
     private static int? RelativeWindowMinutes(string from)
     {
@@ -102,6 +160,9 @@ public static partial class GrafanaExploreLinkParser
 
     [GeneratedRegex(@"^now-(\d+)([mhdw])$")]
     private static partial Regex RelativeRange();
+
+    [GeneratedRegex("\"value\"\\s*:\\s*\"([^\"]*)\"")]
+    private static partial Regex FieldJsonValue();
 
     private static List<(string Key, string Value)> ParseQuery(string query)
     {

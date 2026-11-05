@@ -12,3 +12,4 @@
 # Only exists during a CI run, or if the notes step is rehearsed locally.
 release-notes.md
 .claude/settings.local.json
+.example

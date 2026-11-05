@@ -6,8 +6,11 @@ namespace LogAnalyzer.Services;
 /// <summary>A named set of Grafana selectors and time window, saved so it can be reloaded later.</summary>
 public sealed record GrafanaPreset(string Name, string Team, string ServiceName, string Environment, int WindowMinutes);
 
-/// <summary>The Grafana address, datasource and sign-in last used, remembered when the user asks for it.</summary>
-public sealed record GrafanaSignIn(string BaseUrl, string DatasourceUid, string? Token, string? SessionCookie);
+/// <summary>
+/// The Grafana address, datasource and sign-in last used, remembered when the user asks for it.
+/// <see cref="UseToken"/> says which of the two secrets is the current sign-in mode; older saves lack it and read as the cookie.
+/// </summary>
+public sealed record GrafanaSignIn(string BaseUrl, string DatasourceUid, string? Token, string? SessionCookie, bool UseToken = false);
 
 /// <summary>
 /// Grafana import presets and the remembered sign-in, kept in the browser's localStorage like

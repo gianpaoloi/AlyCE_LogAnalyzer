@@ -1,0 +1,57 @@
+@* Popup from the "?" beside the sign-in box of GrafanaImportDialog. Shows only the section for the current mode. *@
+@inject DialogService DialogService
+
+<RadzenStack Gap="1rem">
+
+    @if (!UseToken)
+    {
+        <RadzenStack Gap="0.4rem">
+            <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0"><b>Where to find the grafana_session cookie</b></RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0">
+                No admin rights needed. Use it when you sign in to Grafana with SSO. Edge and Chrome:
+            </RadzenText>
+            <ol class="rz-m-0" style="padding-left:1.3rem">
+                <li>Open your Grafana address (for example <span class="mono">https://teamsystem.grafana.net</span>) and sign in.</li>
+                <li>Press <b>F12</b> (or right-click the page and choose <b>Inspect</b>).</li>
+                <li>Open the <b>Application</b> tab (<b>Storage</b> in Firefox). If you don't see it, use the <b>»</b> arrow.</li>
+                <li>In the left tree, expand <b>Cookies</b> and click the Grafana address.</li>
+                <li>Find the row named <span class="mono">grafana_session</span>. Click its <b>Value</b> cell, press <b>Ctrl+A</b>,
+                    then <b>Ctrl+C</b>. Copy only the value, not the name.</li>
+                <li>In the dialog, click the grafana_session box and press <b>Ctrl+V</b>.</li>
+            </ol>
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
+                If you can't find <span class="mono">grafana_session</span>, note the cookie names you do see and ask for help:
+                the name can differ on some Grafana setups. The cookie stops working when your Grafana session ends.
+            </RadzenText>
+        </RadzenStack>
+    }
+    else
+    {
+        <RadzenStack Gap="0.4rem">
+            <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-m-0"><b>Where to create a service account token</b></RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0">
+                Needs an admin to create it. The token is shown only once, so copy it straight away:
+            </RadzenText>
+            <ol class="rz-m-0" style="padding-left:1.3rem">
+                <li>In Grafana, open <b>Administration</b>, then <b>Service accounts</b>. The menu path can vary by version.</li>
+                <li>Click <b>Add service account</b>, give it a name, set the role to <b>Viewer</b>, and create it.</li>
+                <li>Open the service account, click <b>Add service account token</b>, create it, and copy the token shown.</li>
+                <li>In the dialog, paste it into the service account token box.</li>
+            </ol>
+        </RadzenStack>
+    }
+
+    <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
+        Treat it like a password: don't paste it into tickets, chats or screenshots. Use <b>Forget sign-in</b>
+        on a shared computer. Full steps are in docs/grafana-analysis-template.md.
+    </RadzenText>
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End">
+        <RadzenButton Text="Close" ButtonStyle="ButtonStyle.Primary" Click="() => DialogService.Close()" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    /// <summary>True for the service account token section, false for the grafana_session cookie section.</summary>
+    [Parameter] public bool UseToken { get; set; }
+}

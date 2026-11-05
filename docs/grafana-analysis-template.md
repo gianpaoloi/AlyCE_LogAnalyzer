@@ -19,8 +19,8 @@ Instead of downloading an export, the analyzer can query Loki itself. Click **Gr
 
 1. **Paste the link.** Copy the address bar of the Loki logs page (the Explore link) and paste it into the
    top box, then click **Load**. The team, service_name, environment, datasource and time range are filled in
-   from the link. If the link has exact dates, tick **Use the link's dates**. Other filters in the link (level,
-   text) are not read.
+   from the link. If the link has exact dates, tick **Use the link's dates**. Level, field (such as `cid`) and
+   line-text filters are added to the query as well; **Drop** removes them.
 2. **Sign in with `grafana_session`.** The app needs your browser's Grafana session cookie, because SSO does not
    give an API token. Copy it as follows (Edge and Chrome; Firefox uses the **Storage** tab, then **Cookies**):
    1. Sign in to Grafana in the browser and keep the Grafana page open.
