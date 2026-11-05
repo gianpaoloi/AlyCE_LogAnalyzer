@@ -9,6 +9,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.2.5] — 2026-11-05
+
 ### Added
 
 - **Grafana log exports load directly.** Drop or pick a `.json` file downloaded from Grafana ("Download
