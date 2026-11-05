@@ -60,7 +60,7 @@
        input — the busy class makes that visible instead of silently swallowing a drop. *@
     <div class="drop-zone rz-mt-2 @(Store.IsLoading ? "drop-zone-busy" : null)" @ref="_dropZoneRef"
          title="@(Store.IsLoaded ? "Click to load log files or zip, or drop them here":"")">
-        <InputFile id="@_inputId" class="drop-zone-input" OnChange="OnDropZoneSelected" accept=".log,.zip" multiple />
+        <InputFile id="@_inputId" class="drop-zone-input" OnChange="OnDropZoneSelected" accept=".log,.zip,.json" multiple />
         @if (Store.IsLoading)
         {
             <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" ShowValue="false"
@@ -214,11 +214,11 @@
         if (files.Count == 0) return;
 
         var zipFiles = files.Where(f => f.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)).ToList();
-        var logFiles = files.Where(f => f.Name.EndsWith(".log", StringComparison.OrdinalIgnoreCase)).ToList();
+        var logFiles = files.Where(f => f.Name.EndsWith(".log", StringComparison.OrdinalIgnoreCase) || GrafanaExport.IsExportName(f.Name)).ToList();
 
         if (zipFiles.Count > 1 || (zipFiles.Count > 0 && logFiles.Count > 0))
         {
-            _dropError = "Use one ZIP file or one/more LOG files, not both together.";
+            _dropError = "Use one ZIP file or one/more LOG or JSON files, not both together.";
             return;
         }
 
@@ -246,7 +246,7 @@
             return;
         }
 
-        _dropError = "Only .zip and .log files are supported.";
+        _dropError = "Only .zip, .log and .json files are supported.";
     }
 
     private void OnChanged() => RequestRefresh(ApplyAutoCollapse);

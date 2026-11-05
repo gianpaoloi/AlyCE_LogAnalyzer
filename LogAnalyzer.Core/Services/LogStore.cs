@@ -108,11 +108,12 @@ public sealed class LogStore
             .ToList();
 
         var zipFiles = list.Where(p => p.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)).ToList();
-        var logFiles = list.Where(p => p.EndsWith(".log", StringComparison.OrdinalIgnoreCase)).ToList();
+        var logFiles = list.Where(p => p.EndsWith(".log", StringComparison.OrdinalIgnoreCase) ||
+                                       GrafanaExport.IsExportName(p)).ToList();
 
         if (zipFiles.Count > 1 || (zipFiles.Count > 0 && logFiles.Count > 0))
         {
-            LoadError = "Use one ZIP file or one/more LOG files, not both together.";
+            LoadError = "Use one ZIP file or one/more LOG or JSON files, not both together.";
             RaiseDataset();
             return;
         }
@@ -128,16 +129,82 @@ public sealed class LogStore
         {
             // One load for the whole set, not one per file: appending each file separately re-sorted
             // everything already loaded, so dropping N files cost N sorts of a growing list.
-            var sources = logFiles.Select(FileSource).ToList();
             var label = logFiles.Count == 1
                 ? logFiles[0]
                 : $"{logFiles.Count} files";
-            await RunLoadAsync(sources, label, includeDebug, parallel: true, append: false, ct);
+            await LoadFilesAsync(logFiles, label, includeDebug, ct);
             return;
         }
 
-        LoadError = "Only .zip and .log files are supported.";
+        LoadError = "Only .zip, .log and .json files are supported.";
         RaiseDataset();
+    }
+
+    /// <summary>
+    /// Parses <c>.log</c> files and Grafana <c>.json</c> exports as one load. An export is converted
+    /// to a temporary JSON-lines file first, so it reads through the same path as a <c>.log</c>.
+    /// </summary>
+    private async Task LoadFilesAsync(IReadOnlyList<string> paths, string label, bool includeDebug, CancellationToken ct)
+    {
+        var temps = new List<string>();
+        try
+        {
+            var sources = new List<LoadSource>(paths.Count);
+            foreach (var path in paths)
+            {
+                if (!GrafanaExport.IsExportName(path))
+                {
+                    sources.Add(FileSource(path));
+                    continue;
+                }
+
+                await using var json = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+                                                      bufferSize: 64 * 1024, useAsync: true);
+                var temp = await ConvertExportToTempLogAsync(json, temps, ct);
+                sources.Add(FileSource(temp) with { Name = Path.GetFileName(path) });
+            }
+
+            await RunLoadAsync(sources, label, includeDebug, parallel: true, append: false, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            LoadError = "Load cancelled.";
+            RaiseDataset();
+        }
+        catch (Exception ex)
+        {
+            LoadError = ex.Message;
+            RaiseDataset();
+        }
+        finally
+        {
+            foreach (var temp in temps)
+            {
+                try { File.Delete(temp); } catch { /* best effort */ }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Converts a Grafana export into a new temporary <c>.log</c> file and records its path in
+    /// <paramref name="temps"/> before writing, so the caller deletes it even when the conversion fails.
+    /// </summary>
+    /// <exception cref="InvalidDataException">The JSON is not a Grafana export, or holds no log records.</exception>
+    private static async Task<string> ConvertExportToTempLogAsync(
+        Stream json, List<string> temps, CancellationToken ct)
+    {
+        var temp = Path.Combine(Path.GetTempPath(), $"alyce-grafana-{Guid.NewGuid():N}.log");
+        temps.Add(temp);
+
+        await using (var target = new FileStream(temp, FileMode.CreateNew, FileAccess.Write,
+                                                 FileShare.None, bufferSize: 64 * 1024, useAsync: true))
+        {
+            var result = await GrafanaExport.ConvertAsync(json, target, ct);
+            if (result.Written == 0)
+                throw new InvalidDataException("The Grafana export contains no log records.");
+        }
+
+        return temp;
     }
 
     /// <summary>Loads every *.log file in <paramref name="folder"/>. Optionally skips DEBUG entries.</summary>
@@ -213,7 +280,7 @@ public sealed class LogStore
     }
 
     /// <summary>
-    /// Appends entries from uploaded .log files to the existing dataset. If nothing is loaded, this
+    /// Appends entries from uploaded .log files and Grafana .json exports to the existing dataset. If nothing is loaded, this
     /// acts like a fresh load.
     /// <para>
     /// Each upload is copied to a temp file before anything is parsed, the same way a ZIP upload is.
@@ -232,10 +299,19 @@ public sealed class LogStore
             var sources = new List<LoadSource>(files.Count);
             foreach (var (name, open) in files)
             {
+                await using var source = open();
+
+                if (GrafanaExport.IsExportName(name))
+                {
+                    // A Grafana export is converted to a temp .log while it is copied off the wire.
+                    var converted = await ConvertExportToTempLogAsync(source, spooled, ct);
+                    sources.Add(FileSource(converted) with { Name = name });
+                    continue;
+                }
+
                 var temp = Path.Combine(Path.GetTempPath(), $"alyce-upload-{Guid.NewGuid():N}.log");
                 spooled.Add(temp);
 
-                await using (var source = open())
                 await using (var target = new FileStream(temp, FileMode.CreateNew, FileAccess.Write,
                                                          FileShare.None, bufferSize: 64 * 1024, useAsync: true))
                 {

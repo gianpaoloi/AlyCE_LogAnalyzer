@@ -9,7 +9,12 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Grafana log exports load directly.** Drop or pick a `.json` file downloaded from Grafana ("Download
+  logs") and the app reads its records like a `.log` file. The export is streamed, so large files are not
+  held in memory whole, and the entries show the export's file name as their source. `.log`, `.zip` and
+  `.json` files can be loaded together.
 
 ## [1.2.4] — 2026-11-04
 
