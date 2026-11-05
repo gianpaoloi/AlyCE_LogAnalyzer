@@ -15,6 +15,11 @@ tag is collected under *Unreleased* until it is moved under a version heading.
   logs") and the app reads its records like a `.log` file. The export is streamed, so large files are not
   held in memory whole, and the entries show the export's file name as their source. `.log`, `.zip` and
   `.json` files can be loaded together.
+- **Import logs straight from Grafana Cloud.** A new **Grafana** button on the load panel opens a dialog.
+  Paste the Explore link from the browser address bar and the team, service_name, environment, datasource
+  and time range are filled in. Sign in with the `grafana_session` cookie of your browser session, or with a
+  service account token. The query pages through the whole window and loads like a `.log` file. Presets
+  save the query under a name; the cookie and token are never saved.
 
 ## [1.2.4] — 2026-11-04
 

@@ -37,6 +37,8 @@ public static class MauiProgram
 			builder.Services.AddScoped<SessionState>();
 			// Recently used paths, persisted in the WebView's localStorage.
 			builder.Services.AddScoped<PathHistory>();
+				// Saved Grafana import presets (same localStorage mechanism).
+				builder.Services.AddScoped<GrafanaPresetStore>();
 
 			// Update check against this project's GitHub releases.
 			//

@@ -1,0 +1,389 @@
+@* Loads a Grafana Cloud Loki query. The quickest way in is to paste the Explore link from the browser:
+   it sets the address, datasource, team / service_name / environment and time window. Authentication is
+   either a service account token or the grafana_session cookie of the browser session (SSO-friendly).
+   Presets keep the selectors and window under a name. Secrets are used for this dialog only and never saved. *@
+@inject DialogService DialogService
+@inject GrafanaPresetStore Presets
+
+<RadzenStack Gap="0.9rem">
+
+    @* 1. Paste the link. *@
+    <RadzenStack Gap="0.4rem">
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b>Paste the Grafana link</b></RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+            <RadzenTextBox @bind-Value="_link" Change="ApplyLink" style="flex:1; min-width:240px"
+                           Placeholder="https://teamsystem.grafana.net/a/grafana-lokiexplore-app/explore/…"
+                           title="Copy the address bar of the Loki logs page and paste it here; press Enter to fill the fields" />
+            <RadzenButton Text="Load" Icon="input" ButtonStyle="ButtonStyle.Primary" Click="ApplyLink"
+                          title="Fill the fields from the pasted link" />
+        </RadzenStack>
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
+            The team, service, environment, datasource and time range are read from the link. Nothing is sent
+            to Grafana until you press Import.
+        </RadzenText>
+    </RadzenStack>
+
+    @* 2. Presets. *@
+    <RadzenStack Gap="0.4rem">
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b>Presets</b></RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+            <RadzenDropDown TValue="string" Data="@PresetNames" @bind-Value="_selectedPreset"
+                            Placeholder="No presets saved yet" style="flex:1; min-width:200px" />
+            <RadzenButton Text="Load" Icon="file_open" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
+                          Size="ButtonSize.Small" Click="LoadPreset" Disabled="@string.IsNullOrEmpty(_selectedPreset)" />
+            <RadzenButton Text="Delete" Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined"
+                          Size="ButtonSize.Small" Click="DeletePreset" Disabled="@string.IsNullOrEmpty(_selectedPreset)" />
+        </RadzenStack>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+            <RadzenTextBox @bind-Value="_presetName" Placeholder="Preset name" style="flex:1; min-width:200px" />
+            <RadzenButton Text="Save as preset" Icon="bookmark_add" ButtonStyle="ButtonStyle.Secondary"
+                          Variant="Variant.Outlined" Size="ButtonSize.Small" Click="SavePreset" />
+        </RadzenStack>
+    </RadzenStack>
+
+    @* 3. The query. *@
+    <RadzenStack Gap="0.4rem">
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b>Query</b></RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+            <div style="flex:1 1 180px; min-width:150px">
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">team</RadzenText>
+                <RadzenTextBox @bind-Value="_team" Placeholder="e.g. tse" style="width:100%" />
+            </div>
+            <div style="flex:1 1 180px; min-width:150px">
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">service_name</RadzenText>
+                <RadzenTextBox @bind-Value="_serviceName" Placeholder="e.g. webapi-fin" style="width:100%" />
+            </div>
+            <div style="flex:1 1 180px; min-width:150px">
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">environment</RadzenText>
+                <RadzenTextBox @bind-Value="_environment" Placeholder="e.g. dev" style="width:100%" />
+            </div>
+        </RadzenStack>
+        <div style="max-width:260px">
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">time range</RadzenText>
+            <RadzenDropDown TValue="int" Data="@_windows" TextProperty="Text" ValueProperty="Minutes"
+                            @bind-Value="_windowMinutes" style="width:100%" Disabled="_useLinkRange" />
+        </div>
+        @if (_linkFrom is DateTimeOffset linkFrom)
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+                <RadzenCheckBox @bind-Value="_useLinkRange" Name="gfLinkRange" />
+                <RadzenLabel Text="@($"Use the link's dates: {linkFrom.ToLocalTime():yyyy-MM-dd HH:mm} to {(_linkTo?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "now")}")"
+                             Component="gfLinkRange" />
+            </RadzenStack>
+        }
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted mono">@SelectorPreview</RadzenText>
+    </RadzenStack>
+
+    @* 4. Where to connect. *@
+    <RadzenStack Gap="0.4rem">
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b>Connection</b></RadzenText>
+        <RadzenTextBox @bind-Value="_baseUrl" Placeholder="https://teamsystem.grafana.net" style="width:100%"
+                       title="Grafana Cloud address" />
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+            <RadzenDropDown TValue="string" Data="@_datasources" TextProperty="Name" ValueProperty="Uid"
+                            @bind-Value="_datasourceUid" Placeholder="Loki datasource (filled from the link)"
+                            style="flex:1; min-width:200px" />
+            <RadzenButton Text="Find" Icon="search" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
+                          Size="ButtonSize.Small" Click="FindClicked" Disabled="@Credential().IsEmpty"
+                          title="List the Loki datasources this sign-in can read" />
+        </RadzenStack>
+    </RadzenStack>
+
+    @* 5. How to prove who you are: a token, or your signed-in browser session. *@
+    <RadzenStack Gap="0.4rem">
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b>Sign-in</b></RadzenText>
+        @* onfocus selects the whole value, so pasting a new cookie replaces the remembered one. *@
+        <input type="password" class="rz-textbox" style="width:100%" autocomplete="off" onfocus="this.select()"
+               placeholder="grafana_session cookie (from your signed-in browser)"
+               @bind="_sessionCookie" @bind:event="oninput" />
+        <input type="password" class="rz-textbox" style="width:100%" autocomplete="off" onfocus="this.select()"
+               placeholder="or a service account token" @bind="_token" @bind:event="oninput" />
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+            <RadzenCheckBox @bind-Value="_remember" Name="gfRemember" />
+            <RadzenLabel Text="Remember sign-in on this computer" Component="gfRemember"
+                         title="Saved in this user's browser profile, in plain text. Untick to forget it after the import." />
+            <RadzenButton Text="Forget sign-in" Icon="delete_sweep" ButtonStyle="ButtonStyle.Danger"
+                          Variant="Variant.Text" Size="ButtonSize.ExtraSmall" Click="ForgetSignIn" />
+        </RadzenStack>
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
+            To copy <span class="mono">grafana_session</span> (Edge or Chrome), with Grafana open and signed in:
+            1) press F12; 2) open the Application tab (Storage in Firefox); 3) under Cookies, click the Grafana
+            address; 4) copy the Value of the row named <span class="mono">grafana_session</span>.
+            It stops working when your Grafana session ends. Full steps are in docs/grafana-analysis-template.md.
+        </RadzenText>
+    </RadzenStack>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter" AllowClose="false">@_error</RadzenAlert>
+    }
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+        <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" Variant="Variant.Outlined" Click="Cancel" />
+        <RadzenButton Text="Import logs" Icon="cloud_download" ButtonStyle="ButtonStyle.Primary" Click="Import" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    private sealed record WindowOption(string Text, int Minutes);
+
+    private readonly List<WindowOption> _windows = new()
+    {
+        new WindowOption("last 15 minutes", 15),
+        new WindowOption("last hour", 60),
+        new WindowOption("last 6 hours", 360),
+        new WindowOption("last 24 hours", 1440),
+        new WindowOption("last 7 days", 10080),
+        new WindowOption("last 30 days", 43200),
+    };
+
+    private string _link = "";
+    private string _baseUrl = "https://teamsystem.grafana.net";
+    private string _datasourceUid = "";
+    private List<LokiDatasource> _datasources = new();
+    private string _team = "";
+    private string _serviceName = "";
+    private string _environment = "";
+    private int _windowMinutes = 10080;
+    private DateTimeOffset? _linkFrom;
+    private DateTimeOffset? _linkTo;
+    private bool _useLinkRange;
+    private string _token = "";
+    private string _sessionCookie = "";
+    private bool _remember = true;
+
+    private List<GrafanaPreset> _presets = new();
+    private string? _selectedPreset;
+    private string _presetName = "";
+    private string? _error;
+
+    private IEnumerable<string> PresetNames => _presets.Select(p => p.Name);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // localStorage is only reachable once the component is interactive.
+        _presets = await Presets.GetAsync();
+
+        var signIn = await Presets.GetSignInAsync();
+        if (signIn is not null)
+        {
+            _baseUrl = signIn.BaseUrl;
+            _token = signIn.Token ?? "";
+            _sessionCookie = signIn.SessionCookie ?? "";
+            if (signIn.DatasourceUid.Length > 0)
+            {
+                _datasourceUid = signIn.DatasourceUid;
+                if (_datasources.Count == 0)
+                    _datasources = new List<LokiDatasource> { new(signIn.DatasourceUid, signIn.DatasourceUid) };
+            }
+        }
+
+        // Reopen with the last pasted link in the box and its values in the fields.
+        var lastLink = await Presets.GetLastLinkAsync();
+        if (!string.IsNullOrWhiteSpace(lastLink))
+        {
+            _link = lastLink;
+            await ApplyLink();
+            _link = lastLink;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task ForgetSignIn()
+    {
+        await Presets.ForgetSignInAsync();
+        _token = "";
+        _sessionCookie = "";
+        _datasourceUid = "";
+        _datasources = new List<LokiDatasource>();
+        _remember = false;
+    }
+
+    private GrafanaCredential Credential() => new(
+        string.IsNullOrWhiteSpace(_token) ? null : _token.Trim(),
+        string.IsNullOrWhiteSpace(_sessionCookie) ? null : _sessionCookie.Trim());
+
+    private LokiQuery CurrentQuery() => new(
+        _baseUrl.Trim(), _datasourceUid.Trim(), _team.Trim(), _serviceName.Trim(), _environment.Trim(),
+        TimeSpan.FromMinutes(_windowMinutes),
+        Start: _useLinkRange ? _linkFrom : null,
+        End: _useLinkRange ? _linkTo : null);
+
+    private bool HasLabel() =>
+        !string.IsNullOrWhiteSpace(_team) || !string.IsNullOrWhiteSpace(_serviceName) || !string.IsNullOrWhiteSpace(_environment);
+
+    private bool ValidAddress() =>
+        Uri.TryCreate(_baseUrl.Trim(), UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp);
+
+    private string SelectorPreview => HasLabel()
+        ? GrafanaLokiClient.BuildSelector(CurrentQuery())
+        : "Paste the link, or enter at least one of team, service_name or environment.";
+
+    /// <summary>Makes sure the time-range list offers the window, adding it when a link uses another one.</summary>
+    private void EnsureWindow(int minutes)
+    {
+        if (_windows.Any(w => w.Minutes == minutes)) return;
+
+        var text = minutes % 1440 == 0 ? $"last {minutes / 1440} days" : $"last {minutes} minutes";
+        _windows.Add(new WindowOption(text, minutes));
+        _windows.Sort((a, b) => a.Minutes.CompareTo(b.Minutes));
+    }
+
+    private async Task ApplyLink()
+    {
+        if (string.IsNullOrWhiteSpace(_link)) return;
+
+        var parsed = GrafanaExploreLinkParser.TryParse(_link);
+        if (parsed is null)
+        {
+            _error = "That does not look like a Grafana link with Loki filters or a datasource.";
+            return;
+        }
+
+        _error = null;
+        await Presets.SaveLastLinkAsync(_link);
+        _baseUrl = parsed.BaseUrl;
+        _team = parsed.Team;
+        _serviceName = parsed.ServiceName;
+        _environment = parsed.Environment;
+
+        if (parsed.WindowMinutes is int minutes)
+        {
+            EnsureWindow(minutes);
+            _windowMinutes = minutes;
+        }
+
+        // An absolute range from the link is offered as "use the link's dates"; a relative one clears it.
+        _linkFrom = parsed.From;
+        _linkTo = parsed.To;
+        _useLinkRange = parsed.From is not null;
+
+        if (parsed.DatasourceUid.Length > 0)
+        {
+            _datasourceUid = parsed.DatasourceUid;
+            if (_datasources.All(d => d.Uid != parsed.DatasourceUid))
+                _datasources = new List<LokiDatasource> { new(parsed.DatasourceUid, parsed.DatasourceUid) };
+        }
+    }
+
+    private void LoadPreset()
+    {
+        var preset = _presets.FirstOrDefault(p => p.Name == _selectedPreset);
+        if (preset is null) return;
+
+        _team = preset.Team;
+        _serviceName = preset.ServiceName;
+        _environment = preset.Environment;
+        EnsureWindow(preset.WindowMinutes);
+        _windowMinutes = preset.WindowMinutes;
+        _presetName = preset.Name;
+        _error = null;
+    }
+
+    private async Task SavePreset()
+    {
+        var name = _presetName.Trim();
+        if (name.Length == 0)
+        {
+            _error = "Give the preset a name to save it.";
+            return;
+        }
+        if (!HasLabel())
+        {
+            _error = "Enter at least one of team, service_name or environment before saving.";
+            return;
+        }
+
+        _presets = await Presets.SaveAsync(new GrafanaPreset(
+            name, _team.Trim(), _serviceName.Trim(), _environment.Trim(), _windowMinutes));
+        _selectedPreset = name;
+        _error = null;
+    }
+
+    private async Task DeletePreset()
+    {
+        if (_selectedPreset is null) return;
+
+        _presets = await Presets.DeleteAsync(_selectedPreset);
+        _selectedPreset = null;
+    }
+
+    /// <summary>Lists the Loki datasources the sign-in can read. A single one is selected at once.</summary>
+    private async Task<bool> FindDatasourcesAsync()
+    {
+        _error = null;
+        if (!ValidAddress())
+        {
+            _error = "Enter the Grafana address, for example https://teamsystem.grafana.net.";
+            return false;
+        }
+        var credential = Credential();
+        if (credential.IsEmpty)
+        {
+            _error = "Paste the grafana_session cookie or a service account token first.";
+            return false;
+        }
+
+        try
+        {
+            using var loki = new GrafanaLokiClient();
+            _datasources = (await loki.ListLokiDatasourcesAsync(_baseUrl.Trim(), credential, CancellationToken.None)).ToList();
+        }
+        catch (Exception ex) when (ex is InvalidDataException or HttpRequestException or TaskCanceledException)
+        {
+            _datasources = new List<LokiDatasource>();
+            _error = ex.Message;
+            return false;
+        }
+
+        if (_datasources.Count == 1) _datasourceUid = _datasources[0].Uid;
+        return true;
+    }
+
+    private async Task FindClicked() => await FindDatasourcesAsync();
+
+    private async Task Import()
+    {
+        if (!ValidAddress())
+        {
+            _error = "Enter the Grafana address, for example https://teamsystem.grafana.net.";
+            return;
+        }
+        if (Credential().IsEmpty)
+        {
+            _error = "Paste the grafana_session cookie or a service account token.";
+            return;
+        }
+        if (!HasLabel())
+        {
+            _error = "Paste the Grafana link, or enter at least one of team, service_name or environment.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_datasourceUid))
+        {
+            if (!await FindDatasourcesAsync()) return;
+            if (string.IsNullOrWhiteSpace(_datasourceUid))
+            {
+                _error = _datasources.Count == 0
+                    ? "No Loki datasource is visible to this sign-in."
+                    : "Several Loki datasources were found: choose one in the list.";
+                return;
+            }
+        }
+
+        var credential = Credential();
+        if (_remember)
+            await Presets.SaveSignInAsync(new GrafanaSignIn(_baseUrl.Trim(), _datasourceUid.Trim(), credential.Token, credential.SessionCookie));
+        else
+            await Presets.ForgetSignInAsync();
+
+        DialogService.Close(new GrafanaImportRequest(CurrentQuery(), credential));
+    }
+
+    private void Cancel() => DialogService.Close(null);
+}

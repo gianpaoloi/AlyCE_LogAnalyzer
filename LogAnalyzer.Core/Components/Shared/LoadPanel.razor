@@ -4,6 +4,7 @@
 @inject LogStore Store
 @inject IJSRuntime JS
 @inject SessionState State
+@inject DialogService Dialogs
 
 <RadzenCard class="rz-mb-3" Variant="Variant.Outlined">
     <div class="collapse-header @(Collapsed ? "" : "rz-mb-2")" @onclick="Toggle"
@@ -50,6 +51,9 @@
             <RadzenButton Text="Paste" Icon="content_paste" Click="PasteFromClipboard"
                           ButtonStyle="ButtonStyle.Primary" Variant="Variant.Outlined"
                           title="Load log lines copied to the clipboard (or press Ctrl+V anywhere on the page)" />
+            <RadzenButton Text="Grafana" Icon="cloud_download" Click="OpenGrafanaImport"
+                          ButtonStyle="ButtonStyle.Primary" Variant="Variant.Outlined"
+                          title="Load log lines from a Grafana Cloud Loki query" />
             <RadzenButton Text="Clear" Icon="delete_sweep" Click="Clear"
                           ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined"
                           Disabled="@(!Store.IsLoaded)" />
@@ -168,6 +172,31 @@
         }
 
         await LoadPastedText(text);
+    }
+
+    /// <summary>
+    /// Grafana button: asks for the Loki query in a dialog, then loads the matching lines through the
+    /// same progress and error reporting as any other load. Cancelling the dialog changes nothing.
+    /// </summary>
+    private async Task OpenGrafanaImport()
+    {
+        if (Store.IsLoading) return;
+
+        var picked = await Dialogs.OpenAsync<GrafanaImportDialog>("Import from Grafana",
+            new Dictionary<string, object?>(),
+            new DialogOptions
+            {
+                Width = "640px",
+                Height = "auto",
+                Resizable = true,
+                Draggable = true,
+                Icon = "cloud_download",
+            });
+
+        if (picked is not GrafanaImportRequest request) return;
+
+        _dropError = null;
+        await Store.LoadFromGrafanaAsync(request.Query, request.Credential, Store.IncludeDebug, CancellationToken.None);
     }
 
     /// <summary>Ctrl+V anywhere on the page outside an input field (see registerLogPaste).</summary>

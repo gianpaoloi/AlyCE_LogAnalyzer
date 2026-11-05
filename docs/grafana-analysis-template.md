@@ -13,6 +13,36 @@ with AlyCE Log Analyzer. The analyzer reads the export directly; no conversion s
 4. **Explorer**: filter to one signature, then click a row to read the full entry and stack trace.
    Entries from the export show the export's file name as their source.
 
+## 2. Import directly from Grafana Cloud
+
+Instead of downloading an export, the analyzer can query Loki itself. Click **Grafana** on the load panel.
+
+1. **Paste the link.** Copy the address bar of the Loki logs page (the Explore link) and paste it into the
+   top box, then click **Load**. The team, service_name, environment, datasource and time range are filled in
+   from the link. If the link has exact dates, tick **Use the link's dates**. Other filters in the link (level,
+   text) are not read.
+2. **Sign in with `grafana_session`.** The app needs your browser's Grafana session cookie, because SSO does not
+   give an API token. Copy it as follows (Edge and Chrome; Firefox uses the **Storage** tab, then **Cookies**):
+   1. Sign in to Grafana in the browser and keep the Grafana page open.
+   2. Press **F12** (or right-click the page and choose **Inspect**).
+   3. Open the **Application** tab (**Storage** in Firefox). If you don't see it, use the **»** arrow to find it.
+   4. In the left tree expand **Cookies**, then click the Grafana address, for example
+      `https://teamsystem.grafana.net`.
+   5. In the list find the row named **`grafana_session`**. Click its **Value** cell, select all (Ctrl+A) and copy
+      (Ctrl+C). Copy only the value, not the name.
+   6. In the dialog, click the **grafana_session cookie** box (it selects everything) and paste (Ctrl+V).
+3. **Import logs.** Press **Import logs**. Tick **Remember sign-in on this computer** to keep the cookie and the
+   datasource for next time. **Forget sign-in** removes them.
+
+Notes:
+- The cookie is as sensitive as a password: anyone who has it can act as you in Grafana. Don't paste it into
+  tickets, chats or screenshots, and use **Forget sign-in** on a shared computer.
+- The cookie ends when your Grafana session ends. If the import says Grafana did not accept the cookie, sign
+  in to Grafana again and copy the value again.
+- If you can't find `grafana_session` in the list, note the cookie names you do see and ask for help; the name
+  can differ on some Grafana setups.
+- A service account token can be used instead of the cookie. It needs an admin to create it.
+
 ## 3. Format notes for Grafana exports
 
 | Item | What to know |

@@ -31,6 +31,8 @@ builder.Services.AddScoped<NetworkLogListener>();
 builder.Services.AddScoped<SessionState>();
 // Recently used paths, persisted in the browser's localStorage.
 builder.Services.AddScoped<PathHistory>();
+// Saved Grafana import presets (same localStorage mechanism).
+builder.Services.AddScoped<GrafanaPresetStore>();
 
 // Update check against this project's GitHub releases. Singleton so one server asks GitHub once per
 // interval rather than once per visitor — anonymous API calls are rate limited per IP address.

@@ -56,6 +56,10 @@ public sealed class LogStore
     /// <summary>True while a running load can still be cancelled.</summary>
     public bool CanCancel => _loadCts is not null;
 
+    /// <summary>Status text for a step that has no file counts (the Grafana download). Null otherwise.</summary>
+    public string? BusyText => _busyText;
+    private volatile string? _busyText;
+
     /// <summary>Raised when the loaded dataset is replaced, or a load finishes or fails.</summary>
     public event Action? DatasetChanged;
 
@@ -205,6 +209,70 @@ public sealed class LogStore
         }
 
         return temp;
+    }
+
+    /// <summary>
+    /// Downloads the lines a Grafana Loki query matches into a temporary <c>.log</c> file, then loads
+    /// that file as one source named after the query. Errors (bad token, unreachable Grafana, empty
+    /// result) end up in <see cref="LoadError"/> like any other failed load.
+    /// </summary>
+    public async Task LoadFromGrafanaAsync(LokiQuery query, GrafanaCredential credential, bool includeDebug, CancellationToken ct)
+    {
+        // Holds the same load flag as every other load, so the spinner, the Cancel button and the
+        // "one load at a time" rule all apply to the download as well.
+        if (Interlocked.CompareExchange(ref _loading, 1, 0) == 1) return;
+
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _loadCts = cts;
+        LoadError = null;
+        _filesProcessed = 0;
+        _filesTotal = 0;
+        Interlocked.Exchange(ref _entriesParsed, 0);
+        Interlocked.Exchange(ref _lastProgressAt, 0);
+        _busyText = "Connecting to Grafana…";
+        RaiseProgress(force: true);
+
+        var temp = Path.Combine(Path.GetTempPath(), $"alyce-loki-{Guid.NewGuid():N}.log");
+        try
+        {
+            try
+            {
+                await using (var target = new FileStream(temp, FileMode.CreateNew, FileAccess.Write,
+                                                         FileShare.None, bufferSize: 64 * 1024, useAsync: true))
+                using (var loki = new GrafanaLokiClient())
+                {
+                    var result = await loki.DownloadAsync(query, credential, target, DateTimeOffset.UtcNow, cts.Token,
+                        onPage: written =>
+                        {
+                            _busyText = $"Downloading from Grafana… {written:N0} lines";
+                            RaiseProgress();
+                        });
+                    if (result.Written == 0)
+                        throw new InvalidDataException("Grafana returned no log lines for this query and time range.");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                LoadError = "Load cancelled.";
+                ReleaseLoad(cts);
+                return;
+            }
+            catch (Exception ex)
+            {
+                LoadError = ex.Message;
+                ReleaseLoad(cts);
+                return;
+            }
+
+            // The download is done: the normal parse / sort / stats phases report their own progress.
+            _busyText = null;
+            await PublishLoadAsync(new List<LoadSource> { FileSource(temp) with { Name = query.Label } },
+                                   query.Label, includeDebug, parallel: false, append: false, cts);
+        }
+        finally
+        {
+            try { File.Delete(temp); } catch { /* best effort */ }
+        }
     }
 
     /// <summary>Loads every *.log file in <paramref name="folder"/>. Optionally skips DEBUG entries.</summary>
@@ -390,7 +458,17 @@ public sealed class LogStore
     {
         if (Interlocked.CompareExchange(ref _loading, 1, 0) == 1) return;
 
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        await PublishLoadAsync(sources, label, includeDebug, parallel, append,
+                               CancellationTokenSource.CreateLinkedTokenSource(ct));
+    }
+
+    /// <summary>
+    /// Parses and publishes the sources. The caller must already hold the load flag; this releases it.
+    /// </summary>
+    private async Task PublishLoadAsync(
+        List<LoadSource> sources, string label, bool includeDebug, bool parallel, bool append,
+        CancellationTokenSource cts)
+    {
         _loadCts = cts;
         LoadError = null;
         _filesProcessed = 0;
@@ -444,11 +522,18 @@ public sealed class LogStore
         }
         finally
         {
-            _loadCts = null;
-            cts.Dispose();
-            Volatile.Write(ref _loading, 0);
-            RaiseDataset();
+            ReleaseLoad(cts);
         }
+    }
+
+    /// <summary>Marks the load finished: clears the busy state, drops the cancel handle and notifies the UI.</summary>
+    private void ReleaseLoad(CancellationTokenSource cts)
+    {
+        _loadCts = null;
+        _busyText = null;
+        cts.Dispose();
+        Volatile.Write(ref _loading, 0);
+        RaiseDataset();
     }
 
     /// <summary>

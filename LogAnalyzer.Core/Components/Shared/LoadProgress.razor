@@ -24,6 +24,7 @@
     {
         get
         {
+            if (Store.BusyText is { } busy) return busy;
             if (Store.FilesTotal == 0) return "Looking for log files…";
             if (Store.FilesProcessed >= Store.FilesTotal) return "Sorting and computing statistics…";
             return Compact
