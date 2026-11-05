@@ -41,7 +41,7 @@ The runtime installs **per-user without admin rights**, which matches this per-u
 Identical feature set to the server app:
 
 - **Overview / Explorer / Triage / File Live Watch / Network Live Watch** pages.
-- Load logs from a **folder / UNC path**, or by dropping / picking `.log` files or a ZIP of them. The load
+- Load logs from a **folder / UNC path**, or by dropping / picking `.log` files, a ZIP of them, or a Grafana `.json` export. The load
   panel **collapses** into a one-line summary via its *Load files* header, on every page that shows it;
   the *Watch settings* / *Listener settings* cards on the two live pages collapse the same way, and fold
   themselves once a watch actually starts.

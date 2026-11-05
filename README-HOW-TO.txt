@@ -25,7 +25,7 @@ FOLDER STRUCTURE
 FEATURES
 --------
 ✓ Analyze and parse log files from your filesystem
-✓ Browse logs by folder, or drag & drop .log / .zip files onto the app
+✓ Browse logs by folder, or drag & drop .log / .zip files or a Grafana .json export onto the app
 ✓ Interactive filtering and search across all columns
 ✓ Log volume chart over time, stacked by level and driven by your filters
 ✓ Real-time log monitoring and live tailing

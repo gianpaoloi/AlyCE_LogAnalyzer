@@ -21,10 +21,10 @@ pages):
 - **Folder** – type a local or UNC path and click **Load** / **Reload**. The default folder is set in
   `appsettings.json` → `LogAnalyzer:DefaultLogFolder`. The box is a `RadzenAutoComplete` that **suggests
   folders you loaded before** (see *Path history* below).
-- **Drop zone** – click it to pick `.log` / `.zip` files, or drag them onto it. For a ZIP, every `.log` entry
-  inside it (including files in sub-folders) is parsed. Useful when the logs aren't on a reachable
-  folder/UNC share. Caps: 2 GB per ZIP, 500 MB per `.log`, 100 files per drop. One ZIP *or* one-or-more
-  `.log` files per drop — mixing the two is rejected.
+- **Drop zone** – click it to pick `.log` / `.zip` files or a Grafana `.json` export, or drag them onto it. For a ZIP, every `.log` entry
+  inside it (including files in sub-folders) is parsed. A Grafana `.json` export ("Download logs") is read directly, its records
+  parsed like a `.log` file. Useful when the logs aren't on a reachable folder/UNC share. Caps: 2 GB per ZIP, 500 MB per `.log` or
+  `.json`, 100 files per drop. One ZIP *or* one-or-more `.log` / `.json` files per drop — mixing a ZIP with them is rejected.
 
 The **include DEBUG** checkbox applies to both. **Clear** drops the loaded dataset.
 

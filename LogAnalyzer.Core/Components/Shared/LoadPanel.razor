@@ -59,7 +59,7 @@
     @* The zone stays rendered while loading (it holds the JS drop registration) but ignores
        input — the busy class makes that visible instead of silently swallowing a drop. *@
     <div class="drop-zone rz-mt-2 @(Store.IsLoading ? "drop-zone-busy" : null)" @ref="_dropZoneRef"
-         title="@(Store.IsLoaded ? "Click to load log files or zip, or drop them here":"")">
+         title="@(Store.IsLoaded ? "Click to load log files, a zip or a Grafana .json export, or drop them here":"")">
         <InputFile id="@_inputId" class="drop-zone-input" OnChange="OnDropZoneSelected" accept=".log,.zip,.json" multiple />
         @if (Store.IsLoading)
         {
@@ -71,7 +71,7 @@
         else
         {
             <RadzenIcon Icon="move_to_inbox" />
-            <span>@(Store.IsLoaded ? Store.LoadedPath : "Click to load log Files, zip in the app or Drop it.")</span>
+            <span>@(Store.IsLoaded ? Store.LoadedPath : "Click to load log files, a zip or a Grafana .json export, or drop them here.")</span>
         }
     </div>
     @if (!string.IsNullOrWhiteSpace(_dropError))
