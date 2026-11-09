@@ -6,7 +6,9 @@ on:
       - 'v*.*.*'
 
 permissions:
-  contents: write   # needed to create GitHub Releases
+  contents: write     # needed to create GitHub Releases
+  id-token: write     # lets the attest step request a signing certificate for the build
+  attestations: write # lets the attest step store the provenance attestation
 
 jobs:
   build-and-release:
@@ -184,7 +186,21 @@ jobs:
           echo "INSTALLER=$installer" >> $env:GITHUB_OUTPUT
 
       # ---------------------------------------------------------------
-      # 12. Keep the built artifacts even if the release step fails
+      # 12. Attest build provenance for the installer and the ZIP
+      # ---------------------------------------------------------------
+      # Signs a SLSA provenance statement binding each file's SHA256 to this workflow run, so anyone
+      # can check with `gh attestation verify` that a downloaded file was built here and not swapped.
+      # Runs after the hashes are computed and before the release is created, so the attested files
+      # are the same bytes that get uploaded to the release.
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            ${{ steps.sha256.outputs.INSTALLER }}
+            ${{ steps.zip.outputs.ZIP }}
+
+      # ---------------------------------------------------------------
+      # 13. Keep the built artifacts even if the release step fails
       # ---------------------------------------------------------------
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
@@ -198,7 +214,7 @@ jobs:
             LogAnalyzer.Maui/dist/*.zip
 
       # ---------------------------------------------------------------
-      # 13. Assemble the release notes from CHANGELOG.md
+      # 14. Assemble the release notes from CHANGELOG.md
       # ---------------------------------------------------------------
       # Written to a file and passed to the release step as body_path rather than inlined there: the
       # changelog is arbitrary Markdown full of backticks, pipes and quotes, none of which survives
@@ -353,7 +369,7 @@ jobs:
           Get-Content -LiteralPath $path | Select-Object -First 30
 
       # ---------------------------------------------------------------
-      # 14. Create GitHub Release
+      # 15. Create GitHub Release
       # ---------------------------------------------------------------
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
