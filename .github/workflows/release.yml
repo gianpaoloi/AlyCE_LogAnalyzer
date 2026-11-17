@@ -140,7 +140,7 @@ jobs:
             -PublishDir "LogAnalyzer.Maui/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish" `
             -Version "${{ steps.version.outputs.VERSION }}" `
             -OutputDir "LogAnalyzer.Maui/dist" `
-            -HowToPath "README-HOW-TO.txt"
+            -HowToPath "README-HOW-TO.md"
 
       # ---------------------------------------------------------------
       # 9. Install Inno Setup

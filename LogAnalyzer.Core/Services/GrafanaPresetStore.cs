@@ -24,6 +24,7 @@ public sealed class GrafanaPresetStore
     private const string StorageKey = "alyce.grafanaPresets";
     private const string SignInKey = "alyce.grafanaSignIn";
     private const string LastLinkKey = "alyce.grafanaLastLink";
+    private const string SectionsKey = "alyce.grafanaSections";
 
     private readonly IJSRuntime _js;
     private readonly ISecretProtector _protector;
@@ -133,6 +134,33 @@ public sealed class GrafanaPresetStore
     }
 
     public async Task SaveLastLinkAsync(string link) => await WriteRawAsync(LastLinkKey, new[] { link.Trim() });
+
+    /// <summary>
+    /// Which collapsible sections of the import dialog were open, by section name. Sections missing from the
+    /// result were never saved and keep their defaults. Not secret, so it is kept as plain "name=0/1" entries.
+    /// </summary>
+    public async Task<Dictionary<string, bool>> GetSectionsAsync()
+    {
+        var sections = new Dictionary<string, bool>();
+        try
+        {
+            var stored = await _js.InvokeAsync<string[]>("pathHistoryLoad", SectionsKey);
+            foreach (var entry in stored)
+            {
+                var parts = entry.Split('=', 2);
+                if (parts.Length == 2) sections[parts[0]] = parts[1] == "1";
+            }
+        }
+        catch
+        {
+            // Blocked storage: the sections keep their defaults.
+        }
+
+        return sections;
+    }
+
+    public async Task SaveSectionsAsync(IReadOnlyDictionary<string, bool> sections) =>
+        await WriteRawAsync(SectionsKey, sections.Select(s => $"{s.Key}={(s.Value ? "1" : "0")}").ToArray());
 
     private async Task<bool> WriteRawAsync(string key, string[] values)
     {

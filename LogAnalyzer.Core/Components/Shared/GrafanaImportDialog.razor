@@ -150,7 +150,11 @@
 
     @* 5. How to prove who you are: a token, or your signed-in browser session. *@
     <RadzenStack Gap="0.4rem">
-        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b>Sign-in</b></RadzenText>
+        <RadzenButton Text="Sign-in" Icon="@(_signInOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
+                      Variant="Variant.Text" Size="ButtonSize.Small" Click="ToggleSignIn" class="rz-p-0"
+                      style="align-self:flex-start; font-weight:600" title="Show or hide the sign-in settings" />
+        @if (_signInOpen)
+        {
         @* onfocus selects the whole value, so pasting a new cookie replaces the remembered one. *@
         <RadzenSelectBar TValue="bool" Data="@_signInModes" TextProperty="Text" ValueProperty="UsesToken" @bind-Value="_useToken" />
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
@@ -180,6 +184,7 @@
             Click <b>?</b> for where to find the @(_useToken ? "service account token" : "grafana_session cookie").
             @(_useToken ? "The token works until you revoke it in Grafana." : "The cookie stops working when your Grafana session ends.")
         </RadzenText>
+        }
     </RadzenStack>
 
     @if (!string.IsNullOrEmpty(_error))
@@ -213,18 +218,47 @@
     private bool _connectionOpen;
     private bool _queryOpen;
     private bool _presetsOpen;
+    private bool _signInOpen = true;
 
-    private void TogglePresets() => _presetsOpen = !_presetsOpen;
+    private async Task TogglePresets()
+    {
+        _presetsOpen = !_presetsOpen;
+        await SaveSections();
+    }
 
-    private void ToggleConnection() => _connectionOpen = !_connectionOpen;
+    private async Task ToggleSignIn()
+    {
+        _signInOpen = !_signInOpen;
+        await SaveSections();
+    }
 
-    private void ToggleQuery() => _queryOpen = !_queryOpen;
+    private async Task ToggleConnection()
+    {
+        _connectionOpen = !_connectionOpen;
+        await SaveSections();
+    }
+
+    private async Task ToggleQuery()
+    {
+        _queryOpen = !_queryOpen;
+        await SaveSections();
+    }
+
+    /// <summary>Remembers which sections are open, so the dialog reopens the way the user left it.</summary>
+    private Task SaveSections() => Presets.SaveSectionsAsync(new Dictionary<string, bool>
+    {
+        ["presets"] = _presetsOpen,
+        ["signin"] = _signInOpen,
+        ["connection"] = _connectionOpen,
+        ["query"] = _queryOpen,
+    });
 
     /// <summary>Load fills the fields from the link and opens the Query and Connection sections to show them.</summary>
     private async Task LoadClicked()
     {
         _connectionOpen = true;
         _queryOpen = true;
+        await SaveSections();
         await ApplyLink();
     }
 
@@ -283,6 +317,14 @@
 
         // localStorage is only reachable once the component is interactive.
         _presets = await Presets.GetAsync();
+
+        // Reopen the sections as they were left; a section never saved keeps its default.
+        var sections = await Presets.GetSectionsAsync();
+        if (sections.TryGetValue("presets", out var presetsOpen)) _presetsOpen = presetsOpen;
+        if (sections.TryGetValue("signin", out var signInOpen)) _signInOpen = signInOpen;
+        if (sections.TryGetValue("connection", out var connectionOpen)) _connectionOpen = connectionOpen;
+        if (sections.TryGetValue("query", out var queryOpen)) _queryOpen = queryOpen;
+        StateHasChanged();
 
         var signIn = await Presets.GetSignInAsync();
         if (signIn is not null)

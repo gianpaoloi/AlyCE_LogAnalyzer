@@ -12,7 +12,7 @@ Built with .NET MAUI + Blazor Hybrid. Self-contained: no .NET runtime to install
 
 ## Contents
 
-- [A quick tour](#a-quick-tour) — what the five pages do
+- [A quick tour](#a-quick-tour) — what the five pages do · [Grafana Cloud import](#grafana-cloud-import)
 - [Features](#features)
 - [System requirements](#system-requirements)
 - [Install](#install) — [winget](#install-via-winget-wip) · [manual](#manual-install)
@@ -116,12 +116,29 @@ You don't need the browser at all if you're already in Windows Explorer: right-c
 choose **Open with AlyCE Log Analyzer** to launch it there directly (added by the installer — see
 [Install](#install)).
 
+### Grafana Cloud import
+
+Logs can come straight from Grafana Cloud's Loki, without exporting them first. Paste the Explore link from
+the Loki logs page into the import dialog and press **Load**. The team, service, environment, level, field
+and line-text filters, the datasource and the time range are read from the link, and you can edit, remove or
+add any of them before importing.
+
+Lines stream into Overview, Explorer and Triage while the download runs, with a progress line showing the
+number of lines and the time of the newest one. **Cancel** keeps the lines loaded so far.
+
+Sign in with the `grafana_session` cookie of your browser session or with a service account token. The **?**
+beside the box explains where to find either, and a selector shows only the box for the chosen mode. Tick
+**Remember sign-in on this computer** to keep it between runs: the token or cookie is stored encrypted for this
+Windows account, and **Forget sign-in** removes it. Saved presets, the last link and which dialog sections
+were open are remembered too.
+
 ### Built-in Quick Start
 
 ![The Quick Start page: in-app documentation of the log format and the workflow](docs/screenshots/05-quick-start.png)
 
-The app documents itself — the log format it expects and the usual workflow — so the README is not the
-only copy of that information.
+The app documents itself — the log format it expects, the installation methods and the usual workflow — so
+the README is not the only copy of that information. The page is a Markdown document with a clickable contents
+menu on the left.
 
 ---
 
@@ -141,6 +158,9 @@ only copy of that information.
 - Collapsible load / watch panels and side navigation to maximise screen space — the panels fold themselves
   once a load or a watch is under way
 - Dark theme UI optimized for extended viewing sessions
+- Import logs straight from Grafana Cloud Loki: filters are read from the Explore link and can be edited, lines
+  stream in while the download runs, and Cancel keeps what is loaded
+- Remembered Grafana sign-in, encrypted for the Windows account, plus saved import presets
 - Tells you when a new version has been released, and installs it for you
 
 ## System Requirements
@@ -275,7 +295,7 @@ dotnet publish LogAnalyzer.Maui/LogAnalyzer.Maui.csproj `
 # 2a. Portable ZIP
 .\LogAnalyzer.Maui\create-portable-zip.ps1 `
     -PublishDir "LogAnalyzer.Maui/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish" `
-    -Version 1.0.0 -OutputDir "LogAnalyzer.Maui/dist" -HowToPath "README-HOW-TO.txt"
+    -Version 1.0.0 -OutputDir "LogAnalyzer.Maui/dist" -HowToPath "README-HOW-TO.md"
 # Output: LogAnalyzer.Maui/dist/AlyCE-LogAnalyzer-1.0.0-win-x64.zip
 
 # 2b. Installer (requires Inno Setup 6 — https://jrsoftware.org/isinfo.php)

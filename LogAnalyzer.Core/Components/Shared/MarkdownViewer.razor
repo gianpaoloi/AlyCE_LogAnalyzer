@@ -1,0 +1,153 @@
+@using System.Text.RegularExpressions
+@using Markdig
+
+@* Shows a Markdown file that ships next to the app. The "## " sections are listed in a contents menu on the
+   left; the menu switches sections in place rather than navigating, which would close the desktop window. *@
+@if (_loadError is not null)
+{
+  <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" class="rz-mb-3">
+    @_loadError
+  </RadzenAlert>
+}
+else
+{
+  <article class="md-viewer-intro">@((MarkupString)_intro)</article>
+
+  <div class="md-viewer-layout">
+    <nav class="md-viewer-menu" aria-label="Contents">
+      <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted"><b>Contents</b></RadzenText>
+      <ul>
+        @foreach (var section in _sections)
+        {
+          <li>
+            <button type="button" class="md-viewer-link @(section == _current ? "active" : "")"
+                    @onclick="() => Select(section)">@section.Title</button>
+          </li>
+        }
+      </ul>
+    </nav>
+    <RadzenCard Variant="Variant.Outlined" class="md-viewer-card">
+      <article class="md-viewer-content">
+        @if (_current is not null)
+        {
+          @((MarkupString)_current.Html)
+        }
+      </article>
+    </RadzenCard>
+  </div>
+}
+
+@code {
+  /// <summary>The file to show, relative to the application folder, for example <c>CHANGELOG.md</c>.</summary>
+  [Parameter, EditorRequired] public string FileName { get; set; } = "";
+
+  /// <summary>One "## " section: its title in the contents menu and its rendered HTML.</summary>
+  private sealed record Section(string Title, string Html);
+
+  private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
+      .UseAdvancedExtensions()
+      .Build();
+
+  private string _intro = string.Empty;
+  private List<Section> _sections = new();
+  private Section? _current;
+  private string? _loadError;
+
+  protected override void OnInitialized()
+  {
+    try
+    {
+      var text = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, FileName)).Replace("\r\n", "\n");
+
+      // Each "## " line starts a section. The text before the first one is the introduction, shown above all of them.
+      var parts = Regex.Split(text, "^(?=## )", RegexOptions.Multiline);
+      _intro = Markdown.ToHtml(parts[0], Pipeline);
+      _sections = parts.Skip(1)
+          .Select(part => new Section(TitleOf(part), Markdown.ToHtml(part, Pipeline)))
+          .ToList();
+      _current = _sections.FirstOrDefault();
+    }
+    catch (Exception ex)
+    {
+      _loadError = $"Unable to load {FileName}: {ex.Message}";
+    }
+  }
+
+  private void Select(Section section) => _current = section;
+
+  private static string TitleOf(string part) => part.Split('\n', 2)[0].TrimStart('#', ' ').Trim();
+}
+
+<style>
+    .md-viewer-intro {
+        max-width: 72rem;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+    }
+
+    .md-viewer-intro h1 { font-size: 1.3rem; margin: 0 0 0.4rem; }
+    .md-viewer-intro p { margin: 0.3rem 0; }
+
+    .md-viewer-layout {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 1rem;
+        align-items: start;
+        max-width: 72rem;
+    }
+
+    .md-viewer-menu {
+        position: sticky;
+        top: 0.5rem;
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+    }
+
+    .md-viewer-menu ul {
+        list-style: none;
+        margin: 0.4rem 0 0;
+        padding: 0;
+    }
+
+    .md-viewer-menu li { margin: 0.15rem 0; }
+
+    .md-viewer-link {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: none;
+        border: none;
+        border-radius: 4px;
+        padding: 0.35rem 0.5rem;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .md-viewer-link:hover { background: rgba(127, 127, 127, 0.15); }
+    .md-viewer-link.active { font-weight: 700; background: rgba(127, 127, 127, 0.25); }
+
+    .md-viewer-content {
+        line-height: 1.6;
+        word-break: break-word;
+    }
+
+    .md-viewer-content h2 { font-size: 1.2rem; margin-top: 0; }
+    .md-viewer-content h3 { font-size: 1rem; margin-top: 1.1rem; }
+    .md-viewer-content pre {
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 0.9rem;
+        overflow-x: auto;
+        padding: 0.6rem 0.8rem;
+        border-radius: 4px;
+        background: var(--rz-base-300, rgba(127, 127, 127, 0.12));
+    }
+    .md-viewer-content code { font-family: Consolas, "Courier New", monospace; font-size: 0.9em; }
+    .md-viewer-content table { border-collapse: collapse; width: 100%; margin: 0.6rem 0; }
+    .md-viewer-content th, .md-viewer-content td { border: 1px solid rgba(127, 127, 127, 0.35); padding: 0.3rem 0.5rem; text-align: left; }
+
+    @@media (max-width: 760px) {
+        .md-viewer-layout { grid-template-columns: 1fr; }
+        .md-viewer-menu { position: static; max-height: none; }
+    }
+</style>

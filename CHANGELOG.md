@@ -34,6 +34,16 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 - **The Grafana import's Query, Connection and Presets sections collapse.** All start collapsed. **Load** fills
   the fields from the pasted link and opens Query and Connection; Presets stays as you left it.
+- **The Grafana import's Sign-in section collapses.** It starts open, so the sign-in is visible as before.
+- **Quick Start is a Markdown file, shown with a clickable contents menu.** The page renders `README-HOW-TO.md`
+  (it was a plain-text file) and lists its sections on the left. The installation section now covers Setup,
+  winget (not yet available), the portable ZIP, silent install and updates.
+- **Changelog page.** The top bar's **Changelog** link shows this file, with its versions in a contents menu.
+  The Quick Start and Changelog pages share one Markdown viewer.
+- **Quick Start contents switch sections in place.** Clicking a contents entry shows that section; it no longer
+  follows a link, which closed the page in the desktop window. Links in the text are plain text.
+- **The Grafana import remembers which sections are open.** Presets, Sign-in, Connection and Query reopen as
+  you left them. Load still opens Query and Connection.
 - **No 250,000-line limit on Grafana imports.** A runaway query stops at 5,000,000 lines, a safeguard rather
   than a normal limit.
 - **The remembered token and cookie are encrypted.** With **Remember sign-in on this computer** ticked, the
