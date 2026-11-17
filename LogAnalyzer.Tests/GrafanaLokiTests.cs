@@ -187,6 +187,26 @@ public class GrafanaLokiTests
     }
 
     [Fact]
+    public async Task Each_page_is_handed_to_the_caller_as_it_arrives_without_repeats()
+    {
+        var firstPage = Enumerable.Range(0, GrafanaLokiClient.PageSize).Select(i => (1000L + i, $"line{i}")).ToArray();
+        var pages = new List<List<string>>();
+        using var client = new GrafanaLokiClient(new ScriptedHandler(LokiPage(firstPage), LokiPage((9000L, "last"))));
+        using var output = new MemoryStream();
+
+        await client.DownloadAsync(Query(), new GrafanaCredential(Token: "tok"), output, Now, CancellationToken.None,
+                                   onLines: lines =>
+                                   {
+                                       pages.Add(lines.ToList());
+                                       return Task.CompletedTask;
+                                   });
+
+        Assert.Equal(2, pages.Count);
+        Assert.Equal(GrafanaLokiClient.PageSize, pages[0].Count);
+        Assert.Equal(new[] { "last" }, pages[1]);
+    }
+
+    [Fact]
     public async Task An_empty_result_writes_nothing()
     {
         var (result, lines) = await RunAsync(new ScriptedHandler(LokiPage()));

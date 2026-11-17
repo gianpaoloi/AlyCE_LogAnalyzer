@@ -176,7 +176,8 @@ public sealed class GrafanaLokiClient : IDisposable
     /// </exception>
     public async Task<Result> DownloadAsync(LokiQuery query, GrafanaCredential credential, Stream output,
                                             DateTimeOffset now, CancellationToken ct,
-                                            Action<int>? onPage = null)
+                                            Action<int>? onPage = null,
+                                            Func<IReadOnlyList<string>, Task>? onLines = null)
     {
         var logql = BuildQuery(query);
         // An absolute range (from a link) is used as given; otherwise the window ends now.
@@ -202,18 +203,23 @@ public sealed class GrafanaLokiClient : IDisposable
             page.Sort((a, b) => a.Ns.CompareTo(b.Ns));
 
             var writtenBefore = written;
+            var fresh = new List<string>(page.Count);
             foreach (var (ns, line) in page)
             {
                 if (ns == boundaryNs && boundaryLines.Contains(line)) continue;
 
                 // A raw line break would split one record in two, as in GrafanaExport.
-                await writer.WriteLineAsync(line.Replace('\r', ' ').Replace('\n', ' ').AsMemory(), ct);
+                var clean = line.Replace('\r', ' ').Replace('\n', ' ');
+                await writer.WriteLineAsync(clean.AsMemory(), ct);
+                fresh.Add(clean);
                 written++;
                 if (written > MaxLines)
                     throw new InvalidDataException(
                         $"More than {MaxLines:N0} lines match. Narrow the time range or add a label.");
             }
 
+            // The lines of this page go to the caller now, in time order, so they can be shown while the rest downloads.
+            if (onLines is not null && fresh.Count > 0) await onLines(fresh);
             onPage?.Invoke(written);
 
             // A short page means the window is exhausted.

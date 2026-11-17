@@ -28,7 +28,6 @@ public sealed class LogStore
     /// once per file, and triage re-clustered it. Only the counters changed.
     /// </summary>
     private const int ProgressThrottleMs = 250;
-
     private volatile LogDataset _data = LogDataset.Empty;
     private int _loading;                        // 0/1 via Interlocked: only one load at a time
     private CancellationTokenSource? _loadCts;
@@ -226,53 +225,79 @@ public sealed class LogStore
         _loadCts = cts;
         LoadError = null;
         _filesProcessed = 0;
-        _filesTotal = 0;
+        _filesTotal = 1;
         Interlocked.Exchange(ref _entriesParsed, 0);
         Interlocked.Exchange(ref _lastProgressAt, 0);
         _busyText = "Connecting to Grafana…";
         RaiseProgress(force: true);
 
-        var temp = Path.Combine(Path.GetTempPath(), $"alyce-loki-{Guid.NewGuid():N}.log");
+        // Each page is parsed as it arrives, so the progress text can show how far the download has
+        // reached. The entries are published once, when the download ends, as one complete dataset.
+        var label = query.Label;
+        var parser = new LogParser();
+        var entries = new List<LogEntry>();
+        DateTime? newest = null;
+
         try
         {
-            try
-            {
-                await using (var target = new FileStream(temp, FileMode.CreateNew, FileAccess.Write,
-                                                         FileShare.None, bufferSize: 64 * 1024, useAsync: true))
-                using (var loki = new GrafanaLokiClient())
+            using var loki = new GrafanaLokiClient();
+            var result = await loki.DownloadAsync(query, credential, Stream.Null, DateTimeOffset.UtcNow, cts.Token,
+                onPage: written =>
                 {
-                    var result = await loki.DownloadAsync(query, credential, target, DateTimeOffset.UtcNow, cts.Token,
-                        onPage: written =>
-                        {
-                            _busyText = $"Downloading from Grafana… {written:N0} lines";
-                            RaiseProgress();
-                        });
-                    if (result.Written == 0)
-                        throw new InvalidDataException("Grafana returned no log lines for this query and time range.");
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                LoadError = "Load cancelled.";
-                ReleaseLoad(cts);
-                return;
-            }
-            catch (Exception ex)
-            {
-                LoadError = ex.Message;
-                ReleaseLoad(cts);
-                return;
-            }
+                    _busyText = newest is DateTime reached
+                        ? $"Downloading from Grafana… {written:N0} lines, up to {reached:yyyy-MM-dd HH:mm:ss}"
+                        : $"Downloading from Grafana… {written:N0} lines";
+                    Interlocked.Exchange(ref _entriesParsed, entries.Count);
+                    RaiseProgress();
+                },
+                onLines: lines =>
+                {
+                    foreach (var line in lines)
+                    {
+                        var entry = parser.TryParse(line, label);
+                        if (entry is null) continue;
+                        if (!includeDebug && LogLevels.IsDebug(entry.Level)) continue;
+                        entries.Add(entry);
+                    }
 
-            // The download is done: the normal parse / sort / stats phases report their own progress.
-            _busyText = null;
-            await PublishLoadAsync(new List<LoadSource> { FileSource(temp) with { Name = query.Label } },
-                                   query.Label, includeDebug, parallel: false, append: false, cts);
+                    if (entries.Count > 0) newest = entries[^1].Time;
+                    return Task.CompletedTask;
+                });
+
+            if (result.Written == 0)
+                throw new InvalidDataException("Grafana returned no log lines for this query and time range.");
         }
-        finally
+        catch (OperationCanceledException)
         {
-            try { File.Delete(temp); } catch { /* best effort */ }
+            LoadError = "Load cancelled.";
         }
+        catch (Exception ex)
+        {
+            LoadError = ex.Message;
+        }
+
+        // Keeps every line that arrived, so a cancelled or failed load still shows what it had.
+        _busyText = null;
+        _filesProcessed = 1;
+        await PublishStreamedAsync(entries, label);
+        ReleaseLoad(cts);
+    }
+
+    /// <summary>
+    /// Publishes the lines streamed so far as the dataset. The list is copied first, because the pages
+    /// read the dataset while more lines keep arriving. Lines are kept in time order, as in a file load.
+    /// </summary>
+    private async Task PublishStreamedAsync(List<LogEntry> entries, string label)
+    {
+        if (entries.Count == 0) return;
+
+        var snapshot = entries.ToList();
+        var dataset = await Task.Run(() =>
+            BuildDataset(InTimeOrder(snapshot) as List<LogEntry> ?? snapshot.ToList(), fileCount: 1, label));
+
+        _data = dataset;
+        Interlocked.Exchange(ref _entriesParsed, dataset.Entries.Count);
+        RaiseDataset();
     }
 
     /// <summary>Loads every *.log file in <paramref name="folder"/>. Optionally skips DEBUG entries.</summary>
@@ -497,16 +522,7 @@ public sealed class LogStore
                     ? $"{previous.LoadedPath} + {label}"
                     : label;
 
-                // Statistics and the facet indexes are independent passes over the merged list, so
-                // they run side by side rather than one after the other.
-                LogStats? stats = null;
-                LogDataset? built = null;
-                Parallel.Invoke(
-                    () => stats = ComputeStats(all, fileCount),
-                    () => built = new LogDataset(all, null, path));
-
-                built!.AttachStats(stats!);
-                return built;
+                return BuildDataset(all, fileCount, path);
             }, token);
 
             _data = dataset;
@@ -524,6 +540,22 @@ public sealed class LogStore
         {
             ReleaseLoad(cts);
         }
+    }
+
+    /// <summary>
+    /// Builds the dataset and its statistics from lines already in time order. Statistics and the facet
+    /// indexes are independent passes over the list, so they run side by side.
+    /// </summary>
+    private static LogDataset BuildDataset(List<LogEntry> all, int fileCount, string path)
+    {
+        LogStats? stats = null;
+        LogDataset? built = null;
+        Parallel.Invoke(
+            () => stats = ComputeStats(all, fileCount),
+            () => built = new LogDataset(all, null, path));
+
+        built!.AttachStats(stats!);
+        return built;
     }
 
     /// <summary>Marks the load finished: clears the busy state, drops the cancel handle and notifies the UI.</summary>
