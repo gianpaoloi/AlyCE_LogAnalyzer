@@ -42,6 +42,10 @@ _Nothing yet._
 - **Quick Start is a Markdown file, shown with a clickable contents menu.** The page renders `README-HOW-TO.md`
   (it was a plain-text file) and lists its sections on the left. The installation section now covers Setup,
   winget (not yet available), the portable ZIP, silent install and updates.
+- **The Changelog page opens on the latest release.** It skips `[Unreleased]` and selects the first version after it.
+- **The Quick Start install section names the portable version** ("Portable version (ZIP)") and says when to use it.
+- **Links to web pages in Quick Start and the Changelog are clickable.** They open in a new window, so the page
+  stays open. Links to other sections switch the section in place.
 - **Changelog page.** The top bar's **Changelog** link shows this file, with its versions in a contents menu.
   The Quick Start and Changelog pages share one Markdown viewer.
 - **Quick Start contents switch sections in place.** Clicking a contents entry shows that section; it no longer

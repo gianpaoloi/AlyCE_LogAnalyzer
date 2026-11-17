@@ -4,7 +4,7 @@ Read, filter and tail structured application logs on Windows. This page is also 
 
 ## Install
 
-Every release is published on the Releases page of the repository, `https://github.com/gianpaoloi/AlyCE_LogAnalyzer/releases`. Choose one of the three ways below.
+Every release is published on the [Releases page](https://github.com/gianpaoloi/AlyCE_LogAnalyzer/releases) of the repository. Choose one of the three ways below.
 
 ### 1. Setup (recommended)
 
@@ -29,9 +29,11 @@ winget install TeamSystem.AlyCELogAnalyzer
 
 This command works only after the package is accepted into the winget community repository. Until then, use the Setup download above.
 
-### 3. Portable ZIP
+### 3. Portable version (ZIP)
 
-1. Download `AlyCE-LogAnalyzer-{version}-win-x64.zip` and extract it anywhere: a local folder, a network share or a USB stick.
+Use the portable version when you cannot or do not want to install: a locked-down machine, a network share, or a USB stick. It needs no administrator rights and writes nothing to the registry.
+
+1. Download `AlyCE-LogAnalyzer-{version}-win-x64.zip` from the [Releases page](https://github.com/gianpaoloi/AlyCE_LogAnalyzer/releases) and extract it anywhere: a local folder, a network share or a USB stick.
 2. Double-click `Launch.bat`, or run `Application\LogAnalyzer.Maui.exe` directly.
 
 The ZIP extracts to this folder:
@@ -67,7 +69,7 @@ The desktop app checks for a newer release when it starts. When one exists, an *
 - Windows 10 version 17763 (1809) or later, or Windows 11. x64.
 - No .NET runtime is needed; the package is self-contained.
 - Minimum 4 GB RAM recommended.
-- **Microsoft Edge WebView2 Runtime**: the app's interface runs inside it. It is included in Windows 11 and most updated Windows 10 machines. Setup installs it when it is missing. The ZIP needs it already present; get it from Microsoft's WebView2 page, `https://developer.microsoft.com/microsoft-edge/webview2/` (no administrator rights needed).
+- **Microsoft Edge WebView2 Runtime**: the app's interface runs inside it. It is included in Windows 11 and most updated Windows 10 machines. Setup installs it when it is missing. The ZIP needs it already present; get it from [Microsoft's WebView2 page](https://developer.microsoft.com/microsoft-edge/webview2/) (no administrator rights needed).
 
 ## Quick start
 
@@ -166,7 +168,7 @@ Only one copy of the app can listen on a UDP port at a time. If the port is busy
 ### "WebView2 Runtime required", or "Couldn't find a compatible WebView2 Runtime"
 
 - The Microsoft Edge WebView2 Runtime is missing.
-- Answer **Yes** to the message to open the download page, or get it from Microsoft's WebView2 page, `https://developer.microsoft.com/microsoft-edge/webview2/`, under *Evergreen Standalone Installer* (x64).
+- Answer **Yes** to the message to open the download page, or get it from [Microsoft's WebView2 page](https://developer.microsoft.com/microsoft-edge/webview2/), under *Evergreen Standalone Installer* (x64).
 - It installs without administrator rights and needs no restart. Re-running the Setup package also installs it.
 - Corporate machines may block the download. Ask IT for *Microsoft Edge WebView2 Runtime*, a standard Microsoft component.
 
@@ -192,5 +194,7 @@ For issues or feature requests, contact the author:
 
 **Author:** Gianpaolo Iannetta
 **Email:** g.iannetta[at]teamsystem.com
+
+**LinkedIn:** [https://www.linkedin.com/in/gianpaoloiannetta/](https://www.linkedin.com/in/gianpaoloiannetta/)
 
 Thanks for using it ;)

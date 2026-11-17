@@ -41,12 +41,29 @@ else
   /// <summary>The file to show, relative to the application folder, for example <c>CHANGELOG.md</c>.</summary>
   [Parameter, EditorRequired] public string FileName { get; set; } = "";
 
+  /// <summary>
+  /// A section title that the page should not open on, for example <c>[Unreleased]</c>. The page then opens on the
+  /// first section after it. Null opens on the first section.
+  /// </summary>
+  [Parameter] public string? SkipSectionTitle { get; set; }
+
   /// <summary>One "## " section: its title in the contents menu and its rendered HTML.</summary>
   private sealed record Section(string Title, string Html);
 
   private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
       .UseAdvancedExtensions()
       .Build();
+
+  /// <summary>Matches the opening tag of a link to a web address.</summary>
+  private static readonly Regex ExternalLink = new(@"<a href=""(https?://[^""]+)""");
+
+  /// <summary>
+  /// Renders Markdown to HTML. A link to a web address opens in a new window: in the desktop window a plain link
+  /// would replace the page. Links to other files stay as they are.
+  /// </summary>
+  private static string ToHtml(string markdown) =>
+      ExternalLink.Replace(Markdown.ToHtml(markdown, Pipeline),
+          @"<a href=""$1"" target=""_blank"" rel=""noopener noreferrer""");
 
   private string _intro = string.Empty;
   private List<Section> _sections = new();
@@ -61,11 +78,11 @@ else
 
       // Each "## " line starts a section. The text before the first one is the introduction, shown above all of them.
       var parts = Regex.Split(text, "^(?=## )", RegexOptions.Multiline);
-      _intro = Markdown.ToHtml(parts[0], Pipeline);
+      _intro = ToHtml(parts[0]);
       _sections = parts.Skip(1)
-          .Select(part => new Section(TitleOf(part), Markdown.ToHtml(part, Pipeline)))
+          .Select(part => new Section(TitleOf(part), ToHtml(part)))
           .ToList();
-      _current = _sections.FirstOrDefault();
+      _current = _sections.FirstOrDefault(s => s.Title != SkipSectionTitle) ?? _sections.FirstOrDefault();
     }
     catch (Exception ex)
     {
