@@ -1,0 +1,45 @@
+@using System.Globalization
+@using System.Text
+
+@* A small line chart of recent values. Missing values (null) leave a gap. *@
+<svg class="res-spark" viewBox="0 0 @Width @Height" preserveAspectRatio="none" role="img" aria-label="@Label trend">
+    @if (Points.Length > 0)
+    {
+        <polyline fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke" points="@Points" />
+    }
+</svg>
+
+@code {
+    private const int Width = 300;
+    private const int Height = 40;
+
+    [Parameter, EditorRequired] public IReadOnlyList<double?> Values { get; set; } = Array.Empty<double?>();
+
+    /// <summary>The value drawn at the top of the chart.</summary>
+    [Parameter] public double Max { get; set; } = 100;
+
+    [Parameter] public string Label { get; set; } = "";
+
+    private string Points
+    {
+        get
+        {
+            var count = Values.Count;
+            if (count < 2) return "";
+
+            var text = new StringBuilder();
+            for (var i = 0; i < count; i++)
+            {
+                var value = Values[i];
+                if (value is null || Max <= 0) continue;
+
+                var x = i * (double)Width / (count - 1);
+                var y = Height - Math.Clamp(value.Value / Max, 0, 1) * Height;
+                text.Append(x.ToString("0.0", CultureInfo.InvariantCulture)).Append(',')
+                    .Append(y.ToString("0.0", CultureInfo.InvariantCulture)).Append(' ');
+            }
+
+            return text.ToString().Trim();
+        }
+    }
+}

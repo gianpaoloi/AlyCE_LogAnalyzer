@@ -1,0 +1,29 @@
+@using System.Globalization
+
+@* A labelled bar for a percentage. Shows "measuring…" until a percentage is known. *@
+<div class="res-gauge">
+    <div class="res-gauge-head">
+        <span>@Label</span>
+        <span>@Text</span>
+    </div>
+    <div class="res-gauge-bar">
+        <div class="res-gauge-fill" style="width:@Width%"></div>
+    </div>
+    @if (Detail is not null)
+    {
+        <div class="res-gauge-head rz-color-muted"><span>@Detail</span></div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+
+    [Parameter] public double? Percent { get; set; }
+
+    /// <summary>Optional text under the bar, for example "3.1 GB of 16.0 GB".</summary>
+    [Parameter] public string? Detail { get; set; }
+
+    private string Text => Percent is double p ? $"{p.ToString("0", CultureInfo.InvariantCulture)} %" : "measuring…";
+
+    private string Width => (Math.Clamp(Percent ?? 0, 0, 100)).ToString("0.0", CultureInfo.InvariantCulture);
+}

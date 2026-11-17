@@ -99,6 +99,13 @@ public sealed class GrafanaLokiClient : IDisposable
     public readonly record struct Result(int Written);
 
     private readonly HttpClient _http;
+    private long _bytesReceived;
+
+    /// <summary>
+    /// Bytes of response body read from Grafana so far, across all pages. These are the bytes of the JSON
+    /// that the proxy sends, so a compressed transfer counts once it is decompressed.
+    /// </summary>
+    public long BytesReceived => Interlocked.Read(ref _bytesReceived);
 
     /// <param name="handler">Test seam, like <c>UpdateChecker</c>. Null uses the default network stack.</param>
     public GrafanaLokiClient(HttpMessageHandler? handler = null)
@@ -258,8 +265,9 @@ public sealed class GrafanaLokiClient : IDisposable
             throw new InvalidDataException(DescribeFailure(response.StatusCode, body, credential));
         }
 
-        await using var stream = await response.Content.ReadAsStreamAsync(ct);
-        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+        await using var counted = new ByteCountingStream(
+            await response.Content.ReadAsStreamAsync(ct), n => Interlocked.Add(ref _bytesReceived, n));
+        using var doc = await JsonDocument.ParseAsync(counted, cancellationToken: ct);
         return ReadEntries(doc.RootElement);
     }
 
@@ -349,4 +357,45 @@ public sealed class GrafanaLokiClient : IDisposable
     private static long ToUnixNanoseconds(DateTimeOffset time) => time.ToUnixTimeMilliseconds() * 1_000_000L;
 
     public void Dispose() => _http.Dispose();
+}
+
+/// <summary>A read-only stream that reports how many bytes passed through it. Used to count what a download receives.</summary>
+internal sealed class ByteCountingStream(Stream inner, Action<long> onBytes) : Stream
+{
+    public override bool CanRead => inner.CanRead;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+
+    public override long Position
+    {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
+
+    public override void Flush() { }
+
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        var read = inner.Read(buffer, offset, count);
+        onBytes(read);
+        return read;
+    }
+
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        var read = await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+        onBytes(read);
+        return read;
+    }
+
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) inner.Dispose();
+        base.Dispose(disposing);
+    }
 }

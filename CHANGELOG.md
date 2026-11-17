@@ -42,6 +42,17 @@ _Nothing yet._
 - **Quick Start is a Markdown file, shown with a clickable contents menu.** The page renders `README-HOW-TO.md`
   (it was a plain-text file) and lists its sections on the left. The installation section now covers Setup,
   winget (not yet available), the portable ZIP, silent install and updates.
+- **Resources page.** The top bar's **Resources** link shows this computer (machine, operating system, processor,
+  memory, runtime, app version) and live CPU and memory use for the computer and for this app, refreshed every
+  2 seconds. The app figures cover this process only, not the WebView2 processes it hosts.
+- **The Resources page shows much more.** This computer: uptime, free and total space of the log drive, power
+  source and battery, and the network adapters that are up. Usage: CPU and memory charts for the last 4 minutes.
+  This app: garbage collector collections, pause time and allocations; the last load's source, duration, rows per
+  second and bytes read; the Grafana download's pages, lines, lines per second, bytes downloaded and download speed;
+  and the bytes received by the network listener.
+- **The Resources page shows the number of loaded log rows**, and whether a load is running.
+- **The Resources page's This app panel has a Live logs block**: the file watch and network listener states, the rows
+  each has read or received, and the datagrams ignored.
 - **The Changelog page opens on the latest release.** It skips `[Unreleased]` and selects the first version after it.
 - **The Quick Start install section names the portable version** ("Portable version (ZIP)") and says when to use it.
 - **Links to web pages in Quick Start and the Changelog are clickable.** They open in a new window, so the page

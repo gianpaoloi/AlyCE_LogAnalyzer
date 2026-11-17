@@ -1,0 +1,248 @@
+@page "/resources"
+@inherits ObservingComponentBase
+@implements IDisposable
+@inject LogStore Store
+@inject LogWatcher Watcher
+@inject NetworkLogListener Listener
+
+<PageTitle>Resources · AlyCE Log Analyzer</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H4">Resources</RadzenText>
+<RadzenText TextStyle="TextStyle.Body2" class="rz-mb-3 rz-color-muted">
+    This computer and this app. Live figures refresh every 2 seconds while the page is open; the charts show the last 4 minutes.
+</RadzenText>
+
+<div class="res-grid">
+    <RadzenCard Variant="Variant.Outlined">
+        <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2">This computer</RadzenText>
+        @if (_computer is not null && _snapshot is not null)
+        {
+            <div class="res-row"><span>Machine</span><span>@_computer.MachineName</span></div>
+            <div class="res-row"><span>Operating system</span><span>@_computer.OsDescription</span></div>
+            <div class="res-row"><span>Architecture</span><span>@_computer.Architecture</span></div>
+            <div class="res-row"><span>Processor</span><span>@_computer.Processor</span></div>
+            <div class="res-row"><span>Logical processors</span><span>@_computer.LogicalProcessors</span></div>
+            <div class="res-row"><span>Memory</span><span>@Format(_computer.TotalMemoryBytes) total</span></div>
+            <div class="res-row"><span>Runtime</span><span>@_computer.Runtime</span></div>
+            <div class="res-row"><span>App version</span><span>@_computer.AppVersion</span></div>
+            <div class="res-row"><span>Computer running for</span><span>@Duration(_snapshot.ComputerUptime)</span></div>
+            <div class="res-row">
+                <span>Disk of the loaded logs</span>
+                <span>@(_snapshot.Disk is { } disk ? $"{disk.Drive} {Format(disk.FreeBytes)} free of {Format(disk.TotalBytes)}" : "not available")</span>
+            </div>
+            <div class="res-row"><span>Power</span><span>@PowerText(_snapshot.Power)</span></div>
+
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3"><b>Network adapters (up)</b></RadzenText>
+            @if (_snapshot.Adapters.Count == 0)
+            {
+                <div class="res-row"><span>None</span><span>no adapter is up</span></div>
+            }
+            @foreach (var adapter in _snapshot.Adapters)
+            {
+                <div class="res-row">
+                    <span>@adapter.Name</span>
+                    <span>@(adapter.SpeedBitsPerSecond is long speed ? $"{speed / 1_000_000:N0} Mb/s" : "speed unknown")</span>
+                </div>
+            }
+        }
+    </RadzenCard>
+
+    <RadzenCard Variant="Variant.Outlined">
+        <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2">Computer usage</RadzenText>
+        @if (_snapshot is not null)
+        {
+            <Gauge Label="CPU" Percent="_snapshot.MachineCpuPercent" />
+            <Sparkline Label="Computer CPU" Values="HistoryOf(s => s.MachineCpuPercent)" />
+            <Gauge Label="Memory" Percent="MemoryPercent(_snapshot)"
+                   Detail="@($"{Format(_snapshot.MachineMemoryUsedBytes)} of {Format(_snapshot.MachineMemoryTotalBytes)}")" />
+            <Sparkline Label="Computer memory" Values="HistoryOf(s => (double?)MemoryPercent(s))" />
+        }
+    </RadzenCard>
+
+    <RadzenCard Variant="Variant.Outlined">
+        <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2">This app</RadzenText>
+        @if (_snapshot is not null)
+        {
+            <Gauge Label="CPU" Percent="_snapshot.AppCpuPercent" />
+            <Sparkline Label="App CPU" Values="HistoryOf(s => s.AppCpuPercent)" />
+            <Gauge Label="Memory (working set)" Percent="AppMemoryPercent(_snapshot)"
+                   Detail="@Format(_snapshot.AppWorkingSetBytes)" />
+            <Sparkline Label="App memory" Values="HistoryOf(s => (double?)AppMemoryPercent(s))" />
+            <div class="res-row"><span>Private memory</span><span>@Format(_snapshot.AppPrivateBytes)</span></div>
+            <div class="res-row"><span>Managed heap</span><span>@Format(_snapshot.ManagedHeapBytes)</span></div>
+            <div class="res-row"><span>Threads</span><span>@_snapshot.Threads</span></div>
+            <div class="res-row"><span>Handles</span><span>@_snapshot.Handles</span></div>
+            <div class="res-row"><span>Running for</span><span>@Duration(_snapshot.AppUptime)</span></div>
+
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3"><b>Garbage collector</b></RadzenText>
+            <div class="res-row"><span>Collections (gen 0 / 1 / 2)</span><span>@_snapshot.Gc.Gen0Collections.ToString("N0") / @_snapshot.Gc.Gen1Collections.ToString("N0") / @_snapshot.Gc.Gen2Collections.ToString("N0")</span></div>
+            <div class="res-row"><span>Time paused</span><span>@PauseText(_snapshot.Gc.TotalPause)</span></div>
+            <div class="res-row"><span>Allocated since start</span><span>@Format(_snapshot.Gc.TotalAllocatedBytes)</span></div>
+
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3"><b>Loaded logs</b></RadzenText>
+            <div class="res-row"><span>Rows loaded</span><span>@Store.Entries.Count.ToString("N0")</span></div>
+            <div class="res-row"><span>State</span><span>@(Store.IsLoading ? "loading" : Store.IsLoaded ? "loaded" : "nothing loaded")</span></div>
+            @if (Store.LastLoad is { } load)
+            {
+                <div class="res-row"><span>Last load</span><span>@load.Source</span></div>
+                <div class="res-row"><span>Started</span><span>@load.StartedUtc.ToLocalTime().ToString("HH:mm:ss")</span></div>
+                <div class="res-row"><span>Duration</span><span>@Duration(load.Duration)</span></div>
+                <div class="res-row"><span>Rows per second</span><span>@load.RowsPerSecond.ToString("N0")</span></div>
+                <div class="res-row"><span>Bytes read</span><span>@(load.Bytes is long bytes ? Format(bytes) : "not known")</span></div>
+                <div class="res-row"><span>Result</span><span>@(load.Succeeded ? "ok" : "failed or cancelled")</span></div>
+            }
+
+            @if (Store.Grafana is { } download)
+            {
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3"><b>Grafana download</b></RadzenText>
+                <div class="res-row"><span>State</span><span>@(download.EndedUtc is null ? "downloading" : $"finished at {download.EndedUtc.Value.ToLocalTime():HH:mm:ss}")</span></div>
+                <div class="res-row"><span>Pages</span><span>@download.Pages.ToString("N0")</span></div>
+                <div class="res-row"><span>Lines</span><span>@download.Lines.ToString("N0")</span></div>
+                <div class="res-row"><span>Lines per second</span><span>@download.LinesPerSecond(DateTime.UtcNow).ToString("N0")</span></div>
+                <div class="res-row"><span>Downloaded</span><span>@Format(download.Bytes)</span></div>
+                <div class="res-row"><span>Download speed</span><span>@Format((long)download.BytesPerSecond(DateTime.UtcNow))/s</span></div>
+            }
+
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3"><b>Live logs</b></RadzenText>
+            <div class="res-row"><span>File watch</span><span>@(Watcher.IsWatching ? $"watching {Watcher.WatchedFile}" : "off")</span></div>
+            <div class="res-row"><span>Rows read from the watched file</span><span>@Watcher.TotalEntries.ToString("N0")</span></div>
+            <div class="res-row"><span>Network listener</span><span>@(Listener.IsListening ? $"listening on {Listener.Endpoint}" : "off")</span></div>
+            <div class="res-row"><span>Rows received over the network</span><span>@Listener.TotalEntries.ToString("N0")</span></div>
+            <div class="res-row"><span>Bytes received over the network</span><span>@Format(Listener.TotalBytes)</span></div>
+            <div class="res-row"><span>Datagrams ignored</span><span>@Listener.Ignored.ToString("N0")</span></div>
+
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-mt-2 rz-color-muted"
+                        title="Only this app's own program is counted. The browser engine that draws its screens (Microsoft Edge WebView2) runs in separate msedgewebview2 processes. Task Manager lists those separately, and they are not included in these figures.">
+                Counts this process only. The web views it hosts run in separate processes that are not included.
+            </RadzenText>
+        }
+    </RadzenCard>
+</div>
+
+@code {
+    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(2);
+    private const int HistoryLength = 120; // 120 samples at 2 seconds: the last 4 minutes
+
+    private ComputerInfo? _computer;
+    private ResourceSnapshot? _snapshot;
+    private readonly List<ResourceSnapshot> _history = new();
+    private ResourceSampler? _sampler;
+    private CancellationTokenSource? _cts;
+
+    protected override void OnInitialized()
+    {
+        _computer = ResourceSampler.ReadComputerInfo();
+        _sampler = new ResourceSampler();
+        _snapshot = _sampler.Sample(Store.LoadedPath); // the baseline the first live reading is measured from
+        _history.Add(_snapshot);
+        _cts = new CancellationTokenSource();
+        _ = RunAsync(_sampler, _cts.Token);
+    }
+
+    private async Task RunAsync(ResourceSampler sampler, CancellationToken token)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(Interval);
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                var sample = sampler.Sample(Store.LoadedPath);
+                RequestRefresh(() =>
+                {
+                    _snapshot = sample;
+                    _history.Add(sample);
+                    if (_history.Count > HistoryLength) _history.RemoveAt(0);
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left.
+        }
+        finally
+        {
+            sampler.Dispose();
+        }
+    }
+
+    public void Dispose() => _cts?.Cancel();
+
+    private List<double?> HistoryOf(Func<ResourceSnapshot, double?> pick) => _history.Select(pick).ToList();
+
+    private static double MemoryPercent(ResourceSnapshot snapshot) =>
+        snapshot.MachineMemoryTotalBytes <= 0
+            ? 0
+            : Math.Clamp(snapshot.MachineMemoryUsedBytes * 100.0 / snapshot.MachineMemoryTotalBytes, 0, 100);
+
+    /// <summary>This app's working set as a share of the computer's total memory.</summary>
+    private static double AppMemoryPercent(ResourceSnapshot snapshot) =>
+        snapshot.MachineMemoryTotalBytes <= 0
+            ? 0
+            : Math.Clamp(snapshot.AppWorkingSetBytes * 100.0 / snapshot.MachineMemoryTotalBytes, 0, 100);
+
+    private static string PowerText(PowerSnapshot power)
+    {
+        var battery = power.BatteryPercent is int percent ? $", battery {percent} %" : "";
+        return power.OnBattery switch
+        {
+            true => "on battery" + battery,
+            false => "plugged in" + battery,
+            null => power.BatteryPercent is int only ? $"battery {only} %" : "not reported",
+        };
+    }
+
+    private static string PauseText(TimeSpan pause) =>
+        pause.TotalSeconds < 1 ? $"{pause.TotalMilliseconds:0} ms" : $"{pause.TotalSeconds:0.0} s";
+
+    private static string Format(long bytes) => bytes switch
+    {
+        >= 1L << 30 => $"{bytes / (double)(1L << 30):0.0} GB",
+        >= 1L << 20 => $"{bytes / (double)(1L << 20):0} MB",
+        >= 1L << 10 => $"{bytes / (double)(1L << 10):0} KB",
+        _ => $"{bytes} B",
+    };
+
+    private static string Duration(TimeSpan span) =>
+        span.TotalDays >= 1 ? $"{(int)span.TotalDays} d {span.Hours} h"
+        : span.TotalHours >= 1 ? $"{(int)span.TotalHours} h {span.Minutes} min"
+        : $"{(int)span.TotalMinutes} min {span.Seconds} s";
+}
+
+<style>
+    .res-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+        max-width: 80rem;
+    }
+
+    .res-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.25rem 0;
+        border-bottom: 1px solid rgba(127, 127, 127, 0.2);
+    }
+
+    .res-row > span:first-child { color: rgba(127, 127, 127, 0.9); }
+    .res-row > span:last-child { text-align: right; word-break: break-word; }
+
+    .res-gauge { margin: 0.5rem 0 0.25rem; }
+    .res-gauge-head { display: flex; justify-content: space-between; font-size: 0.9rem; }
+    .res-gauge-bar {
+        height: 10px;
+        border-radius: 5px;
+        background: rgba(127, 127, 127, 0.25);
+        overflow: hidden;
+        margin-top: 0.3rem;
+    }
+    .res-gauge-fill { height: 100%; background: var(--rz-primary, #7c5cff); transition: width 0.4s ease; }
+
+    .res-spark {
+        display: block;
+        width: 100%;
+        height: 40px;
+        margin: 0.2rem 0 0.6rem;
+        color: var(--rz-primary, #7c5cff);
+    }
+</style>

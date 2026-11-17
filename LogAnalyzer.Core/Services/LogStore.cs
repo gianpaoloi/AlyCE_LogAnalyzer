@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
 using LogAnalyzer.Models;
@@ -54,6 +55,12 @@ public sealed class LogStore
     public int FilesTotal => _filesTotal;
     public long EntriesParsed => Interlocked.Read(ref _entriesParsed);
     public string? LoadError { get; private set; }
+
+    /// <summary>The most recent load, successful or not. Null until one has run.</summary>
+    public LoadMetrics? LastLoad { get; private set; }
+
+    /// <summary>The most recent Grafana download, while it runs and after it ends. Null until one has run.</summary>
+    public GrafanaDownloadMetrics? Grafana { get; private set; }
 
     /// <summary>True while a running load can still be cancelled.</summary>
     public bool CanCancel => _loadCts is not null;
@@ -234,6 +241,10 @@ public sealed class LogStore
         _busyText = "Connecting to Grafana…";
         RaiseProgress(force: true);
 
+        var startedUtc = DateTime.UtcNow;
+        var stopwatch = Stopwatch.StartNew();
+        Grafana = new GrafanaDownloadMetrics(startedUtc, null, 0, 0, 0);
+
         // Each page is parsed as it arrives and the lines so far are published now and then, so the
         // Overview, Explorer and Triage show them while the rest of the range is still downloading.
         var label = query.Label;
@@ -242,9 +253,9 @@ public sealed class LogStore
         DateTime? newest = null;
         long lastPublish = 0;
 
+        using var loki = new GrafanaLokiClient();
         try
         {
-            using var loki = new GrafanaLokiClient();
             var result = await loki.DownloadAsync(query, credential, Stream.Null, DateTimeOffset.UtcNow, cts.Token,
                 onPage: written =>
                 {
@@ -252,6 +263,7 @@ public sealed class LogStore
                         ? $"Downloading from Grafana… {written:N0} lines, up to {reached:yyyy-MM-dd HH:mm:ss}"
                         : $"Downloading from Grafana… {written:N0} lines";
                     Interlocked.Exchange(ref _entriesParsed, entries.Count);
+                    Grafana = Grafana! with { Pages = Grafana.Pages + 1, Lines = written, Bytes = loki.BytesReceived };
                     RaiseProgress();
                 },
                 onLines: async lines =>
@@ -290,6 +302,10 @@ public sealed class LogStore
         _busyText = null;
         _filesProcessed = 1;
         await PublishStreamedAsync(entries, label);
+
+        var endedUtc = DateTime.UtcNow;
+        Grafana = Grafana! with { EndedUtc = endedUtc, Bytes = loki.BytesReceived };
+        LastLoad = new LoadMetrics($"Grafana: {label}", startedUtc, stopwatch.Elapsed, entries.Count, loki.BytesReceived, LoadError is null);
         ReleaseLoad(cts);
     }
 
@@ -513,6 +529,10 @@ public sealed class LogStore
         Interlocked.Exchange(ref _lastProgressAt, 0);
         RaiseProgress(force: true);
 
+        var startedUtc = DateTime.UtcNow;
+        var stopwatch = Stopwatch.StartNew();
+        var bytes = sources.Sum(s => s.SizeHint);
+
         try
         {
             var token = cts.Token;
@@ -548,6 +568,7 @@ public sealed class LogStore
         }
         finally
         {
+            LastLoad = new LoadMetrics(label, startedUtc, stopwatch.Elapsed, Entries.Count, bytes, LoadError is null);
             ReleaseLoad(cts);
         }
     }

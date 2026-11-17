@@ -80,6 +80,9 @@ public sealed class NetworkLogListener : IAsyncDisposable
     /// <summary>Datagrams received, whatever they turned out to contain.</summary>
     public long TotalDatagrams { get; private set; }
 
+    /// <summary>Bytes received in all datagrams since the listener started.</summary>
+    public long TotalBytes { get; private set; }
+
     /// <summary>
     /// Datagrams that yielded no event — something other than an NLogViewer target is pointed at the
     /// port, or a payload lost the piece carrying its opening tag. Surfaced in the UI because
@@ -113,6 +116,7 @@ public sealed class NetworkLogListener : IAsyncDisposable
         LastError = null;
         TotalEntries = 0;
         TotalDatagrams = 0;
+        TotalBytes = 0;
         Ignored = 0;
         var address = allInterfaces ? IPAddress.Any : IPAddress.Loopback;
         Endpoint = $"udp://{(allInterfaces ? "0.0.0.0" : "127.0.0.1")}:{port}";
@@ -231,6 +235,7 @@ public sealed class NetworkLogListener : IAsyncDisposable
                 }
 
                 TotalDatagrams++;
+                TotalBytes += received.Buffer.Length;
                 Consume(received.Buffer, Describe(received.RemoteEndPoint));
             }
         }
