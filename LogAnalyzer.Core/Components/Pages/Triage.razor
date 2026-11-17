@@ -9,7 +9,8 @@
 <RadzenText TextStyle="TextStyle.H4">Error &amp; warning triage</RadzenText>
 <LoadPanel />
 
-@if (Store.IsLoading)
+@* Until the first lines arrive only the progress shows; after that the lines streamed so far are shown while the load runs. *@
+@if (Store.IsLoading && !Store.IsLoaded)
 {
     <div class="load-busy-block"><LoadProgress /></div>
 }
@@ -19,6 +20,10 @@ else if (!Store.IsLoaded)
 }
 else
 {
+    @if (Store.IsLoading)
+    {
+        <div class="load-busy-block"><LoadProgress /></div>
+    }
     <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem" Wrap="FlexWrap.Wrap">
             <RadzenCheckBox @bind-Value="_showError" @bind-Value:after="Recompute" Name="err" />

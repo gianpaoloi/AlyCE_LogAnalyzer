@@ -28,6 +28,9 @@ public sealed class LogStore
     /// once per file, and triage re-clustered it. Only the counters changed.
     /// </summary>
     private const int ProgressThrottleMs = 250;
+
+    /// <summary>How often a Grafana download publishes the lines it has so far. Each publish rebuilds the stats and indexes.</summary>
+    private const int StreamPublishIntervalMs = 1500;
     private volatile LogDataset _data = LogDataset.Empty;
     private int _loading;                        // 0/1 via Interlocked: only one load at a time
     private CancellationTokenSource? _loadCts;
@@ -231,12 +234,13 @@ public sealed class LogStore
         _busyText = "Connecting to Grafana…";
         RaiseProgress(force: true);
 
-        // Each page is parsed as it arrives, so the progress text can show how far the download has
-        // reached. The entries are published once, when the download ends, as one complete dataset.
+        // Each page is parsed as it arrives and the lines so far are published now and then, so the
+        // Overview, Explorer and Triage show them while the rest of the range is still downloading.
         var label = query.Label;
         var parser = new LogParser();
         var entries = new List<LogEntry>();
         DateTime? newest = null;
+        long lastPublish = 0;
 
         try
         {
@@ -250,7 +254,7 @@ public sealed class LogStore
                     Interlocked.Exchange(ref _entriesParsed, entries.Count);
                     RaiseProgress();
                 },
-                onLines: lines =>
+                onLines: async lines =>
                 {
                     foreach (var line in lines)
                     {
@@ -261,7 +265,13 @@ public sealed class LogStore
                     }
 
                     if (entries.Count > 0) newest = entries[^1].Time;
-                    return Task.CompletedTask;
+
+                    var now = Environment.TickCount64;
+                    if (now - lastPublish >= StreamPublishIntervalMs)
+                    {
+                        lastPublish = now;
+                        await PublishStreamedAsync(entries, label);
+                    }
                 });
 
             if (result.Written == 0)

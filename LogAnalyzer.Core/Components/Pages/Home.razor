@@ -8,7 +8,8 @@
 <RadzenText TextStyle="TextStyle.H4">Overview</RadzenText>
 <LoadPanel />
 
-@if (Store.IsLoading)
+@* Until the first lines arrive only the progress shows; after that the lines streamed so far are shown while the load runs. *@
+@if (Store.IsLoading && !Store.IsLoaded)
 {
     <div class="load-busy-block"><LoadProgress /></div>
 }
@@ -18,6 +19,10 @@ else if (!Store.IsLoaded)
 }
 else
 {
+    @if (Store.IsLoading)
+    {
+        <div class="load-busy-block"><LoadProgress /></div>
+    }
     var s = Store.Stats!;
     <RadzenRow Gap="1rem" class="rz-mb-3">
         <RadzenColumn Size="6" SizeMD="2">@StatCard("Entries", s.TotalEntries, null)</RadzenColumn>
