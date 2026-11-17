@@ -14,8 +14,9 @@ public sealed record GrafanaSignIn(string BaseUrl, string DatasourceUid, string?
 
 /// <summary>
 /// Grafana import presets and the remembered sign-in, kept in the browser's localStorage like
-/// <see cref="PathHistory"/> so they survive a restart. The sign-in is stored in plain text in this
-/// user's profile, so the dialog only saves it when the user ticks "Remember sign-in".
+/// <see cref="PathHistory"/> so they survive a restart. The token and cookie are encrypted with an
+/// <see cref="ISecretProtector"/> before they are stored, and the dialog only saves them when the user
+/// ticks "Remember sign-in".
 /// </summary>
 public sealed class GrafanaPresetStore
 {
@@ -25,8 +26,13 @@ public sealed class GrafanaPresetStore
     private const string LastLinkKey = "alyce.grafanaLastLink";
 
     private readonly IJSRuntime _js;
+    private readonly ISecretProtector _protector;
 
-    public GrafanaPresetStore(IJSRuntime js) => _js = js;
+    public GrafanaPresetStore(IJSRuntime js, ISecretProtector protector)
+    {
+        _js = js;
+        _protector = protector;
+    }
 
     /// <summary>Presets sorted by name. Empty when nothing is stored yet or storage is unavailable.</summary>
     public async Task<List<GrafanaPreset>> GetAsync()
@@ -80,7 +86,18 @@ public sealed class GrafanaPresetStore
         try
         {
             var stored = await _js.InvokeAsync<string[]>("pathHistoryLoad", SignInKey);
-            return stored.Length == 0 ? null : JsonSerializer.Deserialize<GrafanaSignIn>(stored[0]);
+            if (stored.Length == 0) return null;
+
+            var read = GrafanaSignInCodec.Open(stored[0], _protector);
+            if (read is null) return null;
+
+            if (read.Legacy)
+            {
+                // Saved in plain text before encryption: store it again encrypted, or forget it if that fails.
+                if (!await SaveSignInAsync(read.SignIn)) await ForgetSignInAsync();
+            }
+
+            return read.SignIn;
         }
         catch
         {
@@ -89,10 +106,17 @@ public sealed class GrafanaPresetStore
         }
     }
 
-    public Task SaveSignInAsync(GrafanaSignIn signIn) =>
-        WriteRawAsync(SignInKey, new[] { JsonSerializer.Serialize(signIn) });
+    /// <summary>
+    /// Stores the sign-in with its secrets encrypted. Returns false, and stores nothing, when they cannot
+    /// be encrypted or the browser refuses the write.
+    /// </summary>
+    public async Task<bool> SaveSignInAsync(GrafanaSignIn signIn)
+    {
+        var sealedJson = GrafanaSignInCodec.Seal(signIn, _protector);
+        return sealedJson is not null && await WriteRawAsync(SignInKey, new[] { sealedJson });
+    }
 
-    public Task ForgetSignInAsync() => WriteRawAsync(SignInKey, Array.Empty<string>());
+    public async Task ForgetSignInAsync() => await WriteRawAsync(SignInKey, Array.Empty<string>());
 
     /// <summary>The Grafana link pasted last, or null. A link holds no secret, so it is kept without the sign-in.</summary>
     public async Task<string?> GetLastLinkAsync()
@@ -108,17 +132,19 @@ public sealed class GrafanaPresetStore
         }
     }
 
-    public Task SaveLastLinkAsync(string link) => WriteRawAsync(LastLinkKey, new[] { link.Trim() });
+    public async Task SaveLastLinkAsync(string link) => await WriteRawAsync(LastLinkKey, new[] { link.Trim() });
 
-    private async Task WriteRawAsync(string key, string[] values)
+    private async Task<bool> WriteRawAsync(string key, string[] values)
     {
         try
         {
             await _js.InvokeVoidAsync("pathHistorySave", key, values);
+            return true;
         }
         catch
         {
             // Failing to remember must not block the import the user asked for.
+            return false;
         }
     }
 

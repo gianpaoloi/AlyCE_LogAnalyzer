@@ -32,12 +32,16 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ### Changed
 
-- **The Grafana import's Query and Connection sections collapse.** Both start collapsed. **Load** fills the
-  fields from the pasted link and opens them.
+- **The Grafana import's Query, Connection and Presets sections collapse.** All start collapsed. **Load** fills
+  the fields from the pasted link and opens Query and Connection; Presets stays as you left it.
 - **No 250,000-line limit on Grafana imports.** A runaway query stops at 5,000,000 lines, a safeguard rather
   than a normal limit.
-- **Corrects 1.2.5:** the cookie and token are not "never saved". They are saved in plain text on this
-  computer when **Remember sign-in on this computer** is ticked, and **Forget sign-in** removes them.
+- **The remembered token and cookie are encrypted.** With **Remember sign-in on this computer** ticked, the
+  desktop app encrypts them for the current Windows account (DPAPI), and the web app encrypts them with the
+  server's keys. A sign-in saved before this change is encrypted the next time it is read. If the keys
+  change, the import asks for the sign-in again.
+- **Corrects 1.2.5:** the cookie and token were not "never saved". Version 1.2.5 kept them in plain text when
+  **Remember sign-in on this computer** was ticked. They are now encrypted, and **Forget sign-in** removes them.
 
 ### Fixed
 

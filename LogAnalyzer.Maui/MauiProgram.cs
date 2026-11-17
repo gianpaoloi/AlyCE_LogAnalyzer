@@ -39,6 +39,8 @@ public static class MauiProgram
 			builder.Services.AddScoped<PathHistory>();
 				// Saved Grafana import presets (same localStorage mechanism).
 				builder.Services.AddScoped<GrafanaPresetStore>();
+				// Encrypts the remembered Grafana token and cookie for this Windows account (DPAPI).
+				builder.Services.AddSingleton<ISecretProtector, DpapiSecretProtector>();
 
 			// Update check against this project's GitHub releases.
 			//

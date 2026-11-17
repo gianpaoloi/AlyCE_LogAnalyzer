@@ -1,9 +1,11 @@
 @* Loads a Grafana Cloud Loki query. The quickest way in is to paste the Explore link from the browser:
    it sets the address, datasource, team / service_name / environment and time window. Authentication is
    either a service account token or the grafana_session cookie of the browser session (SSO-friendly).
-   Presets keep the selectors and window under a name. Secrets are used for this dialog only and never saved. *@
+   Presets keep the selectors and window under a name. The secrets are kept only when "Remember sign-in" is
+   ticked, and then encrypted before they are stored. *@
 @inject DialogService DialogService
 @inject GrafanaPresetStore Presets
+@inject NotificationService Notifications
 
 <RadzenStack Gap="0.9rem">
 
@@ -37,9 +39,13 @@
         </RadzenText>
     </RadzenStack>
 
-    @* 2. Presets. *@
+    @* 2. Presets. Collapsed by default; Load does not open it. *@
     <RadzenStack Gap="0.4rem">
-        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b>Presets</b></RadzenText>
+        <RadzenButton Text="Presets" Icon="@(_presetsOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
+                      Variant="Variant.Text" Size="ButtonSize.Small" Click="TogglePresets" class="rz-p-0"
+                      style="align-self:flex-start; font-weight:600" title="Show or hide the saved presets" />
+        @if (_presetsOpen)
+        {
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
             <RadzenDropDown TValue="string" Data="@PresetNames" @bind-Value="_selectedPreset"
                             Placeholder="No presets saved yet" style="flex:1; min-width:200px" />
@@ -53,6 +59,7 @@
             <RadzenButton Text="Save as preset" Icon="bookmark_add" ButtonStyle="ButtonStyle.Secondary"
                           Variant="Variant.Outlined" Size="ButtonSize.Small" Click="SavePreset" />
         </RadzenStack>
+        }
     </RadzenStack>
 
     @* 3. The query. *@
@@ -165,7 +172,7 @@
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
             <RadzenCheckBox @bind-Value="_remember" Name="gfRemember" />
             <RadzenLabel Text="Remember sign-in on this computer" Component="gfRemember"
-                         title="Saved in this user's browser profile, in plain text. Untick to forget it after the import." />
+                         title="Saved on this computer, encrypted: for this Windows account in the desktop app, with the server's keys in the web app. Untick to forget it after the import." />
             <RadzenButton Text="Forget sign-in" Icon="delete_sweep" ButtonStyle="ButtonStyle.Danger"
                           Variant="Variant.Text" Size="ButtonSize.ExtraSmall" Click="ForgetSignIn" />
         </RadzenStack>
@@ -205,6 +212,9 @@
 
     private bool _connectionOpen;
     private bool _queryOpen;
+    private bool _presetsOpen;
+
+    private void TogglePresets() => _presetsOpen = !_presetsOpen;
 
     private void ToggleConnection() => _connectionOpen = !_connectionOpen;
 
@@ -552,7 +562,18 @@
 
         var credential = Credential();
         if (_remember)
-            await Presets.SaveSignInAsync(new GrafanaSignIn(_baseUrl.Trim(), _datasourceUid.Trim(), credential.Token, credential.SessionCookie, _useToken));
+        {
+            var saved = await Presets.SaveSignInAsync(new GrafanaSignIn(_baseUrl.Trim(), _datasourceUid.Trim(), credential.Token, credential.SessionCookie, _useToken));
+            // The import still runs; only the remembering is skipped.
+            if (!saved)
+                Notifications.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Warning,
+                    Summary = "Sign-in not remembered",
+                    Detail = "The sign-in could not be encrypted or stored on this computer, so it was not kept.",
+                    Duration = 6000,
+                });
+        }
         else
             await Presets.ForgetSignInAsync();
 

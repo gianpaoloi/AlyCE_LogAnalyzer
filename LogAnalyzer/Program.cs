@@ -33,6 +33,8 @@ builder.Services.AddScoped<SessionState>();
 builder.Services.AddScoped<PathHistory>();
 // Saved Grafana import presets (same localStorage mechanism).
 builder.Services.AddScoped<GrafanaPresetStore>();
+// Encrypts the remembered Grafana token and cookie before they reach the browser's storage.
+builder.Services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
 
 // Update check against this project's GitHub releases. Singleton so one server asks GitHub once per
 // interval rather than once per visitor — anonymous API calls are rate limited per IP address.

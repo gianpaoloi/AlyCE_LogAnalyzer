@@ -32,7 +32,7 @@ Instead of downloading an export, the analyzer can query Loki itself. Click **Gr
       (Ctrl+C). Copy only the value, not the name.
    6. In the dialog, click the **grafana_session cookie** box (it selects everything) and paste (Ctrl+V).
 3. **Import logs.** Press **Import logs**. Tick **Remember sign-in on this computer** to keep the cookie and the
-   datasource for next time. **Forget sign-in** removes them.
+   datasource for next time. The cookie or token is stored encrypted. **Forget sign-in** removes them.
 
 Notes:
 - The cookie is as sensitive as a password: anyone who has it can act as you in Grafana. Don't paste it into
