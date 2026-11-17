@@ -9,13 +9,26 @@
 
     @* 1. Paste the link. *@
     <RadzenStack Gap="0.4rem">
-        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b><a href="@ExploreHref()" target="_blank" rel="noopener noreferrer"
-                title="Open Grafana Explore in a new tab (the link in the box, if it is a web address)">Paste the Grafana link</a></b></RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+            <a href="@ExploreHref()" target="_blank" rel="noopener noreferrer" style="@LinkStyle"
+               title="Open Grafana Explore in a new tab (the link in the box, if it is a web address)">
+                <RadzenIcon Icon="content_paste" /><span>Paste the Grafana link</span>
+            </a>
+            @if (IsWebLink(_link))
+            {
+                <a href="@_link.Trim()" target="_blank" rel="noopener noreferrer" style="@LinkStyle"
+                   title="Open the pasted link in your browser">
+                    <RadzenIcon Icon="open_in_new" /><span>Open link</span>
+                </a>
+            }
+        </RadzenStack>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
-            <RadzenTextBox @bind-Value="_link" Change="ApplyLink" style="flex:1; min-width:240px"
-                           Placeholder="https://teamsystem.grafana.net/a/grafana-lokiexplore-app/explore/…"
-                           title="Copy the address bar of the Loki logs page and paste it here; press Enter to fill the fields" />
-            <RadzenButton Text="Load" Icon="input" ButtonStyle="ButtonStyle.Primary" Click="ApplyLink"
+            @* oninput keeps _link current on every keystroke, so the Open link appears as soon as a link is pasted. *@
+            <input type="text" class="rz-textbox" style="flex:1; min-width:240px" autocomplete="off"
+                   placeholder="https://teamsystem.grafana.net/a/grafana-lokiexplore-app/explore/…"
+                   title="Copy the address bar of the Loki logs page and paste it here; press Enter to fill the fields"
+                   @bind="_link" @bind:event="oninput" @onchange="ApplyLink" />
+            <RadzenButton Text="Load" Icon="input" ButtonStyle="ButtonStyle.Primary" Click="LoadClicked"
                           title="Fill the fields from the pasted link" />
         </RadzenStack>
         <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
@@ -44,7 +57,11 @@
 
     @* 3. The query. *@
     <RadzenStack Gap="0.4rem">
-        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b>Query</b></RadzenText>
+        <RadzenButton Text="Query" Icon="@(_queryOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
+                      Variant="Variant.Text" Size="ButtonSize.Small" Click="ToggleQuery" class="rz-p-0"
+                      style="align-self:flex-start; font-weight:600" title="Show or hide the query settings" />
+        @if (_queryOpen)
+        {
         <RadzenStack Orientation="Orientation.Horizontal" Gap="0.6rem" Wrap="FlexWrap.Wrap">
             <div style="flex:1 1 180px; min-width:150px">
                 <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">team</RadzenText>
@@ -101,11 +118,16 @@
             <RadzenButton Text="Add line filter" Icon="add" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
                           Size="ButtonSize.ExtraSmall" Click="AddLine" />
         </RadzenStack>
+        }
     </RadzenStack>
 
     @* 4. Where to connect. *@
     <RadzenStack Gap="0.4rem">
-        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0"><b>Connection</b></RadzenText>
+        <RadzenButton Text="Connection" Icon="@(_connectionOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
+                      Variant="Variant.Text" Size="ButtonSize.Small" Click="ToggleConnection" class="rz-p-0"
+                      style="align-self:flex-start; font-weight:600" title="Show or hide the connection settings" />
+        @if (_connectionOpen)
+        {
         <RadzenTextBox @bind-Value="_baseUrl" Placeholder="https://teamsystem.grafana.net" style="width:100%"
                        title="Grafana Cloud address" />
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
@@ -116,6 +138,7 @@
                           Size="ButtonSize.Small" Click="FindClicked" Disabled="@Credential().IsEmpty"
                           title="List the Loki datasources this sign-in can read" />
         </RadzenStack>
+        }
     </RadzenStack>
 
     @* 5. How to prove who you are: a token, or your signed-in browser session. *@
@@ -175,6 +198,25 @@
         new WindowOption("last 7 days", 10080),
         new WindowOption("last 30 days", 43200),
     };
+
+    /// <summary>Shared look of the two link labels above the box, so they read as one pair.</summary>
+    private const string LinkStyle =
+        "display:inline-flex; align-items:center; gap:0.3rem; white-space:nowrap; font-size:0.8rem; font-weight:600";
+
+    private bool _connectionOpen;
+    private bool _queryOpen;
+
+    private void ToggleConnection() => _connectionOpen = !_connectionOpen;
+
+    private void ToggleQuery() => _queryOpen = !_queryOpen;
+
+    /// <summary>Load fills the fields from the link and opens the Query and Connection sections to show them.</summary>
+    private async Task LoadClicked()
+    {
+        _connectionOpen = true;
+        _queryOpen = true;
+        await ApplyLink();
+    }
 
     private string _link = "";
     private string _baseUrl = "https://teamsystem.grafana.net";
@@ -305,13 +347,14 @@
     /// Where the "Paste the Grafana link" label goes: the web address in the box when it is one, otherwise
     /// the Explore page of the Grafana address in the Connection box.
     /// </summary>
+    /// <summary>True when the text is an http or https address, the only kind the Open link may use.</summary>
+    private static bool IsWebLink(string text) =>
+        Uri.TryCreate(text.Trim(), UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp);
+
     private string ExploreHref()
     {
-        if (Uri.TryCreate(_link.Trim(), UriKind.Absolute, out var typed) &&
-            (typed.Scheme == Uri.UriSchemeHttps || typed.Scheme == Uri.UriSchemeHttp))
-        {
-            return typed.AbsoluteUri;
-        }
+        if (IsWebLink(_link)) return _link.Trim();
 
         var address = ValidAddress() ? _baseUrl.Trim().TrimEnd('/') : "https://teamsystem.grafana.net";
         return address + "/a/grafana-lokiexplore-app/explore";

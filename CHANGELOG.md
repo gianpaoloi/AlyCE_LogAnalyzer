@@ -9,7 +9,43 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Grafana import shows lines while they download.** Overview, Explorer and Triage show the lines received
+  so far, refreshed about every 1.5 seconds. The progress line shows the line count and the time of the
+  newest line received. Cancel keeps the lines already loaded.
+- **Grafana import reads more of the Explore link.** The level filter, the field filter (for example `cid`)
+  and the line-text filter are read and sent with the query. Their values can be edited or removed in the
+  dialog, and rows can be added.
+- **Sign-in help.** A **?** button beside the sign-in box opens a popup with the steps to copy the
+  `grafana_session` cookie, or to create a service account token. It shows only the section for the
+  current mode.
+- **Choose the sign-in mode.** A selector switches between the `grafana_session` cookie and a service
+  account token. Only the box for the chosen mode is shown, and only its secret is used. The mode is
+  remembered with the sign-in.
+- **Open Grafana from the dialog.** The "Paste the Grafana link" label opens the Explore page: the link in
+  the box when it is a web address, otherwise the Explore page of the Grafana address. An **Open link**
+  button beside Load opens the pasted link in a new tab as soon as the box holds a web address.
+- **Remember the sign-in and the last link.** The Grafana address, datasource, sign-in and last pasted link
+  are kept between sessions when **Remember sign-in on this computer** is ticked. **Forget sign-in** removes
+  them.
+
+### Changed
+
+- **The Grafana import's Query and Connection sections collapse.** Both start collapsed. **Load** fills the
+  fields from the pasted link and opens them.
+- **No 250,000-line limit on Grafana imports.** A runaway query stops at 5,000,000 lines, a safeguard rather
+  than a normal limit.
+- **Corrects 1.2.5:** the cookie and token are not "never saved". They are saved in plain text on this
+  computer when **Remember sign-in on this computer** is ticked, and **Forget sign-in** removes them.
+
+### Fixed
+
+- **A `cid` filter written with the multi-value prefix is read.** Links that write the field filter as
+  `__CVΩ__{"parser":…}` no longer lose it.
+- **Clearer Grafana sign-in errors.** A 401 or 403 names the credential that was refused: the token or the
+  `grafana_session` cookie.
+- **Pasting a new cookie replaces the old one.** The cookie box selects its whole value when focused.
 
 ## [1.2.5] — 2026-11-05
 
