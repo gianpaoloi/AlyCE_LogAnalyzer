@@ -44,6 +44,7 @@ tag is collected under *Unreleased* until it is moved under a version heading.
   follows a link, which closed the page in the desktop window. Links in the text are plain text.
 - **The Grafana import remembers which sections are open.** Presets, Sign-in, Connection and Query reopen as
   you left them. Load still opens Query and Connection.
+- **The top bar's About link is GitHub.** It shows the GitHub mark and still opens the repository in a new window.
 - **No 250,000-line limit on Grafana imports.** A runaway query stops at 5,000,000 lines, a safeguard rather
   than a normal limit.
 - **The remembered token and cookie are encrypted.** With **Remember sign-in on this computer** ticked, the

@@ -182,9 +182,9 @@ Only one copy of the app can listen on a UDP port at a time. If the port is busy
 - Hide columns you do not need.
 - Filter to a smaller time range.
 
-## Version
+## About
 
-The version you are running is shown at the bottom of the navigation sidebar. Click it to copy the exact version and commit. Include it in any bug report.
+The version you are running is shown at the bottom of the navigation sidebar. Click it to copy the exact version and commit. Include it in any bug report, or using the "Feedback" link directly from the app.
 
 **Target platform:** Windows x64
 
