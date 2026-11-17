@@ -9,6 +9,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.2.6] — 2026-11-17
+
 ### Added
 
 - **Grafana import shows lines while they download.** Overview, Explorer and Triage show the lines received
