@@ -9,6 +9,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.2.7] — 2026-11-18
+
 ### Changed
 
 - **Grafana import: address and datasource on one line.** The Grafana address box and the Loki datasource list
