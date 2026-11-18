@@ -12,6 +12,7 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 ### Changed
 
 - **Quick Start is now called Quick Info** in the top bar, the page title and the Feedback page list. The web address is `/quick-info`.
+- **Quick Info lists every way to load logs**: folder path, drag and drop, Grafana `.json` export, Paste from the clipboard, Open with, Grafana Cloud, File Live Watch and Network Live Watch. The *Network Live Watch port in use* note moved under Troubleshooting.
 
 ### Added
 

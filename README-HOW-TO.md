@@ -74,8 +74,19 @@ The desktop app checks for a newer release when it starts. When one exists, an *
 ## Quick start
 
 1. Start the app from the Start menu, the desktop icon, or `Launch.bat`.
-2. Open the **Load files** panel, type a folder path (local or `\\server\share`) and press **Load**. You can also drag `.log` files or a ZIP onto the drop zone, or click it to pick them.
+2. Load logs in one of the ways below. The file-based ways use the **Load files** panel.
 3. Read the result on **Overview**, then use **Explorer** for every line and **Triage** for grouped errors and warnings.
+
+### Ways to load logs
+
+- **Folder or file path:** type a folder path (local or `\\server\share`) and press **Load**. Click the empty path box to pick a folder you used before.
+- **Drag and drop, or pick:** drag `.log` files or a ZIP onto the drop zone, or click it to choose them.
+- **Grafana `.json` export:** in Grafana, use **Download logs** on the Logs page to save a `.json` file. Drag it onto the drop zone, or pick it the same way. It is read like a `.log` file, and `.log`, `.zip` and `.json` files can be loaded together.
+- **Paste from the clipboard:** copy lines from another program, then press **Paste** in the panel, or press Ctrl+V anywhere on the page. The pasted lines load as one log.
+- **Open with:** with the Setup install, right-click a `.log` file in Explorer and choose **Open with AlyCE Log Analyzer**.
+- **Grafana Cloud:** import the logs from a Loki page, with its filters and time range. The Grafana Cloud import section below explains the steps.
+- **A file that is still growing:** **File Live Watch** follows it as new lines are written. The pages section below describes it.
+- **Events sent over the network:** **Network Live Watch** receives NLog events with no file at all. The pages section below shows how to set it up.
 
 ## The pages
 
@@ -153,10 +164,6 @@ Overview, Explorer and Triage can load logs straight from Grafana Cloud Loki.
 
 To keep the sign-in for next time, tick **Remember sign-in on this computer**. The token or cookie is stored encrypted: for this Windows account in the desktop app, or with the server's keys in the web app. **Forget sign-in** removes it. Treat the cookie or token like a password, and use **Forget sign-in** on a shared computer.
 
-## Network Live Watch port in use
-
-Only one copy of the app can listen on a UDP port at a time. If the port is busy, choose another port or close the other copy.
-
 ## Troubleshooting
 
 ### The application does not start
@@ -183,6 +190,10 @@ Only one copy of the app can listen on a UDP port at a time. If the port is busy
 - Close other applications to free memory.
 - Hide columns you do not need.
 - Filter to a smaller time range.
+
+### Network Live Watch port in use
+
+Only one copy of the app can listen on a UDP port at a time. If the port is busy, choose another port or close the other copy.
 
 ## About
 
