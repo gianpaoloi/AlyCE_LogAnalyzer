@@ -323,7 +323,7 @@ jobs:
           $notes.Add("")
           $notes.Add("| File | Use it when |")
           $notes.Add("|------|-------------|")
-          $notes.Add("| ``AlyCE-LogAnalyzer-Setup-$version.exe`` | **Recommended.** Installs per-user (no admin rights), adds Start-menu entries, and installs the WebView2 runtime if it is missing. |")
+          $notes.Add("| ``AlyCE-LogAnalyzer-Setup-$version.exe`` | **Recommended.** Installs per-user (no admin rights), adds Start-menu entries, installs the WebView2 runtime if it is missing, and updates itself: the app checks for new releases and installs them with one click. |")
           $notes.Add("| ``$zipName`` | Portable - extract anywhere and run ``Launch.bat``. Nothing is installed and nothing is written to the registry. Needs the WebView2 runtime to be present already. |")
           $notes.Add("")
           $notes.Add("Both contain the same self-contained build; no .NET runtime is required.")

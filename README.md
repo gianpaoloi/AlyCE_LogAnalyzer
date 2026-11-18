@@ -193,7 +193,7 @@ self-contained build — no .NET runtime is required either way.
 
 | Download | Use it when |
 |---|---|
-| `AlyCE-LogAnalyzer-Setup-{version}.exe` | **Recommended.** Installs per-user (no admin rights), adds Start-menu entries, and installs the WebView2 runtime if it is missing. |
+| `AlyCE-LogAnalyzer-Setup-{version}.exe` | **Recommended.** Installs per-user (no admin rights), adds Start-menu entries, installs the WebView2 runtime if it is missing, and updates itself: the app checks for new releases and installs them with one click. |
 | `AlyCE-LogAnalyzer-{version}-win-x64.zip` | Portable / redistributable. Extract anywhere and run `Launch.bat`. Nothing is installed and nothing is written to the registry — handy for a locked-down machine, a network share or a USB stick. Requires the WebView2 runtime to be present already (see [System Requirements](#system-requirements)). |
 
 The ZIP extracts to a single folder:

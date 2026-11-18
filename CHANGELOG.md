@@ -15,6 +15,8 @@ _Nothing yet._
 
 ### Changed
 
+- **Setup download described as self-updating.** The README download table and the release-notes table now say
+  the Setup install updates itself, as the Updates section of Quick Info already describes.
 - **Grafana import: address and datasource on one line.** The Grafana address box and the Loki datasource list
   with **Find** now sit on the same row in the Connection section.
 - **Quick Start is now called Quick Info** in the top bar, the page title and the Feedback page list. The web address is `/quick-info`.
