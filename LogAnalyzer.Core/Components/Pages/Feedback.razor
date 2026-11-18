@@ -1,5 +1,8 @@
 @page "/feedback"
 @inject UpdateChecker Updates
+@inject LogStore Store
+@inject LogWatcher Watcher
+@inject NetworkLogListener Listener
 
 <PageTitle>Feedback · AlyCE Log Analyzer</PageTitle>
 
@@ -61,6 +64,17 @@
             </RadzenText>
         }
 
+        <RadzenCheckBox Value="_includeResources" TValue="bool" Name="resources" Change="OnResourcesToggled" />
+        <RadzenLabel Text="Include resources information (this computer, this app and the loaded logs)" Component="resources" />
+        @if (_includeResources)
+        {
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-m-0">
+                @(_resourcesText is null
+                    ? "Measuring for one second…"
+                    : $"Captured at {_capturedAt:HH:mm:ss}: the same figures as the Resources page, with the computer name, file names, paths and network address left out.")
+            </RadzenText>
+        }
+
         <div class="feedback-actions">
             @* An anchor rather than a button: the WebView hands a target="_blank" link to the system
                browser, which is how the About link leaves the app too. Without a title there is
@@ -118,7 +132,7 @@
     private static readonly string[] Pages =
     [
         "Overview", "Explorer", "Triage", "File Live Watch", "Network Live Watch",
-        "Quick Start", "Feedback", "Not sure",
+        "Quick Info", "Feedback", "Not sure",
     ];
 
     private static readonly string[] Inputs =
@@ -158,8 +172,35 @@
     private string? _actual;
     private string? _frequency;
     private bool _includeEnvironment = true;
+    private bool _includeResources;
+    private string? _resourcesText;
+    private DateTime _capturedAt;
 
     private bool _canSubmit => !string.IsNullOrWhiteSpace(_title);
+
+    /// <summary>Ticking the box measures the figures once; the link carries that reading.</summary>
+    private async Task OnResourcesToggled(bool value)
+    {
+        _includeResources = value;
+        _resourcesText = null;
+        if (!value) return;
+
+        _resourcesText = await CaptureResourcesAsync();
+        _capturedAt = DateTime.Now;
+        StateHasChanged();
+    }
+
+    private async Task<string> CaptureResourcesAsync()
+    {
+        // CPU figures need two readings, so take a baseline, wait a second and read again.
+        using var sampler = new ResourceSampler();
+        sampler.Sample();
+        await Task.Delay(TimeSpan.FromSeconds(1));
+        var snapshot = sampler.Sample(Store.LoadedPath);
+
+        var input = ResourceReport.Input(ResourceSampler.ReadComputerInfo(), snapshot, Store, Watcher, Listener);
+        return ResourceReport.ToMarkdown(ResourceReport.Panels(input, locations: false));
+    }
 
     private string _environmentLabel => _kind == IssueKind.Bug
         ? $"Include my machine details (app {AppVersion.Display}, Windows, runtime) so the problem can be reproduced"
@@ -175,9 +216,19 @@
 
     // A bug always carries the app version, even with the machine details unticked: without it no
     // maintainer can tell which build the report is about.
-    private string _issueFooter => _kind == IssueKind.Bug
-        ? IssueLink.Footer(MachineInfo.Describe(AppVersion.Full, includeMachine: _includeEnvironment))
-        : (_includeEnvironment ? IssueLink.Footer($"AlyCE Log Analyzer {AppVersion.Full}") : string.Empty);
+    private string _issueFooter
+    {
+        get
+        {
+            var footer = _kind == IssueKind.Bug
+                ? IssueLink.Footer(MachineInfo.Describe(AppVersion.Full, includeMachine: _includeEnvironment))
+                : (_includeEnvironment ? IssueLink.Footer($"AlyCE Log Analyzer {AppVersion.Full}") : string.Empty);
+
+            if (_includeResources && _resourcesText is not null)
+                footer += IssueLink.Footer(_resourcesText);
+            return footer;
+        }
+    }
 
     private string _issueUrl => IssueLink.Build(
         Updates.Options.Repository, _kind, _title, _issueText, _issueFooter);

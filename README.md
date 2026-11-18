@@ -132,9 +132,9 @@ beside the box explains where to find either, and a selector shows only the box 
 Windows account, and **Forget sign-in** removes it. Saved presets, the last link and which dialog sections
 were open are remembered too.
 
-### Built-in Quick Start
+### Built-in Quick Info
 
-![The Quick Start page: in-app documentation of the log format and the workflow](docs/screenshots/05-quick-start.png)
+![The Quick Info page: in-app documentation of the log format and the workflow](docs/screenshots/05-quick-start.png)
 
 The app documents itself — the log format it expects, the installation methods and the usual workflow — so
 the README is not the only copy of that information. The page is a Markdown document with a clickable contents

@@ -1,7 +1,7 @@
 @using System.Globalization
 
 @* A labelled bar for a percentage. Shows "measuring…" until a percentage is known. *@
-<div class="res-gauge">
+<div class="res-gauge" title="@Help">
     <div class="res-gauge-head">
         <span>@Label</span>
         <span>@Text</span>
@@ -22,6 +22,9 @@
 
     /// <summary>Optional text under the bar, for example "3.1 GB of 16.0 GB".</summary>
     [Parameter] public string? Detail { get; set; }
+
+    /// <summary>The tooltip that explains the figure.</summary>
+    [Parameter] public string? Help { get; set; }
 
     private string Text => Percent is double p ? $"{p.ToString("0", CultureInfo.InvariantCulture)} %" : "measuring…";
 

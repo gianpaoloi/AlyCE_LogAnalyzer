@@ -17,8 +17,8 @@ public sealed record DiskSnapshot(string Drive, long FreeBytes, long TotalBytes)
 /// <summary>Power source. Null fields mean the machine does not report them (a desktop has no battery).</summary>
 public sealed record PowerSnapshot(bool? OnBattery, int? BatteryPercent);
 
-/// <summary>A network adapter that is up. <see cref="SpeedBitsPerSecond"/> is null when the adapter does not report it.</summary>
-public sealed record AdapterSnapshot(string Name, long? SpeedBitsPerSecond);
+/// <summary>A network adapter, up or down. <see cref="SpeedBitsPerSecond"/> is null when the adapter does not report it.</summary>
+public sealed record AdapterSnapshot(string Name, bool IsUp, long? SpeedBitsPerSecond);
 
 /// <summary>The garbage collector's work since this app started.</summary>
 public sealed record GcSnapshot(int Gen0Collections, int Gen1Collections, int Gen2Collections, TimeSpan TotalPause, long TotalAllocatedBytes);
@@ -136,18 +136,18 @@ public sealed class ResourceSampler : IDisposable
         }
     }
 
+    /// <summary>Every network connection except loopback and tunnels, with whether it is up and its reported speed.</summary>
     private static IReadOnlyList<AdapterSnapshot> ReadAdapters()
     {
         try
         {
             return NetworkInterface.GetAllNetworkInterfaces()
-                .Where(n => n.OperationalStatus == OperationalStatus.Up
-                            && n.NetworkInterfaceType != NetworkInterfaceType.Loopback
+                .Where(n => n.NetworkInterfaceType != NetworkInterfaceType.Loopback
                             && n.NetworkInterfaceType != NetworkInterfaceType.Tunnel)
                 .Select(n =>
                 {
                     long? speed = n.Speed > 0 ? n.Speed : null;
-                    return new AdapterSnapshot(n.Name, speed);
+                    return new AdapterSnapshot(n.Name, n.OperationalStatus == OperationalStatus.Up, speed);
                 })
                 .ToList();
         }

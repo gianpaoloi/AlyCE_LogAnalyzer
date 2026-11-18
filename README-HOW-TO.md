@@ -1,4 +1,4 @@
-# AlyCE Log Analyzer — Quick Start
+# AlyCE Log Analyzer — Quick Info
 
 Read, filter and tail structured application logs on Windows. This page is also shipped in the portable ZIP as `README.txt`.
 

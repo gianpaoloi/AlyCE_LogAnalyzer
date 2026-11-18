@@ -3,6 +3,10 @@
 
 @* A small line chart of recent values. Missing values (null) leave a gap. *@
 <svg class="res-spark" viewBox="0 0 @Width @Height" preserveAspectRatio="none" role="img" aria-label="@Label trend">
+    @if (Help is not null)
+    {
+        <title>@Help</title>
+    }
     @if (Points.Length > 0)
     {
         <polyline fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke" points="@Points" />
@@ -19,6 +23,9 @@
     [Parameter] public double Max { get; set; } = 100;
 
     [Parameter] public string Label { get; set; } = "";
+
+    /// <summary>The tooltip that explains the chart.</summary>
+    [Parameter] public string? Help { get; set; }
 
     private string Points
     {

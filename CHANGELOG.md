@@ -9,7 +9,20 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Quick Start is now called Quick Info** in the top bar, the page title and the Feedback page list. The web address is `/quick-info`.
+
+### Added
+
+- **Resources: a collapsible "Other network adapters" panel.** Under *This computer*, a collapsed panel lists
+  every network connection (up or down) that does not report a link speed. These connections are kept out of the
+  *Network adapters (up)* list, which now shows only up connections with a known speed.
+- **Resources: a tooltip on every field.** Hover over a label, a gauge or a chart to read what it measures.
+- **Resources: Copy on each panel.** The Copy button on *This computer*, *Computer usage* and *This app* puts the
+  panel's figures on the clipboard as text, including the computer name and file paths.
+- **Feedback: Include resources information.** A new checkbox adds the Resources figures to the issue text. It
+  leaves out the computer name, file names, paths and the network address, and it is measured when you tick it.
 
 ## [1.2.6] — 2026-11-17
 
