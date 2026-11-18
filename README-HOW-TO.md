@@ -158,7 +158,7 @@ Use **Download** to export the filtered results as CSV or as the original `.log`
 Overview, Explorer and Triage can load logs straight from Grafana Cloud Loki.
 
 1. Open the Loki logs page in your browser and copy its address.
-2. In the import dialog, paste the address into the link box, or use **Paste the Grafana link** to open the page. Press **Load** to fill the team, service, environment, filters and time range from the link.
+2. In the import dialog, paste the address into the link box, or press **Paste link** to read it from the clipboard. **Open link** opens the pasted link in a new tab, or the Grafana Explore page when the box is empty. Press **Load** to fill the team, service, environment, filters and time range from the link.
 3. Choose a sign-in: the `grafana_session` cookie of your browser session, or a service account token. Click **?** beside the box for where to find either.
 4. Press **Import logs**. Lines appear while they download, and **Cancel** keeps the lines loaded so far.
 

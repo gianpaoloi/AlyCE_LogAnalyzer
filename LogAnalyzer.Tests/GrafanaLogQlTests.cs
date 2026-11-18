@@ -40,6 +40,21 @@ public class GrafanaLogQlTests
     }
 
     [Fact]
+    public void A_does_not_contain_line_filter_uses_not_equal_or_not_regex()
+    {
+        var query = Query(lines: new[]
+        {
+            new LokiLineFilter("This should NEVER happen", Exclude: true),
+            new LokiLineFilter("ERRCHECK", CaseInsensitive: true, Exclude: true),
+        });
+
+        var logql = GrafanaLokiClient.BuildQuery(query);
+
+        Assert.Contains(" != \"This should NEVER happen\"", logql);
+        Assert.Contains(" !~ \"(?i)ERRCHECK\"", logql);
+    }
+
+    [Fact]
     public void A_field_name_that_is_not_a_label_is_refused()
     {
         var query = Query(fields: new[] { new LokiFieldMatch("bad name\" | x", "1") });

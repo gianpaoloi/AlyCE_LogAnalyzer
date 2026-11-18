@@ -74,7 +74,7 @@ public static partial class GrafanaExploreLinkParser
         foreach (var filter in filters)
         {
             var parts = filter.Split('|', 3);
-            if (parts.Length != 3 || parts[0] != label) continue;
+            if (parts.Length != 3 || parts[0] != label || !IsPositiveOperator(parts[1])) continue;
 
             var value = parts[2];
             if (value.StartsWith(MultiValuePrefix, StringComparison.Ordinal))
@@ -86,6 +86,13 @@ public static partial class GrafanaExploreLinkParser
 
         return null;
     }
+
+    /// <summary>
+    /// Label filters the stream selector can express: equal, or regex match (a single value, or a
+    /// multi-value list, is read as its first value). "Not equal" is skipped rather than guessed.
+    /// </summary>
+    private static bool IsPositiveOperator(string op) =>
+        op.Replace("__gfp__", "") is "=" or "=~";
 
     /// <summary>
     /// Single-value filters (<c>name|=|value</c>) from the level and field pickers, e.g.
@@ -125,17 +132,23 @@ public static partial class GrafanaExploreLinkParser
         return text.Split(',').Select(v => v.Trim()).FirstOrDefault(v => v.Length > 0) ?? "";
     }
 
-    /// <summary>Line text filters (<c>flags|=|text</c>). A "caseInsensitive" flag makes the match ignore case.</summary>
+    /// <summary>
+    /// Line text filters (<c>flags|=|text</c> to keep lines containing the text, <c>flags|!=|text</c> to drop
+    /// them). A "caseInsensitive" flag makes the match ignore case.
+    /// </summary>
     private static List<LokiLineFilter> LineFilters(IEnumerable<(string Key, string Value)> pairs)
     {
         var filters = new List<LokiLineFilter>();
         foreach (var (_, filter) in pairs.Where(p => p.Key == "var-lineFilters"))
         {
             var parts = filter.Split('|', 3);
-            if (parts.Length != 3 || parts[1].Replace("__gfp__", "") != "=" || parts[2].Length == 0) continue;
+            if (parts.Length != 3 || parts[2].Length == 0) continue;
+
+            var op = parts[1].Replace("__gfp__", "");
+            if (op is not ("=" or "!=")) continue;
 
             var caseInsensitive = parts[0].Split(',').Contains("caseInsensitive");
-            filters.Add(new LokiLineFilter(parts[2], caseInsensitive));
+            filters.Add(new LokiLineFilter(parts[2], caseInsensitive, Exclude: op == "!="));
         }
 
         return filters;

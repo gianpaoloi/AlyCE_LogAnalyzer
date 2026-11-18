@@ -41,8 +41,11 @@ public sealed record LokiQuery(
 /// </summary>
 public sealed record LokiFieldMatch(string Name, string Value);
 
-/// <summary>A line filter: the log line must contain <see cref="Text"/> (in any case when asked).</summary>
-public sealed record LokiLineFilter(string Text, bool CaseInsensitive = false);
+/// <summary>
+/// A line filter: the log line must contain <see cref="Text"/> (in any case when asked). When
+/// <see cref="Exclude"/> is set the line must not contain it, as with Grafana's "!=" line filter.
+/// </summary>
+public sealed record LokiLineFilter(string Text, bool CaseInsensitive = false, bool Exclude = false);
 
 /// <summary>A Loki datasource the token can see: its uid (used in the proxy URL) and display name.</summary>
 public sealed record LokiDatasource(string Uid, string Name);
@@ -148,7 +151,14 @@ public sealed class GrafanaLokiClient : IDisposable
         foreach (var filter in query.LineFilters ?? Array.Empty<LokiLineFilter>())
         {
             var text = filter.CaseInsensitive ? "(?i)" + Regex.Escape(filter.Text) : filter.Text;
-            logql.Append(filter.CaseInsensitive ? " |~ \"" : " |= \"").Append(EscapeLogQl(text)).Append('"');
+            var op = (filter.Exclude, filter.CaseInsensitive) switch
+            {
+                (false, false) => " |= \"",
+                (false, true) => " |~ \"",
+                (true, false) => " != \"",
+                (true, true) => " !~ \"",
+            };
+            logql.Append(op).Append(EscapeLogQl(text)).Append('"');
         }
 
         if (query.Fields is { Count: > 0 } fields)

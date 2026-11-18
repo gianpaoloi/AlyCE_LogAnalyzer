@@ -6,26 +6,24 @@
 @inject DialogService DialogService
 @inject GrafanaPresetStore Presets
 @inject NotificationService Notifications
+@inject IJSRuntime JS
 
 <RadzenStack Gap="0.9rem">
 
     @* 1. Paste the link. *@
     <RadzenStack Gap="0.4rem">
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
-            <a href="@ExploreHref()" target="_blank" rel="noopener noreferrer" style="@LinkStyle"
-               title="Open Grafana Explore in a new tab (the link in the box, if it is a web address)">
-                <RadzenIcon Icon="content_paste" /><span>Paste the Grafana link</span>
+            <a href="#" @onclick="PasteLink" @onclick:preventDefault style="@LinkStyle"
+               title="Read the link from the clipboard into the box and fill the fields from it">
+                <RadzenIcon Icon="content_paste" /><span>Paste link</span>
             </a>
-            @if (IsWebLink(_link))
-            {
-                <a href="@_link.Trim()" target="_blank" rel="noopener noreferrer" style="@LinkStyle"
-                   title="Open the pasted link in your browser">
-                    <RadzenIcon Icon="open_in_new" /><span>Open link</span>
-                </a>
-            }
+            <a href="@ExploreHref()" target="_blank" rel="noopener noreferrer" style="@LinkStyle"
+               title="@(IsWebLink(_link) ? "Open the pasted link in a new tab" : "Open Grafana Explore in a new tab (paste a link to open that page instead)")">
+                <RadzenIcon Icon="open_in_new" /><span>Open link</span>
+            </a>
         </RadzenStack>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
-            @* oninput keeps _link current on every keystroke, so the Open link appears as soon as a link is pasted. *@
+            @* oninput keeps _link current on every keystroke, so Open link opens what is pasted. *@
             <input type="text" class="rz-textbox" style="flex:1; min-width:240px" autocomplete="off"
                    placeholder="https://teamsystem.grafana.net/a/grafana-lokiexplore-app/explore/…"
                    title="Copy the address bar of the Loki logs page and paste it here; press Enter to fill the fields"
@@ -96,7 +94,11 @@
                              Component="gfLinkRange" />
             </RadzenStack>
         }
-        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted mono">@QueryPreview</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Gap="0.4rem">
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted mono" style="flex:1; word-break:break-all">@QueryPreview</RadzenText>
+            <RadzenButton Icon="content_copy" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Size="ButtonSize.Small"
+                          Click="CopyQuery" Disabled="@(!HasLabel())" title="Copy the LogQL query to the clipboard" />
+        </RadzenStack>
         @* Filters from the link (level, field, line text). Edit, remove or add rows; they are sent with the query. *@
         <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">Filters (from the link, editable)</RadzenText>
         @foreach (var row in _fieldRows)
@@ -115,6 +117,9 @@
                 <RadzenTextBox @bind-Value="row.Text" Placeholder="line contains…" style="flex:1 1 260px; min-width:200px" />
                 <RadzenCheckBox @bind-Value="row.CaseInsensitive" Name="@($"gfCase{row.GetHashCode()}")" />
                 <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0">any case</RadzenText>
+                <RadzenCheckBox @bind-Value="row.Exclude" Name="@($"gfExclude{row.GetHashCode()}")"
+                                title="Drop the lines that contain this text, instead of keeping them" />
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0" title="Drop the lines that contain this text">does not contain</RadzenText>
                 <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text" Size="ButtonSize.Small"
                               Click="@(() => RemoveLine(row))" title="Remove this filter" />
             </RadzenStack>
@@ -135,9 +140,9 @@
                       style="align-self:flex-start; font-weight:600" title="Show or hide the connection settings" />
         @if (_connectionOpen)
         {
-        <RadzenTextBox @bind-Value="_baseUrl" Placeholder="https://teamsystem.grafana.net" style="width:100%"
-                       title="Grafana Cloud address" />
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+            <RadzenTextBox @bind-Value="_baseUrl" Placeholder="https://teamsystem.grafana.net" style="flex:1 1 240px; min-width:200px"
+                           title="Grafana Cloud address" />
             <RadzenDropDown TValue="string" Data="@_datasources" TextProperty="Name" ValueProperty="Uid"
                             @bind-Value="_datasourceUid" Placeholder="Loki datasource (filled from the link)"
                             style="flex:1; min-width:200px" />
@@ -160,15 +165,18 @@
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
             @if (!_useToken)
             {
-                <input type="password" class="rz-textbox" style="flex:1; min-width:0" autocomplete="off" onfocus="this.select()"
+                <input type="@SecretInputType" class="rz-textbox" style="flex:1; min-width:0" autocomplete="off" onfocus="this.select()"
                        placeholder="grafana_session cookie (from your signed-in browser)"
                        @bind="_sessionCookie" @bind:event="oninput" />
             }
             else
             {
-                <input type="password" class="rz-textbox" style="flex:1; min-width:0" autocomplete="off" onfocus="this.select()"
+                <input type="@SecretInputType" class="rz-textbox" style="flex:1; min-width:0" autocomplete="off" onfocus="this.select()"
                        placeholder="service account token" @bind="_token" @bind:event="oninput" />
             }
+            <RadzenButton Icon="@(_showSecret ? "visibility_off" : "visibility")" ButtonStyle="ButtonStyle.Secondary"
+                          Variant="Variant.Text" Size="ButtonSize.Small" Click="ToggleSecret"
+                          title="@(_showSecret ? "Hide the text" : "Show the text in clear")" />
             <RadzenButton Icon="help_outline" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Text" Size="ButtonSize.Small"
                           Click="@(() => ShowSignInHelp(_useToken))"
                           title="Where to find the grafana_session cookie or a service account token" />
@@ -284,6 +292,7 @@
     {
         public string Text { get; set; } = "";
         public bool CaseInsensitive { get; set; }
+        public bool Exclude { get; set; }
     }
 
     private List<FieldRow> _fieldRows = new();
@@ -292,6 +301,12 @@
     private string _token = "";
     private string _sessionCookie = "";
     private bool _remember = true;
+    private bool _showSecret;
+
+    /// <summary>The eye button shows the sign-in text in clear; hidden again, it is a password box.</summary>
+    private string SecretInputType => _showSecret ? "text" : "password";
+
+    private void ToggleSecret() => _showSecret = !_showSecret;
 
     /// <summary>The two sign-in modes; the selector shows one at a time.</summary>
     private sealed record SignInMode(string Text, bool UsesToken);
@@ -416,6 +431,34 @@
         ? GrafanaLokiClient.BuildQuery(CurrentQuery())
         : "Paste the link, or enter at least one of team, service_name or environment.";
 
+    /// <summary>Copies the raw LogQL, the same text the preview shows, so it can be run in Grafana as it is.</summary>
+    private async Task CopyQuery()
+    {
+        if (!HasLabel()) return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("copyTextToClipboard", GrafanaLokiClient.BuildQuery(CurrentQuery()));
+            Notifications.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Copied",
+                Detail = "The LogQL query is on the clipboard.",
+                Duration = 2200
+            });
+        }
+        catch
+        {
+            Notifications.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Copy failed",
+                Detail = "Clipboard access is not available.",
+                Duration = 2800
+            });
+        }
+    }
+
     private void AddField() => _fieldRows.Add(new FieldRow());
 
     private void AddLine() => _lineRows.Add(new LineRow());
@@ -432,7 +475,7 @@
 
     private List<LokiLineFilter> LineFilters() => _lineRows
         .Where(r => r.Text.Trim().Length > 0)
-        .Select(r => new LokiLineFilter(r.Text.Trim(), r.CaseInsensitive))
+        .Select(r => new LokiLineFilter(r.Text.Trim(), r.CaseInsensitive, r.Exclude))
         .ToList();
 
     private bool FieldNamesValid() =>
@@ -446,6 +489,28 @@
         var text = minutes % 1440 == 0 ? $"last {minutes / 1440} days" : $"last {minutes} minutes";
         _windows.Add(new WindowOption(text, minutes));
         _windows.Sort((a, b) => a.Minutes.CompareTo(b.Minutes));
+    }
+
+    /// <summary>
+    /// "Paste the Grafana link": reads the clipboard into the link box and fills the fields from it, the same
+    /// as pressing Enter there. The browser can refuse clipboard access; then the box still takes Ctrl+V.
+    /// </summary>
+    private async Task PasteLink()
+    {
+        string? text = null;
+        try { text = await JS.InvokeAsync<string?>("readClipboardText"); }
+        catch { /* JS unavailable */ }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            _error = text is null
+                ? "Clipboard access is blocked here. Click in the link box and press Ctrl+V instead."
+                : "The clipboard is empty. Copy the Grafana link first.";
+            return;
+        }
+
+        _link = text.Trim();
+        await ApplyLink();
     }
 
     private async Task ApplyLink()
@@ -469,7 +534,7 @@
         _fieldRows = (parsed.Fields ?? Array.Empty<LokiFieldMatch>())
             .Select(f => new FieldRow { Name = f.Name, Value = f.Value }).ToList();
         _lineRows = (parsed.LineFilters ?? Array.Empty<LokiLineFilter>())
-            .Select(l => new LineRow { Text = l.Text, CaseInsensitive = l.CaseInsensitive }).ToList();
+            .Select(l => new LineRow { Text = l.Text, CaseInsensitive = l.CaseInsensitive, Exclude = l.Exclude }).ToList();
 
         if (parsed.WindowMinutes is int minutes)
         {

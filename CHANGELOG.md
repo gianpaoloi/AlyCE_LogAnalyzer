@@ -11,11 +11,18 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ### Changed
 
+- **Grafana import: address and datasource on one line.** The Grafana address box and the Loki datasource list
+  with **Find** now sit on the same row in the Connection section.
 - **Quick Start is now called Quick Info** in the top bar, the page title and the Feedback page list. The web address is `/quick-info`.
 - **Quick Info lists every way to load logs**: folder path, drag and drop, Grafana `.json` export, Paste from the clipboard, Open with, Grafana Cloud, File Live Watch and Network Live Watch. The *Network Live Watch port in use* note moved under Troubleshooting.
 
 ### Added
 
+- **Copy the Grafana query.** A copy button beside the query preview in the Grafana import dialog puts the raw
+  LogQL on the clipboard, with the line filters, "does not contain" lines and field filters, ready to run in Grafana.
+- **Show the Grafana sign-in in clear.** An eye button beside the grafana_session cookie and service account
+  token boxes shows the text, and hides it again. The boxes are password fields until then.
+- **Resources: New section on top bar** Added new section "Resorces" in the top bar to show some computer and app informations.
 - **Resources: a collapsible "Other network adapters" panel.** Under *This computer*, a collapsed panel lists
   every network connection (up or down) that does not report a link speed. These connections are kept out of the
   *Network adapters (up)* list, which now shows only up connections with a known speed.
@@ -41,9 +48,12 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 - **Choose the sign-in mode.** A selector switches between the `grafana_session` cookie and a service
   account token. Only the box for the chosen mode is shown, and only its secret is used. The mode is
   remembered with the sign-in.
-- **Open Grafana from the dialog.** The "Paste the Grafana link" label opens the Explore page: the link in
-  the box when it is a web address, otherwise the Explore page of the Grafana address. An **Open link**
-  button beside Load opens the pasted link in a new tab as soon as the box holds a web address.
+- **Grafana links keep every filter.** Line filters set to "does not contain" (`!=`) were dropped when a link
+  was loaded. They now load, with a **does not contain** box on each line filter row. Label filters that are
+  "not equal" are no longer read as the label value.
+- **Paste link reads the clipboard.** The **Paste link** link fills the link box from the clipboard and loads
+  the fields from it. It used to open the link instead. **Open link** opens the pasted link in a new tab, or
+  the Grafana Explore page when the box holds no web address. Both use the same link style.
 - **Remember the sign-in and the last link.** The Grafana address, datasource, sign-in and last pasted link
   are kept between sessions when **Remember sign-in on this computer** is ticked. **Forget sign-in** removes
   them.

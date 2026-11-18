@@ -35,6 +35,48 @@ public class GrafanaExploreLinkTests
         Assert.Equal(new[] { new LokiLineFilter("TeamSystem.AlyCE.PolicyManager", true) }, link.LineFilters);
     }
 
+    // A link from the Loki logs page with a team, environment (regex), service, level and "does not contain" lines.
+    private const string ExcludeLink =
+        "https://teamsystem.grafana.net/a/grafana-lokiexplore-app/explore/team/tse/logs?var-ds=bf9o2vkid4w00c" +
+        "&from=now-3h&to=now&var-filters=team%7C%3D%7C__CV%CE%A9__tse,tse" +
+        "&var-filters=environment%7C%3D~%7C__CV%CE%A9__prod,prod" +
+        "&var-filters=service_name%7C%3D%7C__CV%CE%A9__tse-webapi,tse-webapi" +
+        "&var-levels=detected_level%7C%3D%7Cerror" +
+        "&var-lineFilters=caseInsensitive,4%7C%21%3D%7CThis%20should%20NEVER%20happen" +
+        "&var-lineFilters=caseInsensitive,0%7C__gfp__%3D%7CTeamSystem.AlyCE.Biz.FW_Hermes" +
+        "&var-lineFilters=caseInsensitive,1%7C%21%3D%7Cpublic.com.teamsystem.streaming.financepr.tsent.event.invoicepaid.v2" +
+        "&var-lineFilters=caseInsensitive,2%7C%21%3D%7CError%20while%20checking%20for%20Workspace%20ID";
+
+    [Fact]
+    public void Reads_every_filter_of_a_team_link_including_does_not_contain_lines()
+    {
+        var link = GrafanaExploreLinkParser.TryParse(ExcludeLink);
+
+        Assert.Equal("tse", link!.Team);
+        Assert.Equal("tse-webapi", link.ServiceName);
+        Assert.Equal("prod", link.Environment);
+        Assert.Equal(180, link.WindowMinutes);
+        Assert.Equal(new[] { new LokiFieldMatch("detected_level", "error") }, link.Fields);
+        Assert.Equal(
+            new[]
+            {
+                new LokiLineFilter("This should NEVER happen", CaseInsensitive: true, Exclude: true),
+                new LokiLineFilter("TeamSystem.AlyCE.Biz.FW_Hermes", CaseInsensitive: true),
+                new LokiLineFilter("public.com.teamsystem.streaming.financepr.tsent.event.invoicepaid.v2", CaseInsensitive: true, Exclude: true),
+                new LokiLineFilter("Error while checking for Workspace ID", CaseInsensitive: true, Exclude: true),
+            },
+            link.LineFilters);
+    }
+
+    [Fact]
+    public void A_label_that_is_not_equal_is_not_read_as_the_label_value()
+    {
+        var link = GrafanaExploreLinkParser.TryParse(
+            "https://grafana.example/explore?var-ds=uid&var-filters=team%7C!%3D%7Cother");
+
+        Assert.Equal("", link!.Team);
+    }
+
     [Fact]
     public void Reads_a_cid_field_written_with_the_multi_value_prefix()
     {
