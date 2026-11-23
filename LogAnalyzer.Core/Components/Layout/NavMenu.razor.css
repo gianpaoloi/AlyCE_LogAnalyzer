@@ -3,22 +3,24 @@
     cursor: pointer;
     width: 3.5rem;
     height: 2.5rem;
-    color: white;
     position: absolute;
     top: 0.5rem;
     right: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.75rem rgba(255, 255, 255, 0.1);
+    border: none;
+    /* The three bars are a mask, so the icon takes the skin's text colour instead of a fixed white. */
+    background-color: color-mix(in srgb, var(--txt) 55%, transparent);
+    -webkit-mask: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='black' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.75rem;
+    mask: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='black' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.75rem;
 }
 
 .navbar-toggler:checked {
-    background-color: rgba(255, 255, 255, 0.5);
+    background-color: var(--txt);
 }
 
 .top-row {
     height: 3.5rem;
-    background-color: #17182f;
-    border-bottom: 1px solid rgba(255,255,255,.1);
+    background-color: var(--surface-top);
+    border-bottom: 1px solid color-mix(in srgb, var(--txt) 10%, transparent);
 }
 
 /* Bootstrap's container-fluid adds .75rem either side; the sidebar is too narrow to spare it. */
@@ -33,7 +35,7 @@
     font-size: 1rem;
     font-weight: 700;
     letter-spacing: .3px;
-    background: linear-gradient(135deg, #a689f7, #21d4fd);
+    background: linear-gradient(135deg, var(--rz-primary-light), var(--fluobrand));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -64,7 +66,7 @@
     margin: 0;
     /* Owns the gap above the first item in its group — which is why .nav-item no longer adds one. */
     padding: 1rem 0.75rem 0.35rem 0.75rem;
-    color: #6f7787;
+    color: var(--text-faint);
     font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -78,7 +80,7 @@
     .nav-group ~ .nav-group {
         margin-top: 0.35rem;
         padding-top: 0.85rem;
-        border-top: 1px solid rgba(255,255,255,.07);
+        border-top: 1px solid color-mix(in srgb, var(--txt) 7%, transparent);
     }
 
 .nav-item {
@@ -92,7 +94,7 @@
     }
 
     .nav-item ::deep .nav-link {
-        color: #9aa3b2;
+        color: var(--muted);
         background: none;
         border: none;
         border-radius: 8px;
@@ -113,14 +115,14 @@
     }
 
 .nav-item ::deep a.active {
-    background-color: rgba(138,99,244,0.18);
-    border-left-color: #8a63f4;
-    color: #fff;
+    background-color: color-mix(in srgb, var(--brand) 18%, transparent);
+    border-left-color: var(--brand);
+    color: var(--txt);
 }
 
 .nav-item ::deep .nav-link:hover {
-    background-color: rgba(255,255,255,0.08);
-    color: #fff;
+    background-color: color-mix(in srgb, var(--txt) 8%, transparent);
+    color: var(--txt);
 }
 
 /* "Update to v1.3.0", shown above the version footer only when a newer release exists.
@@ -134,11 +136,11 @@
     align-items: center;
     width: 100%;
     padding: .6rem .75rem;
-    background: rgba(138,99,244,0.14);
+    background: color-mix(in srgb, var(--brand) 14%, transparent);
     border: none;
-    border-top: 1px solid rgba(255,255,255,.08);
-    border-left: 3px solid #8a63f4;
-    color: #cbb8ff;
+    border-top: 1px solid color-mix(in srgb, var(--txt) 8%, transparent);
+    border-left: 3px solid var(--brand);
+    color: var(--text-soft);
     font-size: .78rem;
     font-family: inherit;
     text-align: left;
@@ -147,8 +149,8 @@
 }
 
     .nav-update:hover {
-        background-color: rgba(138,99,244,0.26);
-        color: #fff;
+        background-color: color-mix(in srgb, var(--brand) 26%, transparent);
+        color: var(--txt);
     }
 
     /* The narrow rail cannot fit an arbitrarily long version, and clipping mid-word is worse than
@@ -168,8 +170,8 @@
     gap: .5rem;
     width: 100%;
     padding: .6rem .75rem;
-    border-top: 1px solid rgba(255,255,255,.08);
-    color: #6f7787;
+    border-top: 1px solid color-mix(in srgb, var(--txt) 8%, transparent);
+    color: var(--text-faint);
     font-size: .78rem;
 }
 
@@ -182,7 +184,7 @@
     }
 
     .nav-version-link:hover {
-        color: #cbd2de;
+        color: var(--text-soft);
         text-decoration: none;
     }
 
@@ -193,8 +195,8 @@
     }
 
     .nav-version:hover {
-        background-color: rgba(255,255,255,0.06);
-        color: #cbd2de;
+        background-color: color-mix(in srgb, var(--txt) 6%, transparent);
+        color: var(--text-soft);
     }
 
     .nav-version-text {
@@ -224,7 +226,7 @@
     }
 
     .nav-version-copy:hover {
-        color: #cbd2de;
+        color: var(--text-soft);
     }
 
 .nav-scrollable {

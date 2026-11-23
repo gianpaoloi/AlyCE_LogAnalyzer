@@ -33,6 +33,8 @@ builder.Services.AddScoped<SessionState>();
 builder.Services.AddScoped<PathHistory>();
 // Saved Grafana import presets (same localStorage mechanism).
 builder.Services.AddScoped<GrafanaPresetStore>();
+// Saved app skins (colour themes) and the active one, in the browser's localStorage.
+builder.Services.AddScoped<SkinStore>();
 // Encrypts the remembered Grafana token and cookie before they reach the browser's storage.
 builder.Services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
 

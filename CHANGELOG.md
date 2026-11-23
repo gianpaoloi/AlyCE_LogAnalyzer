@@ -9,6 +9,14 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+### Added
+
+- **Skins.** A new **Skins** page (Appearance in the sidebar) changes the colours of the app. Two built-in skins
+  ship with the app, *Blue*, *Daylight* and *High contrast*, next to the original *Default* look. Duplicate a skin to edit it, or
+  start a new one from the active skin. Edits preview on the page straight away, and **Save** keeps them.
+  Skins can be **exported** to a `.json` file and **imported** back, including on another machine. The active skin
+  is applied when the app starts.
+
 ### Fixed
 
 - **No white line above the app in the desktop window.** The window's title bar now uses the app's dark colors, and

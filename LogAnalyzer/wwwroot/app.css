@@ -21,6 +21,10 @@
     --border: rgba(255,255,255,.1);
     --border-strong: rgba(255,255,255,.18);
     --shadow: 0 4px 12px rgba(0,0,0,.4);
+    --surface-side: #0f1021;
+    --surface-top: #17182f;
+    --text-soft: #cbd2de;
+    --text-faint: #6f7787;
 
     /* Re-map the Radzen (material-dark) design tokens onto the launcher palette. */
     --rz-primary: #8a63f4;

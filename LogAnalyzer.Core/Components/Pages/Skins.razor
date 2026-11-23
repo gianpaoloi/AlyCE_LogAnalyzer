@@ -1,0 +1,386 @@
+@page "/skins"
+@using System.Text.RegularExpressions
+@inject SkinStore Store
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Skins · AlyCE Log Analyzer</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H4">Skins</RadzenText>
+<RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted rz-mb-3">
+    A skin sets the colours of the app. Pick one and press <b>Apply</b>. Built-in skins are read-only: duplicate one to
+    change it. While you edit, the page shows your colours straight away; <b>Save</b> keeps them.
+</RadzenText>
+
+@if (_message is not null)
+{
+    <RadzenText TextStyle="TextStyle.Body2" class="@MessageClass">@_message</RadzenText>
+}
+
+<div class="skin-layout">
+    <RadzenCard Variant="Variant.Outlined">
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.Overline" class="rz-color-muted">Built-in</RadzenText>
+            <div class="skin-list">
+                @foreach (var skin in SkinCatalog.BuiltIn)
+                {
+                    @SkinButton(skin)
+                }
+            </div>
+
+            <RadzenText TextStyle="TextStyle.Overline" class="rz-color-muted rz-mt-3">Your skins</RadzenText>
+            <div class="skin-list">
+                @if (_custom.Count == 0)
+                {
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">None yet. Duplicate a built-in skin or import one.</RadzenText>
+                }
+                @foreach (var skin in _custom)
+                {
+                    @SkinButton(skin)
+                }
+            </div>
+        </RadzenStack>
+    </RadzenCard>
+
+    <RadzenCard Variant="Variant.Outlined">
+        @if (_draft is null)
+        {
+            <RadzenText class="rz-color-muted">Select a skin.</RadzenText>
+        }
+        else
+        {
+            var readOnly = SkinCatalog.IsBuiltInName(_draft.Name);
+            <RadzenStack Gap="0.75rem">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                    <RadzenText TextStyle="TextStyle.H5" class="rz-m-0">@_draft.Name</RadzenText>
+                    <span class="skin-tag">@(readOnly ? "built-in · read-only" : "your skin")</span>
+                    @if (_draft.Name == _activeName)
+                    {
+                        <span class="skin-tag skin-tag-active">active</span>
+                    }
+                    @if (_dirty)
+                    {
+                        <span class="skin-tag skin-tag-dirty">unsaved changes</span>
+                    }
+                </RadzenStack>
+
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                    <RadzenButton Text="Apply" Icon="check" ButtonStyle="ButtonStyle.Primary"
+                                  Disabled="@(_draft.Name == _activeName)" Click="ApplySelected" />
+                    <RadzenButton Text="Duplicate" Icon="content_copy" ButtonStyle="ButtonStyle.Secondary" Click="DuplicateSelected" />
+                    <RadzenButton Text="New" Icon="add" ButtonStyle="ButtonStyle.Secondary" Click="NewSkin" />
+                    <RadzenButton Text="Export" Icon="download" ButtonStyle="ButtonStyle.Secondary" Click="ExportSelected" />
+                    @* Styled with the same Radzen button classes as the buttons beside it; the file input is laid over the label. *@
+                    <label class="rz-button rz-button-md rz-secondary rz-shade-default rz-button-icon-left skin-import" title="Import a skin file (.json) exported from this page. Imported skins are added to your skins; a name that is already taken gets a number added.">
+                        <span class="rz-button-box"><RadzenIcon Icon="upload" /><span>Import</span></span>
+                        <InputFile OnChange="ImportFile" accept=".json,application/json" class="skin-import-input" />
+                    </label>
+                    <RadzenButton Text="Delete" Icon="delete" ButtonStyle="ButtonStyle.Danger"
+                                  Disabled="@readOnly" Click="DeleteSelected" />
+                </RadzenStack>
+
+                @if (!readOnly)
+                {
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem" Wrap="FlexWrap.Wrap" AlignItems="AlignItems.End">
+                        <RadzenStack Gap="0.25rem" Style="min-width:240px;flex:1">
+                            <RadzenLabel Text="Name" Component="skin-name" />
+                            <RadzenTextBox Name="skin-name" Value="@_draft.Name" MaxLength="@SkinCatalog.MaxNameLength"
+                                           Change="@(v => EditDraft(d => d with { Name = v ?? "" }))" />
+                        </RadzenStack>
+                        <RadzenStack Gap="0.25rem" Style="min-width:240px;flex:2">
+                            <RadzenLabel Text="Description" Component="skin-desc" />
+                            <RadzenTextBox Name="skin-desc" Value="@_draft.Description" MaxLength="@SkinCatalog.MaxDescriptionLength"
+                                           Change="@(v => EditDraft(d => d with { Description = v ?? "" }))" />
+                        </RadzenStack>
+                    </RadzenStack>
+                }
+                else if (!string.IsNullOrWhiteSpace(_draft.Description))
+                {
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@_draft.Description</RadzenText>
+                }
+
+                @foreach (var group in SkinCatalog.Colors.GroupBy(c => c.Group))
+                {
+                    <RadzenText TextStyle="TextStyle.Overline" class="rz-color-muted rz-mt-2">@group.Key</RadzenText>
+                    @foreach (var color in group)
+                    {
+                        var value = _draft.Variables.TryGetValue(color.Variable, out var v) ? v : "";
+                        var valid = SkinCatalog.IsHexColor(value);
+                        <div class="skin-color-row" title="@color.Variable">
+                            <span>@color.Label</span>
+                            @if (valid)
+                            {
+                                <input type="color" class="skin-color" value="@value" disabled="@readOnly"
+                                       @oninput="@(e => SetColor(color.Variable, e.Value?.ToString()))" />
+                            }
+                            else
+                            {
+                                <span class="skin-tag skin-tag-dirty">invalid</span>
+                            }
+                            <RadzenTextBox Value="@value" Disabled="@readOnly" Style="width:110px"
+                                           Change="@(s => SetColor(color.Variable, s))" />
+                        </div>
+                    }
+                }
+
+                @if (!readOnly)
+                {
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap" class="rz-mt-2">
+                        <RadzenButton Text="Save" Icon="save" ButtonStyle="ButtonStyle.Success" Disabled="@(!_dirty)" Click="SaveDraft" />
+                        <RadzenButton Text="Discard changes" Icon="undo" ButtonStyle="ButtonStyle.Light" Disabled="@(!_dirty)" Click="DiscardDraft" />
+                    </RadzenStack>
+                }
+            </RadzenStack>
+        }
+
+    </RadzenCard>
+</div>
+
+@code {
+    private List<AppSkin> _custom = new();
+    private string _activeName = SkinCatalog.DefaultName;
+    private string? _selected;
+    private AppSkin? _draft;
+    private bool _dirty;
+    private bool _loaded;
+    private string? _message;
+    private bool _messageIsError;
+
+    private string MessageClass => _messageIsError ? "skin-error rz-mb-3" : "rz-color-muted rz-mb-3";
+
+    private RenderFragment SkinButton(AppSkin skin) => __builder =>
+    {
+        <button type="button" class="@(skin.Name == _selected ? "skin-item selected" : "skin-item")" @onclick="() => SelectAsync(skin.Name)">
+            <span class="skin-swatches">
+                @foreach (var variable in new[] { "--bg", "--brand", "--brand-2", "--fluobrand" })
+                {
+                    <span style="background:@SkinCatalog.Resolve(skin).Variables[variable]"></span>
+                }
+            </span>
+            <span class="skin-item-name">@skin.Name</span>
+            @if (skin.Name == _activeName)
+            {
+                <span class="skin-tag skin-tag-active">active</span>
+            }
+        </button>
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _loaded) return;
+        _loaded = true;
+
+        _custom = await Store.GetCustomAsync();
+        _activeName = await Store.GetActiveNameAsync() ?? SkinCatalog.DefaultName;
+        if (await Store.FindAsync(_activeName) is null) _activeName = SkinCatalog.DefaultName;
+        _selected = _activeName;
+        LoadDraft();
+        StateHasChanged();
+    }
+
+    private AppSkin? Find(string? name) =>
+        name is null ? null
+        : SkinCatalog.BuiltIn.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase))
+          ?? _custom.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    private void LoadDraft()
+    {
+        var saved = Find(_selected) ?? SkinCatalog.BuiltIn[0];
+        _selected = saved.Name;
+        _draft = SkinCatalog.Resolve(saved);
+        _dirty = false;
+    }
+
+    private async Task SelectAsync(string name)
+    {
+        if (_dirty) _message = $"Unsaved changes to \"{_selected}\" were discarded.";
+        else _message = null;
+        _selected = name;
+        LoadDraft();
+        await Store.ApplyAsync(_draft!);
+    }
+
+    private IEnumerable<string> AllNames => SkinCatalog.BuiltIn.Select(s => s.Name).Concat(_custom.Select(s => s.Name));
+
+    private void EditDraft(Func<AppSkin, AppSkin> change)
+    {
+        if (_draft is null || SkinCatalog.IsBuiltInName(_draft.Name)) return;
+        _draft = change(_draft);
+        _dirty = true;
+        _message = null;
+    }
+
+    private async Task SetColor(string variable, string? value)
+    {
+        if (_draft is null || SkinCatalog.IsBuiltInName(_draft.Name) || value is null) return;
+        var colours = new Dictionary<string, string>(_draft.Variables) { [variable] = value.Trim().ToLowerInvariant() };
+        _draft = _draft with { Variables = colours };
+        _dirty = true;
+        _message = null;
+
+        // Preview only colours that are valid; a half-typed value keeps the last good preview.
+        if (SkinCatalog.Colors.All(c => SkinCatalog.IsHexColor(_draft.Variables[c.Variable])))
+            await Store.ApplyAsync(_draft);
+    }
+
+    private async Task SaveDraft()
+    {
+        if (_draft is null) return;
+        var name = _draft.Name.Trim();
+        var problem = SkinCatalog.Validate(_draft with { Name = name });
+        if (problem is null && _custom.Any(s => s.Name != _selected && string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)))
+            problem = $"You already have a skin named \"{name}\".";
+        if (problem is not null)
+        {
+            Show(problem, true);
+            return;
+        }
+
+        var renamed = _selected is not null && !string.Equals(_selected, name, StringComparison.OrdinalIgnoreCase);
+        if (!await Store.SaveAsync(_draft with { Name = name }))
+        {
+            Show("The skin could not be saved. Browser storage may be blocked.", true);
+            return;
+        }
+
+        // Save the new name first, then drop the old one, so a failed save never loses the skin.
+        if (renamed && _selected is not null)
+        {
+            await Store.DeleteAsync(_selected);
+            if (string.Equals(_activeName, _selected, StringComparison.OrdinalIgnoreCase))
+            {
+                _activeName = name;
+                await Store.SetActiveNameAsync(name);
+            }
+        }
+
+        _custom = await Store.GetCustomAsync();
+        _selected = name;
+        LoadDraft();
+        if (_activeName == name) await Store.ApplyAsync(_draft!);
+        Show($"Saved \"{name}\".", false);
+    }
+
+    private async Task DiscardDraft()
+    {
+        LoadDraft();
+        await Store.ApplyAsync(_draft!);
+        Show("Changes discarded.", false);
+    }
+
+    private async Task ApplySelected()
+    {
+        if (_selected is null) return;
+        if (_dirty)
+        {
+            Show("Save your changes before applying the skin.", true);
+            return;
+        }
+
+        _activeName = _selected;
+        await Store.SetActiveNameAsync(_activeName);
+        await Store.ApplyAsync(_draft!);
+        Show($"Applied \"{_activeName}\".", false);
+    }
+
+    private async Task NewSkin()
+    {
+        var baseSkin = Find(_activeName) ?? SkinCatalog.Default;
+        var name = SkinCatalog.UniqueName("My skin", AllNames);
+        await Store.SaveAsync(baseSkin with { Name = name, Description = "" });
+        _custom = await Store.GetCustomAsync();
+        _selected = name;
+        LoadDraft();
+        Show($"Created \"{name}\" from the active skin. Change its colours, then Save.", false);
+    }
+
+    private async Task DuplicateSelected()
+    {
+        var source = Find(_selected) ?? SkinCatalog.Default;
+        var name = SkinCatalog.UniqueName($"{source.Name} copy", AllNames);
+        await Store.SaveAsync(source with { Name = name });
+        _custom = await Store.GetCustomAsync();
+        _selected = name;
+        LoadDraft();
+        Show($"Created \"{name}\". Change its colours, then Save.", false);
+    }
+
+    private async Task DeleteSelected()
+    {
+        if (_selected is null || SkinCatalog.IsBuiltInName(_selected)) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"Delete the skin \"{_selected}\"?")) return;
+
+        var deleted = _selected;
+        await Store.DeleteAsync(deleted);
+        _custom = await Store.GetCustomAsync();
+        if (string.Equals(_activeName, deleted, StringComparison.OrdinalIgnoreCase))
+        {
+            _activeName = SkinCatalog.DefaultName;
+            await Store.SetActiveNameAsync(_activeName);
+        }
+        _selected = _activeName;
+        LoadDraft();
+        await Store.ApplyAsync(_draft!);
+        Show($"Deleted \"{deleted}\".", false);
+    }
+
+    private async Task ExportSelected()
+    {
+        var skin = Find(_selected) ?? SkinCatalog.Default;
+        var file = Regex.Replace(skin.Name, "[^A-Za-z0-9._-]+", "-").Trim('-');
+        var json = SkinCatalog.Export(_dirty && _draft is not null && _draft.Name == skin.Name ? _draft : skin);
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
+        using var streamRef = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("downloadFileFromStream", $"skin-{(file.Length == 0 ? "skin" : file)}.json", streamRef);
+    }
+
+    private async Task ImportFile(InputFileChangeEventArgs e)
+    {
+        const long maxBytes = 256 * 1024;
+        if (e.File.Size > maxBytes)
+        {
+            Show("That file is too large to be a skin.", true);
+            return;
+        }
+
+        string text;
+        using (var reader = new StreamReader(e.File.OpenReadStream(maxBytes)))
+            text = await reader.ReadToEndAsync();
+
+        var result = SkinCatalog.Parse(text);
+        var names = AllNames.ToList();
+        var imported = new List<string>();
+        foreach (var skin in result.Skins)
+        {
+            var name = SkinCatalog.UniqueName(skin.Name, names);
+            if (await Store.SaveAsync(skin with { Name = name }))
+            {
+                names.Add(name);
+                imported.Add(name);
+            }
+        }
+
+        _custom = await Store.GetCustomAsync();
+        if (imported.Count > 0)
+        {
+            _selected = imported[0];
+            LoadDraft();
+        }
+
+        var summary = imported.Count == 0 ? "No skins were imported." : $"Imported {imported.Count} skin(s): {string.Join(", ", imported)}.";
+        if (result.Errors.Count > 0) summary += " Skipped: " + string.Join(" ", result.Errors);
+        Show(summary, imported.Count == 0 || result.Errors.Count > 0);
+    }
+
+    private void Show(string message, bool error)
+    {
+        _message = message;
+        _messageIsError = error;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Leaving the page: the page shows the active skin again, not an unsaved preview.
+        await Store.ApplyAsync(Find(_activeName) ?? SkinCatalog.Default);
+    }
+}

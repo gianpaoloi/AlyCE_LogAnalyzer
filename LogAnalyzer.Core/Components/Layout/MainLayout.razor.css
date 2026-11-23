@@ -9,13 +9,13 @@ main {
 }
 
 .sidebar {
-    background: #0f1021;
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--surface-side);
+    border-right: 1px solid color-mix(in srgb, var(--txt) 10%, transparent);
 }
 
 .top-row {
-    background-color: #17182f;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: var(--surface-top);
+    border-bottom: 1px solid color-mix(in srgb, var(--txt) 10%, transparent);
     box-shadow: 0 2px 8px rgba(0,0,0,.2);
     justify-content: flex-end;
     gap: 12px;
@@ -24,8 +24,8 @@ main {
     align-items: center;
 }
 
-    .top-row ::deep a { color: #9aa3b2; }
-    .top-row ::deep a:hover { color: #21d4fd; }
+    .top-row ::deep a { color: var(--muted); }
+    .top-row ::deep a:hover { color: var(--fluobrand); }
 
     /* Icon + label, so the glyph sits on the text baseline instead of above it. */
     .top-row ::deep a {
@@ -43,11 +43,20 @@ main {
         height: 1.1rem;
     }
 
+/* Skin selector at the end of the top bar: same spacing as the links beside it. */
+.skin-quick {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    margin-left: 1.5rem;
+    color: var(--muted);
+}
+
 .nav-toggle {
     margin-right: auto;
     background: transparent;
     border: none;
-    color: #f5f7fb;
+    color: var(--txt);
     padding: 8px;
     border-radius: 8px;
     cursor: pointer;
@@ -58,8 +67,8 @@ main {
 }
 
     .nav-toggle:hover {
-        background: rgba(255, 255, 255, 0.08);
-        color: #a689f7;
+        background: color-mix(in srgb, var(--txt) 8%, transparent);
+        color: var(--rz-primary-light);
     }
 
     .nav-toggle svg {
@@ -74,7 +83,7 @@ main {
     }
 
     .top-row ::deep a.active {
-        color: #f5f7fb;
+        color: var(--txt);
     }
 
     .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {

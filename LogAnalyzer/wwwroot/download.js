@@ -164,3 +164,19 @@ window.getAnchorRect = (el) => {
     const r = el.getBoundingClientRect();
     return { left: r.left, top: r.top, bottom: r.bottom, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
 };
+
+// Applies a skin by setting its colours as CSS custom properties on <html>, which override app.css and Radzen.
+// Keys set by an earlier call and missing from this one are removed, so a skin never keeps a stale colour.
+window.applySkinVariables = (variables) => {
+    try {
+        const root = document.documentElement;
+        const next = variables ?? {};
+        for (const key of window.__skinKeys ?? []) {
+            if (!(key in next)) root.style.removeProperty(key);
+        }
+        for (const [name, value] of Object.entries(next)) {
+            if (name.startsWith('--') && typeof value === 'string') root.style.setProperty(name, value);
+        }
+        window.__skinKeys = Object.keys(next);
+    } catch { }
+};
