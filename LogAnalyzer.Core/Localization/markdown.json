@@ -1,0 +1,4 @@
+{
+  "markdown.contents": { "en": "Contents", "it": "Indice", "sq": "Përmbajtja" },
+  "markdown.loadFailed": { "en": "Unable to load {0}: {1}", "it": "Impossibile caricare {0}: {1}", "sq": "Nuk mund të ngarkohet {0}: {1}" }
+}

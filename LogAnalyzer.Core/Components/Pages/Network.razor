@@ -1,4 +1,5 @@
 @page "/network"
+@inject Localizer L
 @inject NetworkLogListener Listener
 @inject SessionState State
 @inject DialogService DialogService
@@ -7,19 +8,18 @@
 @inherits ObservingComponentBase
 @implements IDisposable
 
-<PageTitle>Network Live Watch · AlyCE Log Analyzer</PageTitle>
+<PageTitle>@L["network.pageTitle"] · AlyCE Log Analyzer</PageTitle>
 
-<RadzenText TextStyle="TextStyle.H4">Network Live Watch</RadzenText>
+<RadzenText TextStyle="TextStyle.H4">@L["network.pageTitle"]</RadzenText>
 <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted rz-mb-2">
-    Receive events pushed over UDP by NLog's <b>NLogViewer</b> target, with no log file involved — so an
-    application can be watched while it runs, even when it writes nowhere you can reach.
+    @((MarkupString)L["network.intro"])
 </RadzenText>
 
 <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
     <div class="collapse-header @(State.NetworkSettingsCollapsed ? "" : "rz-mb-2")" @onclick="ToggleSettings"
-         title="@(State.NetworkSettingsCollapsed ? "Expand listener settings" : "Collapse listener settings")">
+         title="@(State.NetworkSettingsCollapsed ? L["network.expandSettings"] : L["network.collapseSettings"])">
         <RadzenIcon Icon="@(State.NetworkSettingsCollapsed ? "expand_more" : "expand_less")" />
-        <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0"><b>Listener settings</b></RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0"><b>@L["network.listenerSettings"]</b></RadzenText>
         @if (State.NetworkSettingsCollapsed)
         {
             <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">@SettingsSummary()</RadzenText>
@@ -30,62 +30,60 @@
     <div class="@(State.NetworkSettingsCollapsed ? "collapse-hidden" : null)">
     <RadzenStack Gap="0.75rem">
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
-            <RadzenLabel Text="UDP port" Component="port" />
+            <RadzenLabel Text="@(L["network.udpPort"])" Component="port" />
             <RadzenNumeric @bind-Value="State.NetworkPort" Name="port" Min="1" Max="65535" ShowUpDown="false"
                            Disabled="@Listener.IsListening" Style="width:110px"
-                           title="Must match the port in the sender's address, e.g. udp://127.0.0.1:9999" />
+                           title="@(L["network.portTitle"])" />
             <RadzenCheckBox @bind-Value="State.NetworkAllInterfaces" Name="ai" Disabled="@Listener.IsListening" />
-            <RadzenLabel Text="all interfaces" Component="ai"
-                         title="Off: loopback only (this machine). On: also accept events sent from other machines — this opens a port" />
+            <RadzenLabel Text="@(L["network.allInterfaces"])" Component="ai"
+                         title="@(L["network.allInterfacesTitle"])" />
             @* Stays enabled while listening — freezing the grid mid-stream is exactly what it is for. *@
             <RadzenCheckBox @bind-Value="State.NetworkAutoScroll" @bind-Value:after="OnAutoScrollChanged" Name="nas" />
-            <RadzenLabel Text="auto-scroll" Component="nas"
-                         title="Off: the grid keeps showing the events on screen while the listener keeps buffering" />
+            <RadzenLabel Text="@(L["network.autoScroll"])" Component="nas"
+                         title="@(L["network.autoScrollTitle"])" />
             @if (Listener.IsListening)
             {
-                <RadzenButton Text="Stop" Icon="stop" Click="Stop" ButtonStyle="ButtonStyle.Danger" />
+                <RadzenButton Text="@(L["network.stop"])" Icon="stop" Click="Stop" ButtonStyle="ButtonStyle.Danger" />
             }
             else
             {
-                <RadzenButton Text="@(_starting ? "Binding…" : "Start listening")" Icon="play_arrow" Click="Start"
+                <RadzenButton Text="@(_starting ? L["network.binding"] : L["network.startListening"])" Icon="play_arrow" Click="Start"
                               ButtonStyle="ButtonStyle.Primary" Disabled="@_starting" />
             }
-            <RadzenButton Text="Clear" Icon="clear_all" Click="Clear" ButtonStyle="ButtonStyle.Light" />
-            <RadzenSplitButton Text="Download" Icon="download" Click="OnDownload" ButtonStyle="ButtonStyle.Success">
+            <RadzenButton Text="@(L["network.clear"])" Icon="clear_all" Click="Clear" ButtonStyle="ButtonStyle.Light" />
+            <RadzenSplitButton Text="@(L["network.download"])" Icon="download" Click="OnDownload" ButtonStyle="ButtonStyle.Success">
                 <ChildContent>
                     <RadzenSplitButtonItem Text="CSV (.csv)" Value="csv" />
-                    <RadzenSplitButtonItem Text="Log lines (.log)" Value="json" />
+                    <RadzenSplitButtonItem Text="@(L["network.logLines"] + " (.log)")" Value="json" />
                 </ChildContent>
             </RadzenSplitButton>
-            <RadzenButton Icon="account_tree" Text="@(State.NetworkShowLoggers ? "Hide loggers" : "Loggers")"
+            <RadzenButton Icon="account_tree" Text="@(State.NetworkShowLoggers ? L["network.hideLoggers"] : L["network.loggers"])"
                           Click="@(() => State.NetworkShowLoggers = !State.NetworkShowLoggers)" ButtonStyle="ButtonStyle.Secondary" />
         </RadzenStack>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
             @* Applies to the buffered events as well as to the incoming ones, so editing it changes
                what is on screen straight away instead of only affecting what arrives next. *@
             <RadzenTextBox @bind-Value="State.NetworkText" @bind-Value:after="OnTextFilterChanged"
-                           Placeholder="text filter…" style="flex:1; min-width:220px" />
+                           Placeholder="@(L["network.textFilter"])" style="flex:1; min-width:220px" />
             <RadzenDropDown @bind-Value="State.NetworkColumns" Multiple="true" AllowClear="true" Chips="true"
-                            Placeholder="Add columns…" Data="@LogColumns.Network"
+                            Placeholder="@(L["network.addColumns"])" Data="@LogColumns.Network"
                             TextProperty="Title" ValueProperty="Key" TValue="IEnumerable<string>" Style="width:300px" />
-            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">Filter Level / Machine / Time / Message from the column headers</RadzenText>
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["network.filterHint"]</RadzenText>
         </RadzenStack>
 
         @* The sender's half of the setup. Shown here rather than only in the README because a page
            that is listening correctly and a page nobody is sending to look exactly the same. *@
         <div class="net-config">
             <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-mb-1">
-                Add this to the sending application's <span class="mono">NLog.config</span> (restart it afterwards):
+                @((MarkupString)L["network.setupIntro"])
             </RadzenText>
             <div class="net-config-row">
                 <pre class="net-config-snippet mono">@TargetSnippet</pre>
-                <RadzenButton Icon="content_copy" Text="Copy" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
-                              Click="CopySnippet" title="Copy the target and rule to the clipboard" />
+                <RadzenButton Icon="content_copy" Text="@(L["network.copy"])" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                              Click="CopySnippet" title="@(L["network.copyTitle"])" />
             </div>
             <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-mt-1 rz-mb-0">
-                On <b>NLog 6</b> the target ships in the <span class="mono">NLog.Targets.Network</span> package
-                (NLog 5 has it built in). <span class="mono">includeScopeProperties</span> is what fills the
-                Machine, Company, Username and Cid columns.
+                @((MarkupString)L["network.nlogNote"])
             </RadzenText>
         </div>
     </RadzenStack>
@@ -95,24 +93,24 @@
 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-2" Wrap="FlexWrap.Wrap">
     @if (Listener.IsListening)
     {
-        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="listening" />
+        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@(L["network.listening"])" />
         <span class="mono">@Listener.Endpoint</span>
     }
     else
     {
-        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="idle" />
+        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@(L["network.idle"])" />
     }
-    <RadzenText TextStyle="TextStyle.Body2">· @Listener.TotalEntries.ToString("N0") events · @_buffer.BufferedCount.ToString("N0") buffered</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">· @L["network.eventsBuffered", Listener.TotalEntries.ToString("N0"), _buffer.BufferedCount.ToString("N0")]</RadzenText>
     @if (Listener.LastActivity is { } la)
     {
-        <RadzenText TextStyle="TextStyle.Body2">· last @la.ToString("HH:mm:ss")</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2">· @L["network.last", la.ToString("HH:mm:ss")]</RadzenText>
     }
     @* Datagrams that carried no event are the one thing that tells "nobody is sending" apart from
        "something is sending, but not log4j XML". *@
     @if (Listener.Ignored > 0)
     {
-        <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="@($"{Listener.Ignored:N0} datagrams ignored")"
-                     title="Received on this port but not recognised as NLogViewer (log4j XML) events" />
+        <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="@(L["network.datagramsIgnored", Listener.Ignored.ToString("N0")])"
+                     title="@(L["network.datagramsIgnoredTitle"])" />
     }
     @if (!string.IsNullOrEmpty(Listener.LastError))
     {
@@ -120,18 +118,18 @@
     }
     @if (!State.NetworkAutoScroll)
     {
-        <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="auto-scroll off" />
-        <RadzenButton Text="@(_buffer.PendingCount > 0 ? $"Show {_buffer.PendingCount:N0} new events" : "Resume")" Icon="play_arrow"
+        <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="@(L["network.autoScrollOff"])" />
+        <RadzenButton Text="@(_buffer.PendingCount > 0 ? L["network.showNewEvents", _buffer.PendingCount.ToString("N0")] : L["network.resume"])" Icon="play_arrow"
                       ButtonStyle="ButtonStyle.Warning" Variant="Variant.Outlined" Size="ButtonSize.Small"
                       Click="ResumeAutoScroll"
-                      title="Turn auto-scroll back on and catch up with the stream" />
+                      title="@(L["network.resumeTitle"])" />
     }
-    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">· click a row for detail</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">· @L["network.clickRow"]</RadzenText>
 </RadzenStack>
 
 @* Machine, not Environment: a log4j event has no environment field, so the listener puts the
    sending machine's name in that column. See Log4JXmlParser. *@
-<LiveGrid Data="@_buffer.Snapshot" EnvironmentTitle="Machine"
+<LiveGrid Data="@_buffer.Snapshot" EnvironmentTitle="@(L["network.machine"])" EnvironmentPlaceholder="@(L["network.allMachines"])"
           @bind-Levels="State.NetworkLevels" @bind-Levels:after="OnDisplayFilterChanged"
           @bind-Environments="State.NetworkEnvironments" @bind-Environments:after="OnDisplayFilterChanged"
           @bind-Companies="State.NetworkCompanies" @bind-Companies:after="OnDisplayFilterChanged"
@@ -269,8 +267,8 @@
     {
         var where = Listener.IsListening
             ? Listener.Endpoint!
-            : $"udp://{(State.NetworkAllInterfaces ? "0.0.0.0" : "127.0.0.1")}:{State.NetworkPort} (idle)";
-        return string.IsNullOrWhiteSpace(State.NetworkText) ? where : $"{where} · text \"{State.NetworkText}\"";
+            : L["network.idleEndpoint", $"udp://{(State.NetworkAllInterfaces ? "0.0.0.0" : "127.0.0.1")}:{State.NetworkPort}"];
+        return string.IsNullOrWhiteSpace(State.NetworkText) ? where : L["network.summaryWithText", where, State.NetworkText];
     }
 
     private async Task Start()
@@ -301,7 +299,7 @@
             Notifications.Notify(new NotificationMessage
             {
                 Severity = NotificationSeverity.Error,
-                Summary = "Could not start listening",
+                Summary = L["network.couldNotStart"],
                 Detail = Listener.LastError,
                 Duration = 6000,
             });
@@ -349,8 +347,8 @@
             Notifications.Notify(new NotificationMessage
             {
                 Severity = NotificationSeverity.Success,
-                Summary = "Copied",
-                Detail = "NLog target and rule copied to the clipboard.",
+                Summary = L["network.copied"],
+                Detail = L["network.copiedDetail"],
                 Duration = 3000,
             });
         }

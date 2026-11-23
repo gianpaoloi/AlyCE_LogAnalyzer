@@ -1,68 +1,69 @@
 @page "/resources"
 @inherits ObservingComponentBase
 @implements IDisposable
+@inject Localizer L
 @inject LogStore Store
 @inject LogWatcher Watcher
 @inject NetworkLogListener Listener
 @inject IJSRuntime JS
 @inject NotificationService Notifications
 
-<PageTitle>Resources · AlyCE Log Analyzer</PageTitle>
+<PageTitle>@L["resources.title"] · AlyCE Log Analyzer</PageTitle>
 
-<RadzenText TextStyle="TextStyle.H4">Resources</RadzenText>
+<RadzenText TextStyle="TextStyle.H4">@L["resources.title"]</RadzenText>
 <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-3 rz-color-muted">
-    This computer and this app. Live figures refresh every 2 seconds while the page is open; the charts show the last 4 minutes.
+    @L["resources.intro"]
 </RadzenText>
 
 <div class="res-grid">
     <RadzenCard Variant="Variant.Outlined">
         <div class="res-head">
-            <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2" title="Facts about this computer and the build of the app you are running.">This computer</RadzenText>
-            <RadzenButton Icon="content_copy" Text="Copy" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
-                          Click="CopyComputer" title="Copy this panel to the clipboard as text." />
+            <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2" title="@(L["resources.thisComputerTip"])">@L["resources.thisComputer"]</RadzenText>
+            <RadzenButton Icon="content_copy" Text="@(L["resources.copy"])" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                          Click="CopyComputer" title="@(L["resources.copyTip"])" />
         </div>
         @if (_computer is not null && _snapshot is not null)
         {
-            <div class="res-row" title="The name this computer has on the network."><span>Machine</span><span>@_computer.MachineName</span></div>
-            <div class="res-row" title="The Windows version this computer runs."><span>Operating system</span><span>@_computer.OsDescription</span></div>
-            <div class="res-row" title="Whether the app runs as 64-bit (X64) or ARM64 code. It must match the processor."><span>Architecture</span><span>@_computer.Architecture</span></div>
-            <div class="res-row" title="The model name of the main processor, as recorded by Windows."><span>Processor</span><span>@_computer.Processor</span></div>
-            <div class="res-row" title="The number of processing threads the computer has. CPU percentages are out of this total."><span>Logical processors</span><span>@_computer.LogicalProcessors</span></div>
-            <div class="res-row" title="The physical memory installed in this computer."><span>Memory</span><span>@Format(_computer.TotalMemoryBytes) total</span></div>
-            <div class="res-row" title=".NET, the runtime this app runs on."><span>Runtime</span><span>@_computer.Runtime</span></div>
-            <div class="res-row" title="The version of AlyCE Log Analyzer you are running."><span>App version</span><span>@_computer.AppVersion</span></div>
-            <div class="res-row" title="How long Windows has been running since it last started."><span>Computer running for</span><span>@Duration(_snapshot.ComputerUptime)</span></div>
-            <div class="res-row" title="Free and total space on the drive that holds the loaded logs. Shows not available for network shares or when no drive is ready.">
-                <span>Disk of the loaded logs</span>
-                <span>@(_snapshot.Disk is { } disk ? $"{disk.Drive} {Format(disk.FreeBytes)} free of {Format(disk.TotalBytes)}" : "not available")</span>
+            <div class="res-row" title="@(L["resources.machineTip"])"><span>@L["resources.machine"]</span><span>@_computer.MachineName</span></div>
+            <div class="res-row" title="@(L["resources.osTip"])"><span>@L["resources.os"]</span><span>@_computer.OsDescription</span></div>
+            <div class="res-row" title="@(L["resources.architectureTip"])"><span>@L["resources.architecture"]</span><span>@_computer.Architecture</span></div>
+            <div class="res-row" title="@(L["resources.processorTip"])"><span>@L["resources.processor"]</span><span>@_computer.Processor</span></div>
+            <div class="res-row" title="@(L["resources.logicalProcessorsTip"])"><span>@L["resources.logicalProcessors"]</span><span>@_computer.LogicalProcessors</span></div>
+            <div class="res-row" title="@(L["resources.memoryTip"])"><span>@L["resources.memory"]</span><span>@L["resources.total", Format(_computer.TotalMemoryBytes)]</span></div>
+            <div class="res-row" title="@(L["resources.runtimeTip"])"><span>@L["resources.runtime"]</span><span>@_computer.Runtime</span></div>
+            <div class="res-row" title="@(L["resources.appVersionTip"])"><span>@L["resources.appVersion"]</span><span>@_computer.AppVersion</span></div>
+            <div class="res-row" title="@(L["resources.computerRunningForTip"])"><span>@L["resources.computerRunningFor"]</span><span>@Duration(_snapshot.ComputerUptime)</span></div>
+            <div class="res-row" title="@(L["resources.diskOfLogsTip"])">
+                <span>@L["resources.diskOfLogs"]</span>
+                <span>@(_snapshot.Disk is { } disk ? L["resources.diskFree", disk.Drive, Format(disk.FreeBytes), Format(disk.TotalBytes)] : L["resources.notAvailable"])</span>
             </div>
-            <div class="res-row" title="Whether the computer runs on mains power or on its battery, with the battery charge when the computer reports it."><span>Power</span><span>@PowerText(_snapshot.Power)</span></div>
+            <div class="res-row" title="@(L["resources.powerTip"])"><span>@L["resources.power"]</span><span>@PowerText(_snapshot.Power)</span></div>
 
-            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3" title="Network connections that are up, with the link speed each one reports."><b>Network adapters (up)</b></RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3" title="@(L["resources.networkUpTip"])"><b>@L["resources.networkUp"]</b></RadzenText>
             @if (!_snapshot.Adapters.Any(IsListedAsUp))
             {
-                <div class="res-row" title="No network connection with a known speed is up right now."><span>None</span><span>no adapter is up</span></div>
+                <div class="res-row" title="@(L["resources.noAdapterUpTip"])"><span>@L["resources.none"]</span><span>@L["resources.noAdapterUp"]</span></div>
             }
             @foreach (var adapter in _snapshot.Adapters.Where(IsListedAsUp))
             {
-                <div class="res-row" title="The link speed this adapter reports. Speed unknown means Windows did not report one.">
+                <div class="res-row" title="@(L["resources.speedTip"])">
                     <span>@adapter.Name</span>
-                    <span>@(adapter.SpeedBitsPerSecond is long speed ? $"{speed / 1_000_000:N0} Mb/s" : "speed unknown")</span>
+                    <span>@(adapter.SpeedBitsPerSecond is long speed ? L["resources.mbps", (speed / 1_000_000).ToString("N0")] : L["resources.speedUnknown"])</span>
                 </div>
             }
 
             <RadzenFieldset AllowCollapse="true" Collapsed="true"
-                            Text="@($"Other network adapters ({UnknownSpeed(_snapshot).Count})")">
-                <div title="Network connections that do not report a link speed, up or down. They are kept out of the list above. This is common for virtual, VPN and Wi-Fi adapters, and for adapters that are down.">
+                            Text="@(L["resources.otherAdapters", UnknownSpeed(_snapshot).Count])">
+                <div title="@(L["resources.otherAdaptersTip"])">
                     @if (UnknownSpeed(_snapshot).Count == 0)
                     {
-                        <div class="res-row" title="All network connections report a link speed."><span>None</span><span>every connection reports a speed</span></div>
+                        <div class="res-row" title="@(L["resources.allReportSpeedTip"])"><span>@L["resources.none"]</span><span>@L["resources.allReportSpeed"]</span></div>
                     }
                     @foreach (var adapter in UnknownSpeed(_snapshot))
                     {
-                        <div class="res-row" title="The name of the connection, then whether it is up or down.">
+                        <div class="res-row" title="@(L["resources.adapterStateTip"])">
                             <span>@adapter.Name</span>
-                            <span>@(adapter.IsUp ? "up" : "down"), speed unknown</span>
+                            <span>@(adapter.IsUp ? L["resources.up"] : L["resources.down"]), @L["resources.speedUnknown"]</span>
                         </div>
                     }
                 </div>
@@ -72,87 +73,87 @@
 
     <RadzenCard Variant="Variant.Outlined">
         <div class="res-head">
-            <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2" title="How busy the whole computer is: its processor and its memory, across every program running on it.">Computer usage</RadzenText>
-            <RadzenButton Icon="content_copy" Text="Copy" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
-                          Click="CopyUsage" title="Copy this panel to the clipboard as text." />
+            <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2" title="@(L["resources.computerUsageTip"])">@L["resources.computerUsage"]</RadzenText>
+            <RadzenButton Icon="content_copy" Text="@(L["resources.copy"])" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                          Click="CopyUsage" title="@(L["resources.copyTip"])" />
         </div>
         @if (_snapshot is not null)
         {
             <Gauge Label="CPU" Percent="_snapshot.MachineCpuPercent"
-                   Help="How busy the processor is across all its threads, right now. It is measured over the last 2 seconds and shows measuring until a second reading exists." />
-            <Sparkline Label="Computer CPU" Values="HistoryOf(s => s.MachineCpuPercent)"
-                       Help="The computer's CPU use over the last 4 minutes. The top is 100 % and the bottom is 0 %." />
-            <Gauge Label="Memory" Percent="MemoryPercent(_snapshot)"
-                   Detail="@($"{Format(_snapshot.MachineMemoryUsedBytes)} of {Format(_snapshot.MachineMemoryTotalBytes)}")"
-                   Help="The share of the computer's memory in use by all programs together, with the used and total amounts." />
-            <Sparkline Label="Computer memory" Values="HistoryOf(s => (double?)MemoryPercent(s))"
-                       Help="The computer's memory use over the last 4 minutes. The top is 100 % of total memory." />
+                   Help="@(L["resources.cpuHelp"])" />
+            <Sparkline Label="@(L["resources.computerCpu"])" Values="HistoryOf(s => s.MachineCpuPercent)"
+                       Help="@(L["resources.computerCpuHelp"])" />
+            <Gauge Label="@(L["resources.memory"])" Percent="MemoryPercent(_snapshot)"
+                   Detail="@(L["resources.ofTotal", Format(_snapshot.MachineMemoryUsedBytes), Format(_snapshot.MachineMemoryTotalBytes)])"
+                   Help="@(L["resources.memoryHelp"])" />
+            <Sparkline Label="@(L["resources.computerMemory"])" Values="HistoryOf(s => (double?)MemoryPercent(s))"
+                       Help="@(L["resources.computerMemoryHelp"])" />
         }
     </RadzenCard>
 
     <RadzenCard Variant="Variant.Outlined">
         <div class="res-head">
-            <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2" title="This app's own figures: its processor and memory use, the garbage collector, what is loaded and the live log inputs.">This app</RadzenText>
-            <RadzenButton Icon="content_copy" Text="Copy" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
-                          Click="CopyApp" title="Copy this panel to the clipboard as text." />
+            <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2" title="@(L["resources.thisAppTip"])">@L["resources.thisApp"]</RadzenText>
+            <RadzenButton Icon="content_copy" Text="@(L["resources.copy"])" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                          Click="CopyApp" title="@(L["resources.copyTip"])" />
         </div>
         @if (_snapshot is not null)
         {
             <Gauge Label="CPU" Percent="_snapshot.AppCpuPercent"
-                   Help="The share of the processor this app's own process uses, across all threads. It leaves out the web views, which run in separate processes." />
-            <Sparkline Label="App CPU" Values="HistoryOf(s => s.AppCpuPercent)"
-                       Help="The app's CPU use over the last 4 minutes. The top is 100 % and the bottom is 0 %." />
-            <Gauge Label="Memory (working set)" Percent="AppMemoryPercent(_snapshot)"
+                   Help="@(L["resources.appCpuHelp"])" />
+            <Sparkline Label="@(L["resources.appCpu"])" Values="HistoryOf(s => s.AppCpuPercent)"
+                       Help="@(L["resources.appCpuTrendHelp"])" />
+            <Gauge Label="@(L["resources.memoryWorkingSet"])" Percent="AppMemoryPercent(_snapshot)"
                    Detail="@Format(_snapshot.AppWorkingSetBytes)"
-                   Help="The memory this app currently holds in RAM, as a share of the computer's total memory. Pages it has moved out to disk are not counted." />
-            <Sparkline Label="App memory" Values="HistoryOf(s => (double?)AppMemoryPercent(s))"
-                       Help="The app's working set over the last 4 minutes, as a share of the computer's total memory." />
-            <div class="res-row" title="Memory this app has reserved for itself, including what has been moved out to disk."><span>Private memory</span><span>@Format(_snapshot.AppPrivateBytes)</span></div>
-            <div class="res-row" title="Memory held by .NET objects, which the garbage collector manages and frees."><span>Managed heap</span><span>@Format(_snapshot.ManagedHeapBytes)</span></div>
-            <div class="res-row" title="The number of threads this app's process is running."><span>Threads</span><span>@_snapshot.Threads</span></div>
-            <div class="res-row" title="Operating system handles open in this process, such as files, events and windows."><span>Handles</span><span>@_snapshot.Handles</span></div>
-            <div class="res-row" title="How long this app has been running since it started."><span>Running for</span><span>@Duration(_snapshot.AppUptime)</span></div>
+                   Help="@(L["resources.workingSetHelp"])" />
+            <Sparkline Label="@(L["resources.appMemory"])" Values="HistoryOf(s => (double?)AppMemoryPercent(s))"
+                       Help="@(L["resources.appMemoryHelp"])" />
+            <div class="res-row" title="@(L["resources.privateMemoryTip"])"><span>@L["resources.privateMemory"]</span><span>@Format(_snapshot.AppPrivateBytes)</span></div>
+            <div class="res-row" title="@(L["resources.managedHeapTip"])"><span>@L["resources.managedHeap"]</span><span>@Format(_snapshot.ManagedHeapBytes)</span></div>
+            <div class="res-row" title="@(L["resources.threadsTip"])"><span>@L["resources.threads"]</span><span>@_snapshot.Threads</span></div>
+            <div class="res-row" title="@(L["resources.handlesTip"])"><span>@L["resources.handles"]</span><span>@_snapshot.Handles</span></div>
+            <div class="res-row" title="@(L["resources.runningForTip"])"><span>@L["resources.runningFor"]</span><span>@Duration(_snapshot.AppUptime)</span></div>
 
-            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3" title="What the .NET garbage collector has done since this app started."><b>Garbage collector</b></RadzenText>
-            <div class="res-row" title="How many times the garbage collector ran. Generation 0 is the quickest and most frequent, generation 2 the slowest and rarest."><span>Collections (gen 0 / 1 / 2)</span><span>@_snapshot.Gc.Gen0Collections.ToString("N0") / @_snapshot.Gc.Gen1Collections.ToString("N0") / @_snapshot.Gc.Gen2Collections.ToString("N0")</span></div>
-            <div class="res-row" title="The total time the garbage collector paused this app since it started. Long pauses show as stutters on screen."><span>Time paused</span><span>@PauseText(_snapshot.Gc.TotalPause)</span></div>
-            <div class="res-row" title="The total memory this app has asked .NET for since it started, including memory that was freed again."><span>Allocated since start</span><span>@Format(_snapshot.Gc.TotalAllocatedBytes)</span></div>
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3" title="@(L["resources.gcTip"])"><b>@L["resources.gc"]</b></RadzenText>
+            <div class="res-row" title="@(L["resources.gcCollectionsTip"])"><span>@L["resources.gcCollections"]</span><span>@_snapshot.Gc.Gen0Collections.ToString("N0") / @_snapshot.Gc.Gen1Collections.ToString("N0") / @_snapshot.Gc.Gen2Collections.ToString("N0")</span></div>
+            <div class="res-row" title="@(L["resources.timePausedTip"])"><span>@L["resources.timePaused"]</span><span>@PauseText(_snapshot.Gc.TotalPause)</span></div>
+            <div class="res-row" title="@(L["resources.allocatedTip"])"><span>@L["resources.allocated"]</span><span>@Format(_snapshot.Gc.TotalAllocatedBytes)</span></div>
 
-            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3" title="The log rows currently loaded, and the most recent load."><b>Loaded logs</b></RadzenText>
-            <div class="res-row" title="The number of log rows currently held in memory for the views."><span>Rows loaded</span><span>@Store.Entries.Count.ToString("N0")</span></div>
-            <div class="res-row" title="Whether a load is running, a load has finished, or nothing has been loaded yet."><span>State</span><span>@(Store.IsLoading ? "loading" : Store.IsLoaded ? "loaded" : "nothing loaded")</span></div>
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3" title="@(L["resources.loadedLogsTip"])"><b>@L["resources.loadedLogs"]</b></RadzenText>
+            <div class="res-row" title="@(L["resources.rowsLoadedTip"])"><span>@L["resources.rowsLoaded"]</span><span>@Store.Entries.Count.ToString("N0")</span></div>
+            <div class="res-row" title="@(L["resources.stateLoadTip"])"><span>@L["resources.state"]</span><span>@(Store.IsLoading ? L["resources.loading"] : Store.IsLoaded ? L["resources.loaded"] : L["resources.nothingLoaded"])</span></div>
             @if (Store.LastLoad is { } load)
             {
-                <div class="res-row" title="The folder, file or source the most recent load read from."><span>Last load</span><span>@load.Source</span></div>
-                <div class="res-row" title="The local time when the most recent load started."><span>Started</span><span>@load.StartedUtc.ToLocalTime().ToString("HH:mm:ss")</span></div>
-                <div class="res-row" title="How long the most recent load took, from start to finish."><span>Duration</span><span>@Duration(load.Duration)</span></div>
-                <div class="res-row" title="Rows read per second during the most recent load: its rows divided by its duration."><span>Rows per second</span><span>@load.RowsPerSecond.ToString("N0")</span></div>
-                <div class="res-row" title="The bytes read from the source during the most recent load. Shows not known when the source does not report its size."><span>Bytes read</span><span>@(load.Bytes is long bytes ? Format(bytes) : "not known")</span></div>
-                <div class="res-row" title="Whether the most recent load finished, or failed or was cancelled before it finished."><span>Result</span><span>@(load.Succeeded ? "ok" : "failed or cancelled")</span></div>
+                <div class="res-row" title="@(L["resources.lastLoadTip"])"><span>@L["resources.lastLoad"]</span><span>@load.Source</span></div>
+                <div class="res-row" title="@(L["resources.startedTip"])"><span>@L["resources.started"]</span><span>@load.StartedUtc.ToLocalTime().ToString("HH:mm:ss")</span></div>
+                <div class="res-row" title="@(L["resources.durationTip"])"><span>@L["resources.duration"]</span><span>@Duration(load.Duration)</span></div>
+                <div class="res-row" title="@(L["resources.rowsPerSecondTip"])"><span>@L["resources.rowsPerSecond"]</span><span>@load.RowsPerSecond.ToString("N0")</span></div>
+                <div class="res-row" title="@(L["resources.bytesReadTip"])"><span>@L["resources.bytesRead"]</span><span>@(load.Bytes is long bytes ? Format(bytes) : L["resources.notKnown"])</span></div>
+                <div class="res-row" title="@(L["resources.resultTip"])"><span>@L["resources.result"]</span><span>@(load.Succeeded ? L["resources.ok"] : L["resources.failedOrCancelled"])</span></div>
             }
 
             @if (Store.Grafana is { } download)
             {
-                <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3" title="The most recent download from Grafana Cloud."><b>Grafana download</b></RadzenText>
-                <div class="res-row" title="Whether the Grafana download is still running, and when it finished."><span>State</span><span>@(download.EndedUtc is null ? "downloading" : $"finished at {download.EndedUtc.Value.ToLocalTime():HH:mm:ss}")</span></div>
-                <div class="res-row" title="The number of result pages fetched from Grafana so far."><span>Pages</span><span>@download.Pages.ToString("N0")</span></div>
-                <div class="res-row" title="The log lines received from Grafana so far."><span>Lines</span><span>@download.Lines.ToString("N0")</span></div>
-                <div class="res-row" title="Lines received per second. While downloading it is the rate so far; once finished, the rate over the whole download."><span>Lines per second</span><span>@download.LinesPerSecond(DateTime.UtcNow).ToString("N0")</span></div>
-                <div class="res-row" title="The bytes of response data received from Grafana, after decompression, so it can differ from the bytes on the network."><span>Downloaded</span><span>@Format(download.Bytes)</span></div>
-                <div class="res-row" title="Bytes received per second, over the whole download so far, or over its full time once it has finished."><span>Download speed</span><span>@Format((long)download.BytesPerSecond(DateTime.UtcNow))/s</span></div>
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3" title="@(L["resources.grafanaDownloadTip"])"><b>@L["resources.grafanaDownload"]</b></RadzenText>
+                <div class="res-row" title="@(L["resources.downloadStateTip"])"><span>@L["resources.state"]</span><span>@(download.EndedUtc is null ? L["resources.downloading"] : L["resources.finishedAt", download.EndedUtc.Value.ToLocalTime().ToString("HH:mm:ss")])</span></div>
+                <div class="res-row" title="@(L["resources.pagesTip"])"><span>@L["resources.pages"]</span><span>@download.Pages.ToString("N0")</span></div>
+                <div class="res-row" title="@(L["resources.linesTip"])"><span>@L["resources.lines"]</span><span>@download.Lines.ToString("N0")</span></div>
+                <div class="res-row" title="@(L["resources.linesPerSecondTip"])"><span>@L["resources.linesPerSecond"]</span><span>@download.LinesPerSecond(DateTime.UtcNow).ToString("N0")</span></div>
+                <div class="res-row" title="@(L["resources.downloadedTip"])"><span>@L["resources.downloaded"]</span><span>@Format(download.Bytes)</span></div>
+                <div class="res-row" title="@(L["resources.downloadSpeedTip"])"><span>@L["resources.downloadSpeed"]</span><span>@L["resources.perSecond", Format((long)download.BytesPerSecond(DateTime.UtcNow))]</span></div>
             }
 
-            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3" title="The live inputs: the watched log file and the network listener."><b>Live logs</b></RadzenText>
-            <div class="res-row" title="The log file the app is following live, or off when it is not watching one."><span>File watch</span><span>@(Watcher.IsWatching ? $"watching {Watcher.WatchedFile}" : "off")</span></div>
-            <div class="res-row" title="The rows read from the watched file since watching started."><span>Rows read from the watched file</span><span>@Watcher.TotalEntries.ToString("N0")</span></div>
-            <div class="res-row" title="The address and port the network listener receives live logs on, or off when it is not listening."><span>Network listener</span><span>@(Listener.IsListening ? $"listening on {Listener.Endpoint}" : "off")</span></div>
-            <div class="res-row" title="The log rows received through the network listener since it started."><span>Rows received over the network</span><span>@Listener.TotalEntries.ToString("N0")</span></div>
-            <div class="res-row" title="The bytes of network data the listener has received since it started."><span>Bytes received over the network</span><span>@Format(Listener.TotalBytes)</span></div>
-            <div class="res-row" title="Network packets the listener skipped because they did not hold a log row it could read."><span>Datagrams ignored</span><span>@Listener.Ignored.ToString("N0")</span></div>
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-3" title="@(L["resources.liveLogsTip"])"><b>@L["resources.liveLogs"]</b></RadzenText>
+            <div class="res-row" title="@(L["resources.fileWatchTip"])"><span>@L["resources.fileWatch"]</span><span>@(Watcher.IsWatching ? L["resources.watching", Watcher.WatchedFile] : L["resources.off"])</span></div>
+            <div class="res-row" title="@(L["resources.rowsFromWatchedTip"])"><span>@L["resources.rowsFromWatched"]</span><span>@Watcher.TotalEntries.ToString("N0")</span></div>
+            <div class="res-row" title="@(L["resources.networkListenerTip"])"><span>@L["resources.networkListener"]</span><span>@(Listener.IsListening ? L["resources.listeningOn", Listener.Endpoint] : L["resources.off"])</span></div>
+            <div class="res-row" title="@(L["resources.rowsOverNetworkTip"])"><span>@L["resources.rowsOverNetwork"]</span><span>@Listener.TotalEntries.ToString("N0")</span></div>
+            <div class="res-row" title="@(L["resources.bytesOverNetworkTip"])"><span>@L["resources.bytesOverNetwork"]</span><span>@Format(Listener.TotalBytes)</span></div>
+            <div class="res-row" title="@(L["resources.datagramsIgnoredTip"])"><span>@L["resources.datagramsIgnored"]</span><span>@Listener.Ignored.ToString("N0")</span></div>
 
             <RadzenText TextStyle="TextStyle.Caption" class="rz-mt-2 rz-color-muted"
-                        title="Only this app's own program is counted. The browser engine that draws its screens (Microsoft Edge WebView2) runs in separate msedgewebview2 processes. Task Manager lists those separately, and they are not included in these figures.">
-                Counts this process only. The web views it hosts run in separate processes that are not included.
+                        title="@(L["resources.captionTip"])">
+                @L["resources.captionText"]
             </RadzenText>
         }
     </RadzenCard>
@@ -250,8 +251,8 @@
             Notifications.Notify(new NotificationMessage
             {
                 Severity = NotificationSeverity.Success,
-                Summary = "Copied",
-                Detail = "The panel is on the clipboard.",
+                Summary = L["resources.copied"],
+                Detail = L["resources.copiedDetail"],
                 Duration = 2200,
             });
         }

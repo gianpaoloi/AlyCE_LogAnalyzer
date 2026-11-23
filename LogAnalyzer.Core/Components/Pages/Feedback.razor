@@ -1,56 +1,56 @@
 @page "/feedback"
+@inject Localizer L
 @inject UpdateChecker Updates
 @inject LogStore Store
 @inject LogWatcher Watcher
 @inject NetworkLogListener Listener
 
-<PageTitle>Feedback · AlyCE Log Analyzer</PageTitle>
+<PageTitle>@L["feedback.title"] · AlyCE Log Analyzer</PageTitle>
 
-<RadzenText TextStyle="TextStyle.H4">Feedback</RadzenText>
+<RadzenText TextStyle="TextStyle.H4">@L["feedback.title"]</RadzenText>
 <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted rz-mb-3">
-    Suggest a feature, or report a problem. This opens a new issue on GitHub with your text filled in —
-    nothing is sent until you press <b>Submit new issue</b> there.
+    @L["feedback.intro"] <b>@L["feedback.submitNewIssue"]</b> @L["feedback.introEnd"]
 </RadzenText>
 
 <RadzenCard Variant="Variant.Outlined" class="feedback-card rz-mb-3">
     <RadzenStack Gap="0.75rem">
-        <RadzenLabel Text="What is this about?" Component="kind" />
+        <RadzenLabel Text="@(L["feedback.kindLabel"])" Component="kind" />
         <RadzenDropDown @bind-Value="_kind" Data="@_kinds" TextProperty="Text" ValueProperty="Value"
                         TValue="IssueKind" Name="kind" Style="max-width:320px" />
 
-        <RadzenLabel Text="Title" Component="title" />
+        <RadzenLabel Text="@(L["feedback.titleLabel"])" Component="title" />
         <RadzenTextBox @bind-Value="_title" Name="title" Immediate="true" MaxLength="@IssueLink.MaxTitleLength"
                        Placeholder="@_titlePlaceholder" />
 
         @if (_kind == IssueKind.Bug)
         {
-            <RadzenLabel Text="Where in the app did it happen?" Component="page" />
+            <RadzenLabel Text="@(L["feedback.pageLabel"])" Component="page" />
             <RadzenDropDown @bind-Value="_page" Data="@Pages" AllowClear="true" Name="page"
-                            Placeholder="Choose a page…" Style="max-width:320px" />
+                            Placeholder="@(L["feedback.choosePage"])" Style="max-width:320px" />
 
-            <RadzenLabel Text="Which kind of input were you reading?" Component="input" />
+            <RadzenLabel Text="@(L["feedback.inputLabel"])" Component="input" />
             <RadzenDropDown @bind-Value="_input" Data="@Inputs" AllowClear="true" Name="input"
-                            Placeholder="Choose one…" Style="max-width:320px" />
+                            Placeholder="@(L["feedback.chooseOne"])" Style="max-width:320px" />
 
-            <RadzenLabel Text="Steps to reproduce" Component="steps" />
+            <RadzenLabel Text="@(L["feedback.stepsLabel"])" Component="steps" />
             <RadzenTextArea @bind-Value="_steps" Name="steps" Immediate="true" Rows="5" MaxLength="3000"
-                            Placeholder="1. Open the app&#10;2. Load the folder …&#10;3. Click … " />
+                            Placeholder="@(L["feedback.stepsPlaceholder"])" />
 
-            <RadzenLabel Text="What did you expect to happen?" Component="expected" />
+            <RadzenLabel Text="@(L["feedback.expectedLabel"])" Component="expected" />
             <RadzenTextArea @bind-Value="_expected" Name="expected" Immediate="true" Rows="2" MaxLength="1500" />
 
-            <RadzenLabel Text="What happened instead?" Component="actual" />
+            <RadzenLabel Text="@(L["feedback.actualLabel"])" Component="actual" />
             <RadzenTextArea @bind-Value="_actual" Name="actual" Immediate="true" Rows="2" MaxLength="1500" />
 
-            <RadzenLabel Text="How often does it happen?" Component="frequency" />
+            <RadzenLabel Text="@(L["feedback.frequencyLabel"])" Component="frequency" />
             <RadzenDropDown @bind-Value="_frequency" Data="@Frequencies" AllowClear="true" Name="frequency"
-                            Placeholder="Choose one…" Style="max-width:320px" />
+                            Placeholder="@(L["feedback.chooseOne"])" Style="max-width:320px" />
         }
         else
         {
-            <RadzenLabel Text="Details" Component="details" />
+            <RadzenLabel Text="@(L["feedback.detailsLabel"])" Component="details" />
             <RadzenTextArea @bind-Value="_details" Name="details" Immediate="true" Rows="8" MaxLength="4000"
-                            Placeholder="What would you like the app to do, and why would it help?" />
+                            Placeholder="@(L["feedback.detailsPlaceholder"])" />
         }
 
         <RadzenCheckBox @bind-Value="_includeEnvironment" Name="env" Immediate="true" />
@@ -58,20 +58,18 @@
         @if (_kind == IssueKind.Bug && _includeEnvironment)
         {
             <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-m-0">
-                Sent: app version, Windows version and build, CPU architecture, .NET runtime, number of processors,
-                memory, display language and the local time you filed it. Not sent: your user name, the computer
-                name, file names or paths, or anything from your logs.
+                @L["feedback.sentNote"]
             </RadzenText>
         }
 
         <RadzenCheckBox Value="_includeResources" TValue="bool" Name="resources" Change="OnResourcesToggled" />
-        <RadzenLabel Text="Include resources information (this computer, this app and the loaded logs)" Component="resources" />
+        <RadzenLabel Text="@(L["feedback.resourcesLabel"])" Component="resources" />
         @if (_includeResources)
         {
             <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-m-0">
                 @(_resourcesText is null
-                    ? "Measuring for one second…"
-                    : $"Captured at {_capturedAt:HH:mm:ss}: the same figures as the Resources page, with the computer name, file names, paths and network address left out.")
+                    ? L["feedback.measuring"]
+                    : L["feedback.captured", _capturedAt.ToString("HH:mm:ss")])
             </RadzenText>
         }
 
@@ -82,33 +80,33 @@
             <a class="btn btn-primary @(_canSubmit ? null : "disabled")"
                href="@(_canSubmit ? _issueUrl : null)" target="_blank" rel="noopener noreferrer"
                aria-disabled="@(!_canSubmit)">
-                <RadzenIcon Icon="open_in_new" /> Submit new issue on GitHub
+                <RadzenIcon Icon="open_in_new" /> @L["feedback.submitOnGitHub"]
             </a>
             @if (_canSubmit)
             {
                 <a class="btn btn-outline-secondary" href="@_searchUrl" target="_blank" rel="noopener noreferrer">
-                    <RadzenIcon Icon="travel_explore" /> Search existing issues first
+                    <RadzenIcon Icon="travel_explore" /> @L["feedback.searchFirst"]
                 </a>
             }
             else
             {
-                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-m-0">Enter a title to continue.</RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-m-0">@L["feedback.enterTitle"]</RadzenText>
             }
         </div>
     </RadzenStack>
 </RadzenCard>
 
 <RadzenCard Variant="Variant.Outlined" class="feedback-card">
-    <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-2"><b>Before you submit</b></RadzenText>
+    <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-mb-2"><b>@L["feedback.checkTitle"]</b></RadzenText>
     <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-mb-2">
-        Optional — these are reminders, not requirements. Ticking them does not change what is sent.
+        @L["feedback.checkIntro"]
     </RadzenText>
     <div class="feedback-checklist">
         @foreach (var item in _kind == IssueKind.Bug ? _bugChecklist : _featureChecklist)
         {
             <label class="feedback-check">
                 <RadzenCheckBox @bind-Value="item.Done" TValue="bool" />
-                <span>@item.Text</span>
+                <span>@L[item.Key]</span>
             </label>
         }
     </div>
@@ -117,16 +115,16 @@
 @code {
     private sealed record KindOption(string Text, IssueKind Value);
 
-    private sealed class CheckItem(string text)
+    private sealed class CheckItem(string key)
     {
-        public string Text { get; } = text;
+        public string Key { get; } = key;
         public bool Done { get; set; }
     }
 
-    private static readonly IReadOnlyList<KindOption> _kinds =
+    private IReadOnlyList<KindOption> _kinds =>
     [
-        new("Feature suggestion", IssueKind.Feature),
-        new("Problem or bug", IssueKind.Bug),
+        new(L["feedback.kindFeature"], IssueKind.Feature),
+        new(L["feedback.kindBug"], IssueKind.Bug),
     ];
 
     private static readonly string[] Pages =
@@ -146,20 +144,20 @@
     // Rebuilt on each visit, so ticks do not survive leaving the page.
     private readonly List<CheckItem> _bugChecklist =
     [
-        new("I can repeat the steps in order, starting from opening the app."),
-        new("I wrote what I expected to happen and what happened instead."),
-        new("I checked whether it still happens after restarting the app."),
-        new("I described the input (file type, folder, live file or network) without attaching the file."),
-        new("I removed passwords, tokens, customer names and personal data from anything I pasted."),
-        new("I searched existing issues for the same problem."),
-        new("If it looks wrong on screen, I will add a screenshot on GitHub."),
+        new("feedback.bugCheck1"),
+        new("feedback.bugCheck2"),
+        new("feedback.bugCheck3"),
+        new("feedback.bugCheck4"),
+        new("feedback.bugCheck5"),
+        new("feedback.bugCheck6"),
+        new("feedback.bugCheck7"),
     ];
 
     private readonly List<CheckItem> _featureChecklist =
     [
-        new("I described the problem I am trying to solve, not only the button I want."),
-        new("I gave an example of when I would use it."),
-        new("I searched existing issues for the same suggestion."),
+        new("feedback.featureCheck1"),
+        new("feedback.featureCheck2"),
+        new("feedback.featureCheck3"),
     ];
 
     private IssueKind _kind = IssueKind.Feature;
@@ -203,16 +201,16 @@
     }
 
     private string _environmentLabel => _kind == IssueKind.Bug
-        ? $"Include my machine details (app {AppVersion.Display}, Windows, runtime) so the problem can be reproduced"
-        : $"Include the app version ({AppVersion.Display}) so the request can be tied to this build";
+        ? L["feedback.envBug", AppVersion.Display]
+        : L["feedback.envFeature", AppVersion.Display];
 
     private string _issueText => _kind == IssueKind.Bug
         ? IssueLink.BugBody(new BugSteps(_page, _steps, _expected, _actual, _frequency, _input))
         : _details ?? string.Empty;
 
     private string _titlePlaceholder => _kind == IssueKind.Bug
-        ? "What goes wrong, in one line — e.g. “Export ignores the time filter”"
-        : "A short summary, e.g. “Export keeps the time filter”";
+        ? L["feedback.bugTitlePlaceholder"]
+        : L["feedback.featureTitlePlaceholder"];
 
     // A bug always carries the app version, even with the machine details unticked: without it no
     // maintainer can tell which build the report is about.

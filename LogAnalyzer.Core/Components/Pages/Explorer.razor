@@ -5,10 +5,11 @@
 @inject IJSRuntime JS
 @inherits ObservingComponentBase
 @implements IDisposable
+@inject Localizer L
 
-<PageTitle>Explorer · AlyCE Log Analyzer</PageTitle>
+<PageTitle>@L["explorer.title"] · AlyCE Log Analyzer</PageTitle>
 
-<RadzenText TextStyle="TextStyle.H4">Explorer</RadzenText>
+<RadzenText TextStyle="TextStyle.H4">@L["explorer.title"]</RadzenText>
 <LoadPanel />
 
 @* Until the first lines arrive only the progress shows; after that the lines streamed so far are shown while the load runs. *@
@@ -18,7 +19,7 @@
 }
 else if (!Store.IsLoaded)
 {
-    <RadzenText class="rz-color-muted">Load a log folder to search entries.</RadzenText>
+    <RadzenText class="rz-color-muted">@L["explorer.loadPrompt"]</RadzenText>
 }
 else
 {
@@ -28,23 +29,23 @@ else
     }
     <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
-            <RadzenTextBox @bind-Value="State.ExplorerText" @bind-Value:after="Apply" Placeholder="search message…" style="min-width:220px" />
-            <RadzenTextBox @bind-Value="State.ExplorerLogger" @bind-Value:after="Apply" Placeholder="logger contains…" style="min-width:200px" />
-            <RadzenButton Text="Search" Icon="search" Click="Apply" ButtonStyle="ButtonStyle.Primary" />
-            <RadzenButton Text="Reset" Icon="clear" Click="Reset" ButtonStyle="ButtonStyle.Light" />
-            <RadzenSplitButton Text="Download" Icon="download" Click="OnDownload" ButtonStyle="ButtonStyle.Success"
+            <RadzenTextBox @bind-Value="State.ExplorerText" @bind-Value:after="Apply" Placeholder="@(L["explorer.searchMessage"])" style="min-width:220px" />
+            <RadzenTextBox @bind-Value="State.ExplorerLogger" @bind-Value:after="Apply" Placeholder="@(L["explorer.loggerContains"])" style="min-width:200px" />
+            <RadzenButton Text="@(L["explorer.search"])" Icon="search" Click="Apply" ButtonStyle="ButtonStyle.Primary" />
+            <RadzenButton Text="@(L["explorer.reset"])" Icon="clear" Click="Reset" ButtonStyle="ButtonStyle.Light" />
+            <RadzenSplitButton Text="@(L["explorer.download"])" Icon="download" Click="OnDownload" ButtonStyle="ButtonStyle.Success"
                                Disabled="@(_filtered.Count == 0)">
                 <ChildContent>
                     <RadzenSplitButtonItem Text="CSV (.csv)" Value="csv" />
-                    <RadzenSplitButtonItem Text="Log lines (.log)" Value="json" />
+                    <RadzenSplitButtonItem Text="@(L["explorer.logLines"])" Value="json" />
                 </ChildContent>
             </RadzenSplitButton>
-            <RadzenButton Icon="account_tree" Text="@(State.ExplorerShowLoggers ? "Hide loggers" : "Loggers")"
+            <RadzenButton Icon="account_tree" Text="@(State.ExplorerShowLoggers ? L["explorer.hideLoggers"] : L["explorer.loggers"])"
                           Click="@(() => State.ExplorerShowLoggers = !State.ExplorerShowLoggers)" ButtonStyle="ButtonStyle.Secondary" />
             <RadzenDropDown @bind-Value="State.ExplorerColumns" Multiple="true" AllowClear="true" Chips="true"
-                            Placeholder="Add columns…" Data="@LogColumns.Optional"
+                            Placeholder="@(L["explorer.addColumns"])" Data="@LogColumns.Optional"
                             TextProperty="Title" ValueProperty="Key" TValue="IEnumerable<string>" Style="width:300px" />
-            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">Filter Level / Environment / Time / Message from the column headers</RadzenText>
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["explorer.filterHint"]</RadzenText>
         </RadzenStack>
     </RadzenCard>
 
@@ -57,7 +58,7 @@ else
                             ActiveLevels="@State.ExplorerLevels" LevelToggled="OnLevelToggled"
                             SelectedTime="@_selectedTime" />
 
-            <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-2">@_filtered.Count.ToString("N0") entries — sort or use the column-header filters to refine; click a row for detail</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-2">@L["explorer.entries", _filtered.Count.ToString("N0")]</RadzenText>
 
             <RadzenDataGrid @ref="_grid" Data="@_filtered" TItem="LogEntry" AllowPaging="true" PageSize="50"
                             AllowSorting="true"
@@ -68,47 +69,47 @@ else
                     @* Every filter lives in its column header, so they all sit on one line; Radzen's own
                        filter row put Time and Message on a second one. The time filter is the same window
                        the volume chart selects, so either one moves the other. *@
-                    <RadzenDataGridColumn TItem="LogEntry" Title="Time" Width="200px" Property="Time" SortOrder="SortOrder.Descending">
+                    <RadzenDataGridColumn TItem="LogEntry" Title="@(L["explorer.colTime"])" Width="200px" Property="Time" SortOrder="SortOrder.Descending">
                         <HeaderTemplate>
                             <div class="col-filter">
-                                <span class="col-filter-title">Time</span>
+                                <span class="col-filter-title">@L["explorer.colTime"]</span>
                                 <TimeRangeFilter Range="@State.ExplorerRange" RangeChanged="OnRangeChanged"
                                                  FirstTime="@Store.Stats?.FirstTime" LastTime="@Store.Stats?.LastTime"
-                                                 Tooltip="Filter by time window (or drag on the volume chart)" />
+                                                 Tooltip="@(L["explorer.timeTooltip"])" />
                             </div>
                         </HeaderTemplate>
                         <Template Context="e"><span class="mono">@e.Time.ToString("MM-dd HH:mm:ss.fff")</span></Template>
                     </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="LogEntry" Title="Level" Width="200px" Property="Level" Filterable="false">
+                    <RadzenDataGridColumn TItem="LogEntry" Title="@(L["explorer.colLevel"])" Width="200px" Property="Level" Filterable="false">
                         <HeaderTemplate>
                             <div class="col-filter">
-                                <span class="col-filter-title">Level</span>
+                                <span class="col-filter-title">@L["explorer.colLevel"]</span>
                                 <RadzenDropDown @bind-Value="State.ExplorerLevels" @bind-Value:after="Apply"
                                                 Multiple="true" AllowClear="true" Chips="true"
-                                                Placeholder="All levels" Data="@_levels" TValue="IEnumerable<string>"
+                                                Placeholder="@(L["explorer.allLevels"])"Data="@_levels" TValue="IEnumerable<string>"
                                                 Style="width:100%" />
                             </div>
                         </HeaderTemplate>
                         <Template Context="e"><LevelBadge Level="@e.Level" /></Template>
                     </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="LogEntry" Title="Environment" Property="Environment" Width="240px" Filterable="false">
+                    <RadzenDataGridColumn TItem="LogEntry" Title="@(L["explorer.colEnvironment"])" Property="Environment" Width="240px" Filterable="false">
                         <HeaderTemplate>
                             <div class="col-filter">
-                                <span class="col-filter-title">Environment</span>
+                                <span class="col-filter-title">@L["explorer.colEnvironment"]</span>
                                 <RadzenDropDown @bind-Value="State.ExplorerEnvironments" @bind-Value:after="Apply"
                                                 Multiple="true" AllowClear="true" Chips="true"
-                                                Placeholder="All environments" Data="@_envs" TValue="IEnumerable<string>"
+                                                Placeholder="@(L["explorer.allEnvironments"])"Data="@_envs" TValue="IEnumerable<string>"
                                                 Style="width:100%" />
                             </div>
                         </HeaderTemplate>
                     </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="LogEntry" Title="Company" Property="Company" Width="220px" Filterable="false">
+                    <RadzenDataGridColumn TItem="LogEntry" Title="@(L["explorer.colCompany"])" Property="Company" Width="220px" Filterable="false">
                         <HeaderTemplate>
                             <div class="col-filter">
-                                <span class="col-filter-title">Company</span>
+                                <span class="col-filter-title">@L["explorer.colCompany"]</span>
                                 <RadzenDropDown @bind-Value="State.ExplorerCompanies" @bind-Value:after="Apply"
                                                 Multiple="true" AllowClear="true" Chips="true"
-                                                Placeholder="All companies" Data="@_companies" TValue="IEnumerable<string>"
+                                                Placeholder="@(L["explorer.allCompanies"])"Data="@_companies" TValue="IEnumerable<string>"
                                                 Style="width:100%" />
                             </div>
                         </HeaderTemplate>
@@ -120,13 +121,13 @@ else
                             <Template Context="e"><span class="mono">@col.Value(e)</span></Template>
                         </RadzenDataGridColumn>
                     }
-                    <RadzenDataGridColumn TItem="LogEntry" Title="Message" Property="Message" Sortable="false">
+                    <RadzenDataGridColumn TItem="LogEntry" Title="@(L["explorer.colMessage"])" Property="Message" Sortable="false">
                         <HeaderTemplate>
                             <div class="col-filter">
-                                <span class="col-filter-title">Message</span>
+                                <span class="col-filter-title">@L["explorer.colMessage"]</span>
                                 <div @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
                                     <RadzenTextBox @bind-Value="State.ExplorerMessage" @bind-Value:after="Apply"
-                                                   Placeholder="message contains…" Style="width:100%" />
+                                                   Placeholder="@(L["explorer.messageContains"])" Style="width:100%" />
                                 </div>
                             </div>
                         </HeaderTemplate>
@@ -134,7 +135,7 @@ else
                             @e.ShortMessage
                             @if (e.HasStackTrace)
                             {
-                                <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="stack" class="rz-ml-1" />
+                                <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="@(L["explorer.stack"])" class="rz-ml-1" />
                             }
                         </Template>
                     </RadzenDataGridColumn>

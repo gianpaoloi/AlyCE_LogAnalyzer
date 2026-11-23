@@ -1,0 +1,6 @@
+{
+  "loadprogress.lookingForFiles": { "en": "Looking for log files…", "it": "Ricerca dei file di log…", "sq": "Po kërkohen skedarët e log-ut…" },
+  "loadprogress.sorting": { "en": "Sorting and computing statistics…", "it": "Ordinamento e calcolo delle statistiche…", "sq": "Po renditen dhe llogariten statistikat…" },
+  "loadprogress.loadingCompact": { "en": "Loading… {0} / {1} files", "it": "Caricamento… {0} / {1} file", "sq": "Po ngarkohen… {0} / {1} skedarë" },
+  "loadprogress.parsing": { "en": "Parsing… {0} / {1} files · {2} entries", "it": "Analisi… {0} / {1} file · {2} voci", "sq": "Po analizohen… {0} / {1} skedarë · {2} rreshta" }
+}

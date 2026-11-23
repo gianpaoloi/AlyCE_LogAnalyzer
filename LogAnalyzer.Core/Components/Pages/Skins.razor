@@ -2,14 +2,14 @@
 @using System.Text.RegularExpressions
 @inject SkinStore Store
 @inject IJSRuntime JS
+@inject Localizer L
 @implements IAsyncDisposable
 
-<PageTitle>Skins · AlyCE Log Analyzer</PageTitle>
+<PageTitle>@(L["skins.pageTitle"])</PageTitle>
 
-<RadzenText TextStyle="TextStyle.H4">Skins</RadzenText>
+<RadzenText TextStyle="TextStyle.H4">@(L["skins.title"])</RadzenText>
 <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted rz-mb-3">
-    A skin sets the colours of the app. Pick one and press <b>Apply</b>. Built-in skins are read-only: duplicate one to
-    change it. While you edit, the page shows your colours straight away; <b>Save</b> keeps them.
+    @((MarkupString)L["skins.intro"])
 </RadzenText>
 
 @if (_message is not null)
@@ -20,7 +20,7 @@
 <div class="skin-layout">
     <RadzenCard Variant="Variant.Outlined">
         <RadzenStack Gap="0.5rem">
-            <RadzenText TextStyle="TextStyle.Overline" class="rz-color-muted">Built-in</RadzenText>
+            <RadzenText TextStyle="TextStyle.Overline" class="rz-color-muted">@(L["skins.builtIn"])</RadzenText>
             <div class="skin-list">
                 @foreach (var skin in SkinCatalog.BuiltIn)
                 {
@@ -28,11 +28,11 @@
                 }
             </div>
 
-            <RadzenText TextStyle="TextStyle.Overline" class="rz-color-muted rz-mt-3">Your skins</RadzenText>
+            <RadzenText TextStyle="TextStyle.Overline" class="rz-color-muted rz-mt-3">@(L["skins.yourSkins"])</RadzenText>
             <div class="skin-list">
                 @if (_custom.Count == 0)
                 {
-                    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">None yet. Duplicate a built-in skin or import one.</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@(L["skins.noneYet"])</RadzenText>
                 }
                 @foreach (var skin in _custom)
                 {
@@ -45,7 +45,7 @@
     <RadzenCard Variant="Variant.Outlined">
         @if (_draft is null)
         {
-            <RadzenText class="rz-color-muted">Select a skin.</RadzenText>
+            <RadzenText class="rz-color-muted">@(L["skins.selectSkin"])</RadzenText>
         }
         else
         {
@@ -53,29 +53,29 @@
             <RadzenStack Gap="0.75rem">
                 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Wrap="FlexWrap.Wrap">
                     <RadzenText TextStyle="TextStyle.H5" class="rz-m-0">@_draft.Name</RadzenText>
-                    <span class="skin-tag">@(readOnly ? "built-in · read-only" : "your skin")</span>
+                    <span class="skin-tag">@(readOnly ? L["skins.tagBuiltIn"] : L["skins.tagYours"])</span>
                     @if (_draft.Name == _activeName)
                     {
-                        <span class="skin-tag skin-tag-active">active</span>
+                        <span class="skin-tag skin-tag-active">@(L["skins.tagActive"])</span>
                     }
                     @if (_dirty)
                     {
-                        <span class="skin-tag skin-tag-dirty">unsaved changes</span>
+                        <span class="skin-tag skin-tag-dirty">@(L["skins.tagUnsaved"])</span>
                     }
                 </RadzenStack>
 
                 <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap">
-                    <RadzenButton Text="Apply" Icon="check" ButtonStyle="ButtonStyle.Primary"
+                    <RadzenButton Text="@(L["skins.apply"])" Icon="check" ButtonStyle="ButtonStyle.Primary"
                                   Disabled="@(_draft.Name == _activeName)" Click="ApplySelected" />
-                    <RadzenButton Text="Duplicate" Icon="content_copy" ButtonStyle="ButtonStyle.Secondary" Click="DuplicateSelected" />
-                    <RadzenButton Text="New" Icon="add" ButtonStyle="ButtonStyle.Secondary" Click="NewSkin" />
-                    <RadzenButton Text="Export" Icon="download" ButtonStyle="ButtonStyle.Secondary" Click="ExportSelected" />
+                    <RadzenButton Text="@(L["skins.duplicate"])" Icon="content_copy" ButtonStyle="ButtonStyle.Secondary" Click="DuplicateSelected" />
+                    <RadzenButton Text="@(L["skins.new"])" Icon="add" ButtonStyle="ButtonStyle.Secondary" Click="NewSkin" />
+                    <RadzenButton Text="@(L["skins.export"])" Icon="download" ButtonStyle="ButtonStyle.Secondary" Click="ExportSelected" />
                     @* Styled with the same Radzen button classes as the buttons beside it; the file input is laid over the label. *@
-                    <label class="rz-button rz-button-md rz-secondary rz-shade-default rz-button-icon-left skin-import" title="Import a skin file (.json) exported from this page. Imported skins are added to your skins; a name that is already taken gets a number added.">
-                        <span class="rz-button-box"><RadzenIcon Icon="upload" /><span>Import</span></span>
+                    <label class="rz-button rz-button-md rz-secondary rz-shade-default rz-button-icon-left skin-import" title="@(L["skins.importTip"])">
+                        <span class="rz-button-box"><RadzenIcon Icon="upload" /><span>@(L["skins.import"])</span></span>
                         <InputFile OnChange="ImportFile" accept=".json,application/json" class="skin-import-input" />
                     </label>
-                    <RadzenButton Text="Delete" Icon="delete" ButtonStyle="ButtonStyle.Danger"
+                    <RadzenButton Text="@(L["skins.delete"])" Icon="delete" ButtonStyle="ButtonStyle.Danger"
                                   Disabled="@readOnly" Click="DeleteSelected" />
                 </RadzenStack>
 
@@ -83,12 +83,12 @@
                 {
                     <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem" Wrap="FlexWrap.Wrap" AlignItems="AlignItems.End">
                         <RadzenStack Gap="0.25rem" Style="min-width:240px;flex:1">
-                            <RadzenLabel Text="Name" Component="skin-name" />
+                            <RadzenLabel Text="@(L["skins.name"])" Component="skin-name" />
                             <RadzenTextBox Name="skin-name" Value="@_draft.Name" MaxLength="@SkinCatalog.MaxNameLength"
                                            Change="@(v => EditDraft(d => d with { Name = v ?? "" }))" />
                         </RadzenStack>
                         <RadzenStack Gap="0.25rem" Style="min-width:240px;flex:2">
-                            <RadzenLabel Text="Description" Component="skin-desc" />
+                            <RadzenLabel Text="@(L["skins.description"])" Component="skin-desc" />
                             <RadzenTextBox Name="skin-desc" Value="@_draft.Description" MaxLength="@SkinCatalog.MaxDescriptionLength"
                                            Change="@(v => EditDraft(d => d with { Description = v ?? "" }))" />
                         </RadzenStack>
@@ -101,13 +101,13 @@
 
                 @foreach (var group in SkinCatalog.Colors.GroupBy(c => c.Group))
                 {
-                    <RadzenText TextStyle="TextStyle.Overline" class="rz-color-muted rz-mt-2">@group.Key</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Overline" class="rz-color-muted rz-mt-2">@(L["skins.group." + GroupKey(group.Key)])</RadzenText>
                     @foreach (var color in group)
                     {
                         var value = _draft.Variables.TryGetValue(color.Variable, out var v) ? v : "";
                         var valid = SkinCatalog.IsHexColor(value);
                         <div class="skin-color-row" title="@color.Variable">
-                            <span>@color.Label</span>
+                            <span>@(L["skins.var." + color.Variable.TrimStart('-')])</span>
                             @if (valid)
                             {
                                 <input type="color" class="skin-color" value="@value" disabled="@readOnly"
@@ -115,7 +115,7 @@
                             }
                             else
                             {
-                                <span class="skin-tag skin-tag-dirty">invalid</span>
+                                <span class="skin-tag skin-tag-dirty">@(L["skins.tagInvalid"])</span>
                             }
                             <RadzenTextBox Value="@value" Disabled="@readOnly" Style="width:110px"
                                            Change="@(s => SetColor(color.Variable, s))" />
@@ -126,8 +126,8 @@
                 @if (!readOnly)
                 {
                     <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap" class="rz-mt-2">
-                        <RadzenButton Text="Save" Icon="save" ButtonStyle="ButtonStyle.Success" Disabled="@(!_dirty)" Click="SaveDraft" />
-                        <RadzenButton Text="Discard changes" Icon="undo" ButtonStyle="ButtonStyle.Light" Disabled="@(!_dirty)" Click="DiscardDraft" />
+                        <RadzenButton Text="@(L["skins.save"])" Icon="save" ButtonStyle="ButtonStyle.Success" Disabled="@(!_dirty)" Click="SaveDraft" />
+                        <RadzenButton Text="@(L["skins.discard"])" Icon="undo" ButtonStyle="ButtonStyle.Light" Disabled="@(!_dirty)" Click="DiscardDraft" />
                     </RadzenStack>
                 }
             </RadzenStack>
@@ -148,6 +148,8 @@
 
     private string MessageClass => _messageIsError ? "skin-error rz-mb-3" : "rz-color-muted rz-mb-3";
 
+    private static string GroupKey(string group) => group.ToLowerInvariant().Replace(' ', '_');
+
     private RenderFragment SkinButton(AppSkin skin) => __builder =>
     {
         <button type="button" class="@(skin.Name == _selected ? "skin-item selected" : "skin-item")" @onclick="() => SelectAsync(skin.Name)">
@@ -160,7 +162,7 @@
             <span class="skin-item-name">@skin.Name</span>
             @if (skin.Name == _activeName)
             {
-                <span class="skin-tag skin-tag-active">active</span>
+                <span class="skin-tag skin-tag-active">@(L["skins.tagActive"])</span>
             }
         </button>
     };
@@ -193,7 +195,7 @@
 
     private async Task SelectAsync(string name)
     {
-        if (_dirty) _message = $"Unsaved changes to \"{_selected}\" were discarded.";
+        if (_dirty) _message = L["skins.msgUnsavedDiscarded", _selected ?? ""];
         else _message = null;
         _selected = name;
         LoadDraft();
@@ -229,7 +231,7 @@
         var name = _draft.Name.Trim();
         var problem = SkinCatalog.Validate(_draft with { Name = name });
         if (problem is null && _custom.Any(s => s.Name != _selected && string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)))
-            problem = $"You already have a skin named \"{name}\".";
+            problem = L["skins.msgDuplicateName", name];
         if (problem is not null)
         {
             Show(problem, true);
@@ -239,7 +241,7 @@
         var renamed = _selected is not null && !string.Equals(_selected, name, StringComparison.OrdinalIgnoreCase);
         if (!await Store.SaveAsync(_draft with { Name = name }))
         {
-            Show("The skin could not be saved. Browser storage may be blocked.", true);
+            Show(L["skins.msgSaveFailed"], true);
             return;
         }
 
@@ -258,14 +260,14 @@
         _selected = name;
         LoadDraft();
         if (_activeName == name) await Store.ApplyAsync(_draft!);
-        Show($"Saved \"{name}\".", false);
+        Show(L["skins.msgSaved", name], false);
     }
 
     private async Task DiscardDraft()
     {
         LoadDraft();
         await Store.ApplyAsync(_draft!);
-        Show("Changes discarded.", false);
+        Show(L["skins.msgDiscarded"], false);
     }
 
     private async Task ApplySelected()
@@ -273,42 +275,42 @@
         if (_selected is null) return;
         if (_dirty)
         {
-            Show("Save your changes before applying the skin.", true);
+            Show(L["skins.msgSaveFirst"], true);
             return;
         }
 
         _activeName = _selected;
         await Store.SetActiveNameAsync(_activeName);
         await Store.ApplyAsync(_draft!);
-        Show($"Applied \"{_activeName}\".", false);
+        Show(L["skins.msgApplied", _activeName], false);
     }
 
     private async Task NewSkin()
     {
         var baseSkin = Find(_activeName) ?? SkinCatalog.Default;
-        var name = SkinCatalog.UniqueName("My skin", AllNames);
+        var name = SkinCatalog.UniqueName(L["skins.newName"], AllNames);
         await Store.SaveAsync(baseSkin with { Name = name, Description = "" });
         _custom = await Store.GetCustomAsync();
         _selected = name;
         LoadDraft();
-        Show($"Created \"{name}\" from the active skin. Change its colours, then Save.", false);
+        Show(L["skins.msgNew", name], false);
     }
 
     private async Task DuplicateSelected()
     {
         var source = Find(_selected) ?? SkinCatalog.Default;
-        var name = SkinCatalog.UniqueName($"{source.Name} copy", AllNames);
+        var name = SkinCatalog.UniqueName(L["skins.copyName", source.Name], AllNames);
         await Store.SaveAsync(source with { Name = name });
         _custom = await Store.GetCustomAsync();
         _selected = name;
         LoadDraft();
-        Show($"Created \"{name}\". Change its colours, then Save.", false);
+        Show(L["skins.msgCopy", name], false);
     }
 
     private async Task DeleteSelected()
     {
         if (_selected is null || SkinCatalog.IsBuiltInName(_selected)) return;
-        if (!await JS.InvokeAsync<bool>("confirm", $"Delete the skin \"{_selected}\"?")) return;
+        if (!await JS.InvokeAsync<bool>("confirm", L["skins.confirmDelete", _selected])) return;
 
         var deleted = _selected;
         await Store.DeleteAsync(deleted);
@@ -321,7 +323,7 @@
         _selected = _activeName;
         LoadDraft();
         await Store.ApplyAsync(_draft!);
-        Show($"Deleted \"{deleted}\".", false);
+        Show(L["skins.msgDeleted", deleted], false);
     }
 
     private async Task ExportSelected()
@@ -339,7 +341,7 @@
         const long maxBytes = 256 * 1024;
         if (e.File.Size > maxBytes)
         {
-            Show("That file is too large to be a skin.", true);
+            Show(L["skins.msgTooLarge"], true);
             return;
         }
 
@@ -367,8 +369,8 @@
             LoadDraft();
         }
 
-        var summary = imported.Count == 0 ? "No skins were imported." : $"Imported {imported.Count} skin(s): {string.Join(", ", imported)}.";
-        if (result.Errors.Count > 0) summary += " Skipped: " + string.Join(" ", result.Errors);
+        var summary = imported.Count == 0 ? L["skins.msgNoneImported"] : L["skins.msgImported", imported.Count, string.Join(", ", imported)];
+        if (result.Errors.Count > 0) summary += " " + L["skins.msgSkipped", string.Join(" ", result.Errors)];
         Show(summary, imported.Count == 0 || result.Errors.Count > 0);
     }
 

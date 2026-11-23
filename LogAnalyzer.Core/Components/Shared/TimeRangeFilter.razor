@@ -1,4 +1,5 @@
 @inject IJSRuntime JS
+@inject Localizer L
 
 @* Time column header filter: a button styled like the neighbouring header dropdowns that opens a
    From/To picker as a floating panel. Shared by the Explorer and the live grids.
@@ -9,7 +10,7 @@
 
 <div class="time-filter" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
     <button type="button" class="time-filter-button" @ref="_button" @onclick="Toggle"
-            title="@Tooltip">
+            title="@(Tooltip ?? L["timerange.tooltip"])">
         <span class="@(Range is null ? "time-filter-placeholder" : null)">@Label</span>
         <RadzenIcon Icon="schedule" />
     </button>
@@ -21,15 +22,15 @@
     {
         <div class="time-filter-backdrop" @onclick="Dismiss"></div>
         <div class="time-filter-popup" style="@_panelStyle">
-            <RadzenLabel Text="From" Component="@_fromId" />
+            <RadzenLabel Text="@(L["timerange.from"])" Component="@_fromId" />
             <RadzenDatePicker @bind-Value="_from" Name="@_fromId" ShowTime="true" ShowSeconds="true"
-                              DateFormat="yyyy-MM-dd HH:mm:ss" TValue="DateTime?" Placeholder="@FromPlaceholder" />
-            <RadzenLabel Text="To" Component="@_toId" />
+                              DateFormat="yyyy-MM-dd HH:mm:ss" TValue="DateTime?" Placeholder="@(FromPlaceholder ?? L["timerange.startOfLog"])" />
+            <RadzenLabel Text="@(L["timerange.to"])" Component="@_toId" />
             <RadzenDatePicker @bind-Value="_to" Name="@_toId" ShowTime="true" ShowSeconds="true"
-                              DateFormat="yyyy-MM-dd HH:mm:ss" TValue="DateTime?" Placeholder="@ToPlaceholder" />
+                              DateFormat="yyyy-MM-dd HH:mm:ss" TValue="DateTime?" Placeholder="@(ToPlaceholder ?? L["timerange.endOfLog"])" />
             <div class="time-filter-actions">
-                <RadzenButton Text="Clear" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="Clear" />
-                <RadzenButton Text="Apply" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="Apply" />
+                <RadzenButton Text="@(L["timerange.clear"])" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="Clear" />
+                <RadzenButton Text="@(L["timerange.apply"])" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="Apply" />
             </div>
         </div>
     }
@@ -45,9 +46,14 @@
     /// <summary>Fills an empty "To" on apply. Null leaves that side open.</summary>
     [Parameter] public DateTime? LastTime { get; set; }
 
-    [Parameter] public string Tooltip { get; set; } = "Filter by time window";
-    [Parameter] public string FromPlaceholder { get; set; } = "start of log";
-    [Parameter] public string ToPlaceholder { get; set; } = "end of log";
+    /// <summary>Button tooltip. Null uses the localized default.</summary>
+    [Parameter] public string? Tooltip { get; set; }
+
+    /// <summary>Hint in the empty "From" box. Null uses the localized default.</summary>
+    [Parameter] public string? FromPlaceholder { get; set; }
+
+    /// <summary>Hint in the empty "To" box. Null uses the localized default.</summary>
+    [Parameter] public string? ToPlaceholder { get; set; }
 
     /// <summary>Panel width in px, used to keep it inside the window's right edge.</summary>
     private const double PanelWidth = 280;
@@ -66,7 +72,7 @@
     /// <summary>An open side is stored as Min/MaxValue; it reads as "…" rather than year 0001.</summary>
     private string Label => Range switch
     {
-        null => "All times",
+        null => L["timerange.allTimes"],
         { From: var f, To: var t } when f == DateTime.MinValue => $"… → {t:MM/dd HH:mm:ss}",
         { From: var f, To: var t } when t == DateTime.MaxValue => $"{f:MM/dd HH:mm:ss} → …",
         { } r => r.ToString(),

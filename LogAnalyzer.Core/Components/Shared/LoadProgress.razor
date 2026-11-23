@@ -1,6 +1,7 @@
 @* Spinner + phase text for an in-flight load. Renders nothing when the store is idle,
    so callers can drop it in without wrapping it in their own IsLoading check. *@
 @inject LogStore Store
+@inject Localizer L
 
 @if (Store.IsLoading)
 {
@@ -25,11 +26,11 @@
         get
         {
             if (Store.BusyText is { } busy) return busy;
-            if (Store.FilesTotal == 0) return "Looking for log files…";
-            if (Store.FilesProcessed >= Store.FilesTotal) return "Sorting and computing statistics…";
+            if (Store.FilesTotal == 0) return L["loadprogress.lookingForFiles"];
+            if (Store.FilesProcessed >= Store.FilesTotal) return L["loadprogress.sorting"];
             return Compact
-                ? $"Loading… {Store.FilesProcessed} / {Store.FilesTotal} files"
-                : $"Parsing… {Store.FilesProcessed} / {Store.FilesTotal} files · {Store.EntriesParsed:N0} entries";
+                ? L["loadprogress.loadingCompact", Store.FilesProcessed, Store.FilesTotal]
+                : L["loadprogress.parsing", Store.FilesProcessed, Store.FilesTotal, Store.EntriesParsed.ToString("N0")];
         }
     }
 }

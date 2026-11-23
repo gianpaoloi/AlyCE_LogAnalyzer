@@ -3,6 +3,7 @@
 @inject DialogService DialogService
 @inject UpdateChecker Updates
 @inject IUpdateInstaller Installer
+@inject Localizer L
 
 <RadzenStack Gap="1rem" class="update-dialog">
 
@@ -15,13 +16,13 @@
 
         @if (Release.IsPrerelease)
         {
-            <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="Prerelease" IsPill="true" />
+            <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="@(L["update.prerelease"])" IsPill="true" />
         }
 
         @if (Release.PublishedAt is { } published)
         {
             <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
-                published @published.ToLocalTime().ToString("d MMM yyyy")
+                @L["update.published", published.ToLocalTime().ToString("d MMM yyyy")]
             </RadzenText>
         }
     </RadzenStack>
@@ -37,7 +38,7 @@
     @if (_error is not null)
     {
         <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter"
-                     Title="The update could not be installed" AllowClose="false">
+                     Title="@(L["update.installFailed"])" AllowClose="false">
             @_error
         </RadzenAlert>
     }
@@ -48,29 +49,28 @@
             {
                 <RadzenProgressBar Value="@(fraction * 100)" ShowValue="false" Mode="ProgressBarMode.Determinate" />
                 <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
-                    Downloading @Megabytes(_progress!.Value.BytesReceived) of
-                    @Megabytes(_progress!.Value.TotalBytes) MB…
+                    @L["update.downloading", Megabytes(_progress!.Value.BytesReceived), Megabytes(_progress!.Value.TotalBytes)]
                 </RadzenText>
             }
             else
             {
                 <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
-                <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">Downloading…</RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">@L["update.downloadingPlain"]</RadzenText>
             }
         </RadzenStack>
     }
     else if (!Installer.CanInstall)
     {
         <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter"
-                     Title="This build cannot update itself" AllowClose="false">
+                     Title="@(L["update.cannotSelfUpdate"])" AllowClose="false">
             @Installer.UnavailableReason
         </RadzenAlert>
     }
     else if (!Release.HasInstaller)
     {
         <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter"
-                     Title="No installer in this release" AllowClose="false">
-            Release @Release.TagName has no setup package attached, so it has to be installed by hand.
+                     Title="@(L["update.noInstaller"])" AllowClose="false">
+            @L["update.noInstallerBody", Release.TagName]
         </RadzenAlert>
     }
     else
@@ -78,26 +78,25 @@
         <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
             @* Says what is about to happen before the button is pressed: the app closing on its own
                is alarming if it was not announced. *@
-            Downloads @Release.InstallerName@(SizeSuffix()) and runs it. The app closes while the
-            update installs, then starts again on the new version.
+            @L["update.willDownload", Release.InstallerName, SizeSuffix()]
             @if (Release.InstallerSha256 is not null)
             {
-                <text> The download is checked against the SHA256 published with the release.</text>
+                <text> @L["update.sha256"]</text>
             }
         </RadzenText>
     }
 
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
         <RadzenLink Path="@Release.ReleaseUrl" Target="_blank" Icon="open_in_new"
-                    Text="Release on GitHub" class="update-link" />
+                    Text="@(L["update.releaseOnGitHub"])" class="update-link" />
 
-        <RadzenButton Text="@(_error is null ? "Later" : "Close")" ButtonStyle="ButtonStyle.Light"
+        <RadzenButton Text="@(_error is null ? L["update.later"] : L["update.close"])" ButtonStyle="ButtonStyle.Light"
                       class="rz-ml-auto" Disabled="@_busy" Click="@(() => DialogService.Close(false))" />
 
         @if (Installer.CanInstall && Release.HasInstaller && _error is null)
         {
-            <RadzenButton Text="Download and install" Icon="system_update_alt" ButtonStyle="ButtonStyle.Primary"
-                          IsBusy="@_busy" BusyText="Installing…" Disabled="@_busy" Click="@Install" />
+            <RadzenButton Text="@(L["update.downloadAndInstall"])" Icon="system_update_alt" ButtonStyle="ButtonStyle.Primary"
+                          IsBusy="@_busy" BusyText="@(L["update.installing"])" Disabled="@_busy" Click="@Install" />
         }
     </RadzenStack>
 

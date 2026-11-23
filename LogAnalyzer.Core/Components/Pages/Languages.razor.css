@@ -1,0 +1,142 @@
+.lang-layout {
+    display: grid;
+    grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+@media (max-width: 760px) {
+    .lang-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.lang-list {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
+
+.lang-item {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    width: 100%;
+    padding: .45rem .6rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--txt);
+    text-align: left;
+    cursor: pointer;
+}
+
+.lang-item:hover {
+    border-color: var(--border-strong);
+}
+
+.lang-item.selected {
+    border-color: var(--brand);
+    background: var(--panel-2);
+}
+
+.lang-item-code {
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: .8rem;
+    color: var(--muted);
+    min-width: 2.5rem;
+}
+
+.lang-item-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lang-tag {
+    display: inline-block;
+    padding: .05rem .45rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    color: var(--muted);
+    font-size: .75rem;
+    white-space: nowrap;
+}
+
+.lang-tag-active {
+    border-color: var(--brand);
+    color: var(--brand);
+}
+
+.lang-tag-dirty {
+    border-color: #f59e0b;
+    color: #f59e0b;
+}
+
+.lang-error {
+    color: #ff6b6b;
+}
+
+/* The translation table: a header row and one row per text, scrolling inside the card. */
+.lang-table {
+    max-height: 60vh;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.lang-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) minmax(160px, 1.2fr) minmax(180px, 1.4fr);
+    gap: .6rem;
+    align-items: center;
+    padding: .35rem .6rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.lang-row-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--panel-2);
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.lang-key {
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: .75rem;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+}
+
+.lang-english {
+    font-size: .85rem;
+    color: var(--txt);
+    overflow-wrap: anywhere;
+}
+
+/* The import control is a Radzen button; the hidden file input covers it so a click opens the file dialog. */
+.lang-import {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    vertical-align: top;
+    overflow: hidden;
+}
+
+.lang-import ::deep .lang-import-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}

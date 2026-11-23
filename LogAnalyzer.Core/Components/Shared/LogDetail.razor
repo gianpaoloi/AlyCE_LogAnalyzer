@@ -1,29 +1,30 @@
 @* Detail view for a single log entry, shown inside a Radzen dialog. *@
 @inject IJSRuntime JS
 @inject NotificationService Notifications
+@inject Localizer L
 
 <RadzenStack Gap="0.75rem">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
         <RadzenBadge BadgeStyle="@LevelStyle(Entry.Level)" Text="@Entry.Level" />
         <RadzenText TextStyle="TextStyle.Body2" class="mono">@Entry.Time.ToString("yyyy-MM-dd HH:mm:ss.ffff")</RadzenText>
-        <RadzenButton class="rz-ml-auto" Icon="article" Text="Copy message"
+        <RadzenButton class="rz-ml-auto" Icon="article" Text="@(L["detail.copyMessage"])"
                       ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                       Click="CopyMessageOnly" />
-        <RadzenButton class="rz-ml-auto" Icon="content_copy" Text="Copy details"
+        <RadzenButton class="rz-ml-auto" Icon="content_copy" Text="@(L["detail.copyDetails"])"
                       ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small"
                       Click="CopyDetails" />
     </RadzenStack>
 
     <RadzenRow Gap="0.5rem">
-        <RadzenColumn Size="6"><b>Logger</b><br /><span class="mono">@Entry.Logger</span></RadzenColumn>
-        <RadzenColumn Size="6"><b>Environment</b><br /><span class="mono">@(Entry.Environment ?? "—")</span></RadzenColumn>
-        <RadzenColumn Size="6"><b>User</b><br /><span class="mono">@(Entry.Username ?? "—")</span></RadzenColumn>
-        <RadzenColumn Size="6"><b>Company / CID</b><br /><span class="mono">@(Entry.Company ?? "—") / @(Entry.Cid ?? "—")</span></RadzenColumn>
-        <RadzenColumn Size="6"><b>Thread</b><br /><span class="mono">@Entry.ThreadId</span></RadzenColumn>
-        <RadzenColumn Size="6"><b>File</b><br /><span class="mono">@Entry.SourceFile</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>@L["detail.logger"]</b><br /><span class="mono">@Entry.Logger</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>@L["detail.environment"]</b><br /><span class="mono">@(Entry.Environment ?? "—")</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>@L["detail.user"]</b><br /><span class="mono">@(Entry.Username ?? "—")</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>@L["detail.company"]</b><br /><span class="mono">@(Entry.Company ?? "—") / @(Entry.Cid ?? "—")</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>@L["detail.thread"]</b><br /><span class="mono">@Entry.ThreadId</span></RadzenColumn>
+        <RadzenColumn Size="6"><b>@L["detail.file"]</b><br /><span class="mono">@Entry.SourceFile</span></RadzenColumn>
     </RadzenRow>
 
-    <RadzenText TextStyle="TextStyle.Overline">Message</RadzenText>
+    <RadzenText TextStyle="TextStyle.Overline">@L["detail.message"]</RadzenText>
     <pre class="detail-message">@Entry.PrettyMessage</pre>
 </RadzenStack>
 
@@ -32,12 +33,12 @@
 
     private async Task CopyDetails()
     {
-        await CopyTextAsync(BuildClipboardText(), "Log detail copied to clipboard.");
+        await CopyTextAsync(BuildClipboardText(), L["detail.copiedDetails"]);
     }
 
     private async Task CopyMessageOnly()
     {
-        await CopyTextAsync(Entry.PrettyMessage, "Message copied to clipboard.");
+        await CopyTextAsync(Entry.PrettyMessage, L["detail.copiedMessage"]);
     }
 
     private async Task CopyTextAsync(string text, string successMessage)
@@ -48,7 +49,7 @@
             Notifications.Notify(new NotificationMessage
             {
                 Severity = NotificationSeverity.Success,
-                Summary = "Copied",
+                Summary = L["detail.copied"],
                 Detail = successMessage,
                 Duration = 2200
             });
@@ -58,8 +59,8 @@
             Notifications.Notify(new NotificationMessage
             {
                 Severity = NotificationSeverity.Error,
-                Summary = "Copy failed",
-                Detail = "Clipboard access is not available.",
+                Summary = L["detail.copyFailed"],
+                Detail = L["detail.clipboardUnavailable"],
                 Duration = 2800
             });
         }

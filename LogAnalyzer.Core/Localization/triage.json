@@ -1,0 +1,20 @@
+{
+  "triage.pageTitle": { "en": "Triage", "it": "Smistamento", "sq": "Triazhimi" },
+  "triage.title": { "en": "Error & warning triage", "it": "Smistamento di errori e avvisi", "sq": "Triazhimi i gabimeve dhe i paralajmërimeve" },
+  "triage.loadPrompt": { "en": "Load a log folder to cluster errors and warnings.", "it": "Carica una cartella di log per raggruppare errori e avvisi.", "sq": "Ngarko një dosje log-esh për të grupuar gabimet dhe paralajmërimet." },
+  "triage.errors": { "en": "Errors", "it": "Errori", "sq": "Gabimet" },
+  "triage.warnings": { "en": "Warnings", "it": "Avvisi", "sq": "Paralajmërimet" },
+  "triage.allEnvironments": { "en": "(all environments)", "it": "(tutti gli ambienti)", "sq": "(të gjitha mjediset)" },
+  "triage.summary": { "en": "{0} distinct issue(s), {1} occurrence(s) — click a row to expand", "it": "{0} problemi distinti, {1} occorrenze — clicca una riga per espanderla", "sq": "{0} probleme të ndryshme, {1} raste — kliko një rresht për ta zgjeruar" },
+  "triage.first": { "en": "First:", "it": "Primo:", "sq": "Parë:" },
+  "triage.last": { "en": "Last:", "it": "Ultimo:", "sq": "Fundit:" },
+  "triage.environments": { "en": "Environments:", "it": "Ambienti:", "sq": "Mjediset:" },
+  "triage.loggers": { "en": "Loggers:", "it": "Logger:", "sq": "Loggers:" },
+  "triage.copyMessage": { "en": "COPY MESSAGE", "it": "COPIA MESSAGGIO", "sq": "KOPJO MESAZHIN" },
+  "triage.copyDetails": { "en": "COPY DETAILS", "it": "COPIA DETTAGLI", "sq": "KOPJO DETAJET" },
+  "triage.colCount": { "en": "Count", "it": "Conteggio", "sq": "Numri" },
+  "triage.colLevel": { "en": "Level", "it": "Livello", "sq": "Niveli" },
+  "triage.colSample": { "en": "Sample message", "it": "Messaggio di esempio", "sq": "Mesazhi shembull" },
+  "triage.colLastSeen": { "en": "Last seen", "it": "Ultima volta", "sq": "Hera e fundit" },
+  "triage.colEnvs": { "en": "Envs", "it": "Amb.", "sq": "Mjed." }
+}

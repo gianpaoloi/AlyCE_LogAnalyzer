@@ -1,0 +1,414 @@
+@page "/languages"
+@inject LanguageStore Store
+@inject Localizer L
+@inject IJSRuntime JS
+
+<PageTitle>@(L["languages.pageTitle"])</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H4">@(L["languages.title"])</RadzenText>
+<RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted rz-mb-3">
+    @((MarkupString)L["languages.intro"])
+</RadzenText>
+
+@if (_message is not null)
+{
+    <RadzenText TextStyle="TextStyle.Body2" class="@MessageClass">@_message</RadzenText>
+}
+
+<div class="lang-layout">
+    <RadzenCard Variant="Variant.Outlined">
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.Overline" class="rz-color-muted">@(L["languages.builtIn"])</RadzenText>
+            <div class="lang-list">
+                @foreach (var language in LanguageCatalog.BuiltIn)
+                {
+                    @LanguageButton(language)
+                }
+            </div>
+
+            <RadzenText TextStyle="TextStyle.Overline" class="rz-color-muted rz-mt-3">@(L["languages.yourLanguages"])</RadzenText>
+            <div class="lang-list">
+                @if (_custom.Count == 0)
+                {
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@(L["languages.noneYet"])</RadzenText>
+                }
+                @foreach (var language in _custom)
+                {
+                    @LanguageButton(language)
+                }
+            </div>
+        </RadzenStack>
+    </RadzenCard>
+
+    <RadzenCard Variant="Variant.Outlined">
+        @if (_draft is null)
+        {
+            <RadzenText class="rz-color-muted">@(L["languages.selectLanguage"])</RadzenText>
+        }
+        else
+        {
+            var readOnly = LanguageCatalog.IsBuiltInCode(_draft.Code);
+            var translated = CountTranslated();
+            <RadzenStack Gap="0.75rem">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                    <RadzenText TextStyle="TextStyle.H5" class="rz-m-0">@_draft.Name</RadzenText>
+                    <span class="lang-tag">@_draft.Code</span>
+                    <span class="lang-tag">@(readOnly ? L["languages.tagBuiltIn"] : L["languages.tagYours"])</span>
+                    @if (_draft.Code == _activeCode)
+                    {
+                        <span class="lang-tag lang-tag-active">@(L["languages.tagActive"])</span>
+                    }
+                    @if (_dirty)
+                    {
+                        <span class="lang-tag lang-tag-dirty">@(L["languages.tagUnsaved"])</span>
+                    }
+                </RadzenStack>
+
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                    <RadzenButton Text="@(L["languages.apply"])" Icon="check" ButtonStyle="ButtonStyle.Primary"
+                                  Disabled="@(_draft.Code == _activeCode)" Click="ApplySelected" />
+                    <RadzenButton Text="@(L["languages.duplicate"])" Icon="content_copy" ButtonStyle="ButtonStyle.Secondary" Click="DuplicateSelected" />
+                    <RadzenButton Text="@(L["languages.new"])" Icon="add" ButtonStyle="ButtonStyle.Secondary" Click="NewLanguage" />
+                    <RadzenButton Text="@(L["languages.export"])" Icon="download" ButtonStyle="ButtonStyle.Secondary" Click="ExportSelected" />
+                    @* Same look as the Skin Editor's import: a Radzen button with the file input laid over it. *@
+                    <label class="rz-button rz-button-md rz-secondary rz-shade-default rz-button-icon-left lang-import" title="@(L["languages.importTip"])">
+                        <span class="rz-button-box"><RadzenIcon Icon="upload" /><span>@(L["languages.import"])</span></span>
+                        <InputFile OnChange="ImportFile" accept=".json,application/json" class="lang-import-input" />
+                    </label>
+                    <RadzenButton Text="@(L["languages.delete"])" Icon="delete" ButtonStyle="ButtonStyle.Danger"
+                                  Disabled="@readOnly" Click="DeleteSelected" />
+                </RadzenStack>
+
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@(L["languages.progress", translated, LanguageCatalog.Keys.Count])</RadzenText>
+
+                @if (!readOnly)
+                {
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem" Wrap="FlexWrap.Wrap" AlignItems="AlignItems.End">
+                        <RadzenStack Gap="0.25rem" Style="min-width:200px;flex:1">
+                            <RadzenLabel Text="@(L["languages.name"])" Component="lang-name" />
+                            <RadzenTextBox Name="lang-name" Value="@_draft.Name" MaxLength="@LanguageCatalog.MaxNameLength"
+                                           Change="@(v => EditDraft(d => d with { Name = v ?? "" }))" />
+                        </RadzenStack>
+                        <RadzenStack Gap="0.25rem" Style="min-width:140px">
+                            <RadzenLabel Text="@(L["languages.code"])" Component="lang-code" />
+                            <RadzenTextBox Name="lang-code" Value="@_draft.Code" MaxLength="15" Placeholder="@(L["languages.codeHelp"])"
+                                           Change="@(v => EditDraft(d => d with { Code = v ?? "" }))" />
+                        </RadzenStack>
+                    </RadzenStack>
+                }
+
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem" Wrap="FlexWrap.Wrap" AlignItems="AlignItems.End">
+                    <RadzenStack Gap="0.25rem" Style="min-width:200px">
+                        <RadzenLabel Text="@(L["languages.filterArea"])" Component="lang-area" />
+                        <RadzenDropDown TValue="string" Name="lang-area" Data="@_areas" Value="@_area" AllowClear="true"
+                                        Placeholder="@(L["languages.allAreas"])" Change="@(v => SetArea(v as string))" />
+                    </RadzenStack>
+                    <RadzenStack Gap="0.25rem" Style="min-width:200px;flex:1">
+                        <RadzenLabel Text="@(L["languages.search"])" Component="lang-search" />
+                        <RadzenTextBox Name="lang-search" Value="@_search" Change="@(v => { _search = v ?? ""; })" />
+                    </RadzenStack>
+                    <RadzenCheckBox TValue="bool" Value="@_onlyMissing" Name="lang-missing" Change="@(v => { _onlyMissing = v; })" />
+                    <RadzenLabel Text="@(L["languages.onlyMissing"])" Component="lang-missing" />
+                </RadzenStack>
+
+                <div class="lang-table">
+                    <div class="lang-row lang-row-head">
+                        <span>@(L["languages.colKey"])</span>
+                        <span>@(L["languages.colEnglish"])</span>
+                        <span>@(L["languages.colTranslation"])</span>
+                    </div>
+                    @{
+                        var rows = VisibleKeys().ToList();
+                    }
+                    @if (rows.Count == 0)
+                    {
+                        <RadzenText class="rz-color-muted rz-m-2">@(L["languages.noMatches"])</RadzenText>
+                    }
+                    @foreach (var key in rows)
+                    {
+                        var text = _draft.Strings.TryGetValue(key.Key, out var t) ? t : "";
+                        <div class="lang-row">
+                            <span class="lang-key">@key.Key</span>
+                            <span class="lang-english">@key.English</span>
+                            <RadzenTextBox Value="@text" Disabled="@readOnly" Placeholder="@(L["languages.placeholder"])"
+                                           Change="@(v => SetText(key.Key, v))" />
+                        </div>
+                    }
+                </div>
+
+                @if (!readOnly)
+                {
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap" class="rz-mt-2">
+                        <RadzenButton Text="@(L["languages.save"])" Icon="save" ButtonStyle="ButtonStyle.Success" Disabled="@(!_dirty)" Click="SaveDraft" />
+                        <RadzenButton Text="@(L["languages.discard"])" Icon="undo" ButtonStyle="ButtonStyle.Light" Disabled="@(!_dirty)" Click="DiscardDraft" />
+                    </RadzenStack>
+                }
+            </RadzenStack>
+        }
+    </RadzenCard>
+</div>
+
+@code {
+    private List<AppLanguage> _custom = new();
+    private string _activeCode = LanguageCatalog.EnglishCode;
+    private string? _selected;
+    private AppLanguage? _draft;
+    private bool _dirty;
+    private bool _loaded;
+    private string? _message;
+    private bool _messageIsError;
+    private string? _area;
+    private string _search = "";
+    private bool _onlyMissing;
+
+    private static readonly IReadOnlyList<string> _areas = LanguageCatalog.Keys
+        .Select(k => AreaOf(k.Key)).Distinct(StringComparer.Ordinal).OrderBy(a => a, StringComparer.Ordinal).ToList();
+
+    private string MessageClass => _messageIsError ? "lang-error rz-mb-3" : "rz-color-muted rz-mb-3";
+
+    private static string AreaOf(string key) => key[..key.IndexOf('.')];
+
+    private RenderFragment LanguageButton(AppLanguage language) => __builder =>
+    {
+        <button type="button" class="@(language.Code == _selected ? "lang-item selected" : "lang-item")" @onclick="() => SelectAsync(language.Code)">
+            <span class="lang-item-code">@language.Code</span>
+            <span class="lang-item-name">@language.Name</span>
+            @if (language.Code == _activeCode)
+            {
+                <span class="lang-tag lang-tag-active">@(L["languages.tagActive"])</span>
+            }
+        </button>
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _loaded) return;
+        _loaded = true;
+
+        _custom = await Store.GetCustomAsync();
+        _activeCode = await Store.GetActiveCodeAsync() ?? LanguageCatalog.EnglishCode;
+        if (await Store.FindAsync(_activeCode) is null) _activeCode = LanguageCatalog.EnglishCode;
+        _selected = _activeCode;
+        LoadDraft();
+        StateHasChanged();
+    }
+
+    private AppLanguage? Find(string? code) =>
+        code is null ? null
+        : LanguageCatalog.BuiltIn.FirstOrDefault(l => string.Equals(l.Code, code, StringComparison.OrdinalIgnoreCase))
+          ?? _custom.FirstOrDefault(l => string.Equals(l.Code, code, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<string> AllCodes => LanguageCatalog.BuiltIn.Select(l => l.Code).Concat(_custom.Select(l => l.Code));
+    private IEnumerable<string> AllNames => LanguageCatalog.BuiltIn.Select(l => l.Name).Concat(_custom.Select(l => l.Name));
+
+    private void LoadDraft()
+    {
+        var saved = Find(_selected) ?? LanguageCatalog.English;
+        _selected = saved.Code;
+        _draft = saved with { Strings = new Dictionary<string, string>(saved.Strings, StringComparer.Ordinal) };
+        _dirty = false;
+    }
+
+    private int CountTranslated() =>
+        _draft is null ? 0 : LanguageCatalog.Keys.Count(k => _draft.Strings.TryGetValue(k.Key, out var t) && t.Trim().Length > 0);
+
+    private IEnumerable<LanguageKey> VisibleKeys()
+    {
+        if (_draft is null) yield break;
+        foreach (var key in LanguageCatalog.Keys)
+        {
+            if (_area is not null && AreaOf(key.Key) != _area) continue;
+            var hasText = _draft.Strings.TryGetValue(key.Key, out var text) && text.Trim().Length > 0;
+            if (_onlyMissing && hasText) continue;
+            if (_search.Length > 0 &&
+                !key.Key.Contains(_search, StringComparison.OrdinalIgnoreCase) &&
+                !key.English.Contains(_search, StringComparison.OrdinalIgnoreCase) &&
+                !(text ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase))
+                continue;
+            yield return key;
+        }
+    }
+
+    private void SetArea(string? area)
+    {
+        _area = string.IsNullOrEmpty(area) ? null : area;
+    }
+
+    private async Task SelectAsync(string code)
+    {
+        _message = _dirty ? L["languages.msgUnsavedDiscarded", _selected ?? ""] : null;
+        _selected = code;
+        LoadDraft();
+        await Task.CompletedTask;
+    }
+
+    private void EditDraft(Func<AppLanguage, AppLanguage> change)
+    {
+        if (_draft is null || LanguageCatalog.IsBuiltInCode(_draft.Code)) return;
+        _draft = change(_draft);
+        _dirty = true;
+        _message = null;
+    }
+
+    private void SetText(string key, string? value)
+    {
+        if (_draft is null || LanguageCatalog.IsBuiltInCode(_draft.Code) || value is null) return;
+        if (value.Trim().Length == 0) _draft.Strings.Remove(key);
+        else _draft.Strings[key] = value;
+        _dirty = true;
+        _message = null;
+    }
+
+    private async Task SaveDraft()
+    {
+        if (_draft is null) return;
+        var code = _draft.Code.Trim().ToLowerInvariant();
+        var name = _draft.Name.Trim();
+        var problem = LanguageCatalog.Validate(_draft with { Code = code, Name = name });
+        if (problem is null && _custom.Any(l => l.Code != _selected && string.Equals(l.Code, code, StringComparison.OrdinalIgnoreCase)))
+            problem = L["languages.msgCodeTaken", code];
+        if (problem is null && _custom.Any(l => l.Code != _selected && string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase)))
+            problem = L["languages.msgNameTaken", name];
+        if (problem is not null)
+        {
+            Show(problem, true);
+            return;
+        }
+
+        var renamed = _selected is not null && !string.Equals(_selected, code, StringComparison.OrdinalIgnoreCase);
+        if (!await Store.SaveAsync(_draft with { Code = code, Name = name }))
+        {
+            Show(L["languages.msgSaveFailed"], true);
+            return;
+        }
+
+        // Save the new code first, then drop the old one, so a failed save never loses the language.
+        if (renamed && _selected is not null)
+        {
+            await Store.DeleteAsync(_selected);
+            if (string.Equals(_activeCode, _selected, StringComparison.OrdinalIgnoreCase))
+                await L.SetCurrentAsync(code);
+            _activeCode = string.Equals(_activeCode, _selected, StringComparison.OrdinalIgnoreCase) ? code : _activeCode;
+        }
+
+        _custom = await Store.GetCustomAsync();
+        _selected = code;
+        LoadDraft();
+        Show(L["languages.msgSaved", name], false);
+    }
+
+    private async Task DiscardDraft()
+    {
+        LoadDraft();
+        Show(L["languages.msgDiscarded"], false);
+        await Task.CompletedTask;
+    }
+
+    private async Task ApplySelected()
+    {
+        if (_selected is null) return;
+        if (_dirty)
+        {
+            Show(L["languages.msgSaveFirst"], true);
+            return;
+        }
+
+        // Switching language redraws the whole page in the new language, so the message is not kept.
+        await L.SetCurrentAsync(_selected);
+    }
+
+    private async Task NewLanguage()
+    {
+        var name = LanguageCatalog.UniqueName(L["languages.newName"], AllNames);
+        var code = LanguageCatalog.UniqueCode("xx", AllCodes);
+        await Store.SaveAsync(new AppLanguage(code, name, new Dictionary<string, string>(StringComparer.Ordinal)));
+        _custom = await Store.GetCustomAsync();
+        _selected = code;
+        LoadDraft();
+        Show(L["languages.msgNew", name], false);
+    }
+
+    private async Task DuplicateSelected()
+    {
+        var source = Find(_selected) ?? LanguageCatalog.English;
+        var code = LanguageCatalog.UniqueCode(source.Code, AllCodes);
+        var name = LanguageCatalog.UniqueName(L["languages.copyName", source.Name], AllNames);
+        await Store.SaveAsync(new AppLanguage(code, name, new Dictionary<string, string>(source.Strings, StringComparer.Ordinal)));
+        _custom = await Store.GetCustomAsync();
+        _selected = code;
+        LoadDraft();
+        Show(L["languages.msgCopy", name], false);
+    }
+
+    private async Task DeleteSelected()
+    {
+        if (_selected is null || LanguageCatalog.IsBuiltInCode(_selected)) return;
+        if (!await JS.InvokeAsync<bool>("confirm", L["languages.confirmDelete", _selected])) return;
+
+        var deleted = _selected;
+        await Store.DeleteAsync(deleted);
+        _custom = await Store.GetCustomAsync();
+        if (string.Equals(_activeCode, deleted, StringComparison.OrdinalIgnoreCase))
+        {
+            // The active language was deleted: go back to English, which also redraws the page.
+            await L.SetCurrentAsync(LanguageCatalog.EnglishCode);
+            return;
+        }
+        _selected = _activeCode;
+        LoadDraft();
+        Show(L["languages.msgDeleted", deleted], false);
+    }
+
+    private async Task ExportSelected()
+    {
+        var language = Find(_selected) ?? LanguageCatalog.English;
+        var source = _dirty && _draft is not null && _draft.Code == language.Code ? _draft : language;
+        var file = System.Text.RegularExpressions.Regex.Replace(source.Code, "[^A-Za-z0-9._-]+", "-").Trim('-');
+        var json = LanguageCatalog.Export(source);
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
+        using var streamRef = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("downloadFileFromStream", $"language-{(file.Length == 0 ? "language" : file)}.json", streamRef);
+    }
+
+    private async Task ImportFile(InputFileChangeEventArgs e)
+    {
+        const long maxBytes = 1024 * 1024;
+        if (e.File.Size > maxBytes)
+        {
+            Show(L["languages.msgTooLarge"], true);
+            return;
+        }
+
+        string text;
+        using (var reader = new StreamReader(e.File.OpenReadStream(maxBytes)))
+            text = await reader.ReadToEndAsync();
+
+        var result = LanguageCatalog.Parse(text);
+        var codes = AllCodes.ToList();
+        var names = AllNames.ToList();
+        var imported = new List<string>();
+        foreach (var language in result.Languages)
+        {
+            // Never overwrite an existing language: a taken code or name gets a number instead.
+            var code = LanguageCatalog.UniqueCode(language.Code, codes);
+            var name = LanguageCatalog.UniqueName(language.Name, names);
+            if (await Store.SaveAsync(language with { Code = code, Name = name }))
+            {
+                codes.Add(code);
+                names.Add(name);
+                imported.Add(name);
+            }
+        }
+
+        _custom = await Store.GetCustomAsync();
+        var summary = imported.Count == 0 ? L["languages.msgNoneImported"] : L["languages.msgImported", imported.Count, string.Join(", ", imported)];
+        if (result.Errors.Count > 0) summary += " " + L["languages.msgSkipped", string.Join(" ", result.Errors)];
+        Show(summary, imported.Count == 0 || result.Errors.Count > 0);
+    }
+
+    private void Show(string message, bool error)
+    {
+        _message = message;
+        _messageIsError = error;
+    }
+}

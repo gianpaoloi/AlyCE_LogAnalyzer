@@ -8,6 +8,7 @@
 @inject DialogService DialogService
 @inject PathHistory History
 @inject ContextMenuService ContextMenuService
+@inject Localizer L
 
 @* The wrapper fills the dialog's height so the listing can take whatever the toolbars leave. It is a
    plain div rather than a class on RadzenStack because CSS isolation only scopes elements written in
@@ -16,14 +17,14 @@
 <RadzenStack Gap="0.6rem" class="fb-stack">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
         <RadzenButton Icon="arrow_upward" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                      Click="GoUp" Disabled="@(_loading || _folder is null)" title="Parent folder" />
+                      Click="GoUp" Disabled="@(_loading || _folder is null)" title="@(L["browser.parentFolder"])" />
         <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                      Click="@(() => OpenAsync(_folder))" Disabled="@_loading" title="Refresh" />
+                      Click="@(() => OpenAsync(_folder))" Disabled="@_loading" title="@(L["browser.refresh"])" />
         @* Typing stays possible only because a share such as \\server cannot be browsed into. *@
         <RadzenTextBox @bind-Value="_pathBox" Change="@OpenAsync" Placeholder="\\server\share\Logs"
                        Disabled="@_loading" style="flex:1; min-width:240px"
-                       title="Paste or type a folder, then press Enter" />
-        <RadzenButton Text="Go" Icon="subdirectory_arrow_right" ButtonStyle="ButtonStyle.Secondary"
+                       title="@(L["browser.pathTip"])" />
+        <RadzenButton Text="@(L["browser.go"])" Icon="subdirectory_arrow_right" ButtonStyle="ButtonStyle.Secondary"
                       Size="ButtonSize.Small" Click="@(() => OpenAsync(_pathBox))" Disabled="@_loading" />
     </RadzenStack>
 
@@ -32,7 +33,7 @@
         <RadzenIcon Icon="star" class="fb-fav-icon" />
         @if (_favorites.Count == 0)
         {
-            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">No favorites yet</RadzenText>
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">@L["browser.noFavorites"]</RadzenText>
         }
         @foreach (var fav in _favorites)
         {
@@ -41,20 +42,20 @@
                               Click="@(() => OpenAsync(fav))" Disabled="@_loading" title="@fav" />
                 <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text"
                               Size="ButtonSize.ExtraSmall" Click="@(() => RemoveFavorite(fav))"
-                              title="@($"Remove {fav} from favorites")" />
+                              title="@(L["browser.removeFavorite", fav])" />
             </span>
         }
-        <RadzenButton Text="Add to favorites" Icon="star_border" ButtonStyle="ButtonStyle.Secondary"
+        <RadzenButton Text="@(L["browser.addFavorite"])" Icon="star_border" ButtonStyle="ButtonStyle.Secondary"
                       Variant="Variant.Outlined" Size="ButtonSize.Small" class="rz-ml-auto"
                       Click="AddFavorite" Disabled="@(_loading || FavoriteTarget is null || IsFavorite(FavoriteTarget))"
-                      title="@(FavoriteTarget is null ? "Nothing to pin yet" : $"Pin {FavoriteTarget}")" />
+                      title="@(FavoriteTarget is null ? L["browser.nothingToPin"] : L["browser.pinItem", FavoriteTarget])" />
     </RadzenStack>
 
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
-        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted mono">@(_folder ?? "This computer")</RadzenText>
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted mono">@(_folder ?? L["browser.thisComputer"])</RadzenText>
         <RadzenCheckBox @bind-Value="_allFiles" @bind-Value:after="@(() => OpenAsync(_folder))" Name="fbAll"
                         Disabled="@_loading" />
-        <RadzenLabel Text="all files" Component="fbAll" title="@($"Otherwise only {string.Join(", ", Extensions)} files are listed")" />
+        <RadzenLabel Text="@(L["browser.allFiles"])" Component="fbAll" title="@(L["browser.onlyExtensions", string.Join(", ", Extensions)])" />
     </RadzenStack>
 
     @if (!string.IsNullOrEmpty(_error))
@@ -78,9 +79,9 @@
             <RadzenDataGrid Data="@_items" TItem="FsItem" Density="Density.Compact" AllowSorting="true"
                             AllowPaging="false" AllowColumnResize="true" RowSelect="OnRowSelect"
                             CellContextMenu="OnCellContextMenu"
-                            EmptyText="@(_folder is null ? "No drives available" : "Nothing to show in this folder")">
+                            EmptyText="@(_folder is null ? L["browser.noDrives"] : L["browser.emptyFolder"])">
                 <Columns>
-                    <RadzenDataGridColumn TItem="FsItem" Title="Name" Property="Name">
+                    <RadzenDataGridColumn TItem="FsItem" Title="@(L["browser.name"])" Property="Name">
                         <Template Context="i">
                             <span class="fb-name">
                                 <RadzenIcon Icon="@(i.IsFolder ? "folder" : "description")" />
@@ -88,10 +89,10 @@
                             </span>
                         </Template>
                     </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="FsItem" Title="Size" Property="Size" Width="110px" TextAlign="TextAlign.Right">
+                    <RadzenDataGridColumn TItem="FsItem" Title="@(L["browser.size"])" Property="Size" Width="110px" TextAlign="TextAlign.Right">
                         <Template Context="i"><span class="mono">@(i.IsFolder ? "" : FormatSize(i.Size))</span></Template>
                     </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="FsItem" Title="Modified" Property="Modified" Width="170px">
+                    <RadzenDataGridColumn TItem="FsItem" Title="@(L["browser.modified"])" Property="Modified" Width="170px">
                         <Template Context="i"><span class="mono">@(i.Modified?.ToString("yyyy-MM-dd HH:mm") ?? "")</span></Template>
                     </RadzenDataGridColumn>
                 </Columns>
@@ -101,11 +102,11 @@
 
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
         <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted fb-selected">
-            @(_selected is null ? "Click a folder to open it, a file to select it" : _selected)
+            @(_selected is null ? L["browser.selectHint"] : _selected)
         </RadzenText>
-        <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" class="rz-ml-auto"
+        <RadzenButton Text="@(L["browser.cancel"])" ButtonStyle="ButtonStyle.Light" class="rz-ml-auto"
                       Click="@(() => DialogService.Close(null))" />
-        <RadzenButton Text="Select" Icon="check" ButtonStyle="ButtonStyle.Primary"
+        <RadzenButton Text="@(L["browser.select"])" Icon="check" ButtonStyle="ButtonStyle.Primary"
                       Disabled="@(_selected is null)" Click="@(() => DialogService.Close(_selected))" />
     </RadzenStack>
 </RadzenStack>
@@ -186,7 +187,7 @@
         _loading = false;
 
         var failure = listing is null
-            ? $"{target} did not answer within {ProbeTimeout.TotalSeconds:0} s — it is offline, or the path is wrong."
+            ? L["browser.noAnswer", target, ProbeTimeout.TotalSeconds.ToString("0")]
             : listing.Folder is null ? listing.Error : null;
 
         if (failure is not null)
@@ -307,7 +308,7 @@
         _pathBox = "";
         _selected = null;
         if (!keepError) _error = null;
-        _busyPath = "This computer";
+        _busyPath = L["browser.thisComputer"];
         _loading = true;
 
         var drives = await ProbeAsync(ReadDrives);
@@ -315,7 +316,7 @@
         _loading = false;
         _items = drives ?? new List<FsItem>();
         if (drives is null && string.IsNullOrEmpty(_error))
-            _error = "Listing the drives timed out — a mapped network drive is probably disconnected.";
+            _error = L["browser.drivesTimeout"];
     }
 
     private static List<FsItem> ReadDrives()
@@ -402,7 +403,7 @@
         if (args.Data is not { } item) return;
         ContextMenuService.Open(args, new List<ContextMenuItem>
         {
-            new() { Text = item.IsFolder ? "Open folder" : "Open", Value = "open", Icon = "folder_open" },
+            new() { Text = item.IsFolder ? L["browser.openFolder"] : L["browser.open"], Value = "open", Icon = "folder_open" },
         }, async _ =>
         {
             ContextMenuService.Close();

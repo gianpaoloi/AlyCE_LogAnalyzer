@@ -1,4 +1,5 @@
 @page "/live"
+@inject Localizer L
 @inject LogWatcher Watcher
 @inject IConfiguration Config
 @inject SessionState State
@@ -8,18 +9,18 @@
 @inherits ObservingComponentBase
 @implements IDisposable
 
-<PageTitle>File Live Watch · AlyCE Log Analyzer</PageTitle>
+<PageTitle>@L["live.pageTitle"] · AlyCE Log Analyzer</PageTitle>
 
-<RadzenText TextStyle="TextStyle.H4">File Live Watch</RadzenText>
+<RadzenText TextStyle="TextStyle.H4">@L["live.pageTitle"]</RadzenText>
 <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted rz-mb-2">
-    Tail a log file on a local or remote (UNC) path. New lines matching the filter appear in real time.
+    @L["live.intro"]
 </RadzenText>
 
 <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
     <div class="collapse-header @(State.LiveSettingsCollapsed ? "" : "rz-mb-2")" @onclick="ToggleSettings"
-         title="@(State.LiveSettingsCollapsed ? "Expand watch settings" : "Collapse watch settings")">
+         title="@(State.LiveSettingsCollapsed ? L["live.expandSettings"] : L["live.collapseSettings"])">
         <RadzenIcon Icon="@(State.LiveSettingsCollapsed ? "expand_more" : "expand_less")" />
-        <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0"><b>Watch settings</b></RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0"><b>@L["live.watchSettings"]</b></RadzenText>
         @if (State.LiveSettingsCollapsed)
         {
             <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">@SettingsSummary()</RadzenText>
@@ -37,44 +38,44 @@
                                 FilterOperator="StringFilterOperator.Contains"
                                 FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                                 Disabled="@Watcher.IsWatching" style="flex:1; min-width:320px"
-                                title="Pick a file with Browse, or type/paste a path here" />
-            <RadzenButton Text="Browse…" Icon="folder_open" Click="Browse" ButtonStyle="ButtonStyle.Secondary"
+                                title="@(L["live.pickFileTitle"])" />
+            <RadzenButton Text="@(L["live.browse"])" Icon="folder_open" Click="Browse" ButtonStyle="ButtonStyle.Secondary"
                           Disabled="@(Watcher.IsWatching || _starting)"
-                          title="Pick a file — watching starts as soon as you select it" />
+                          title="@(L["live.browseTitle"])" />
             <RadzenCheckBox @bind-Value="State.LiveFromStart" Name="fs" Disabled="@Watcher.IsWatching" />
-            <RadzenLabel Text="from start" Component="fs" />
+            <RadzenLabel Text="@(L["live.fromStart"])" Component="fs" />
             @* Stays enabled while watching — freezing the grid mid-tail is exactly what it is for. *@
             <RadzenCheckBox @bind-Value="State.LiveAutoScroll" @bind-Value:after="OnAutoScrollChanged" Name="as" />
-            <RadzenLabel Text="auto-scroll" Component="as"
-                         title="Off: the grid keeps showing the lines on screen while the tail keeps buffering" />
+            <RadzenLabel Text="@(L["live.autoScroll"])" Component="as"
+                         title="@(L["live.autoScrollTitle"])" />
             @if (Watcher.IsWatching)
             {
-                <RadzenButton Text="Stop" Icon="stop" Click="Stop" ButtonStyle="ButtonStyle.Danger" />
+                <RadzenButton Text="@(L["live.stop"])" Icon="stop" Click="Stop" ButtonStyle="ButtonStyle.Danger" />
             }
             else
             {
-                <RadzenButton Text="@(_starting ? "Opening…" : "Start watching")" Icon="play_arrow" Click="Start"
+                <RadzenButton Text="@(_starting ? L["live.opening"] : L["live.startWatching"])" Icon="play_arrow" Click="Start"
                               ButtonStyle="ButtonStyle.Primary" Disabled="@_starting" />
             }
-            <RadzenButton Text="Clear" Icon="clear_all" Click="Clear" ButtonStyle="ButtonStyle.Light" />
-            <RadzenSplitButton Text="Download" Icon="download" Click="OnDownload" ButtonStyle="ButtonStyle.Success">
+            <RadzenButton Text="@(L["live.clear"])" Icon="clear_all" Click="Clear" ButtonStyle="ButtonStyle.Light" />
+            <RadzenSplitButton Text="@(L["live.download"])" Icon="download" Click="OnDownload" ButtonStyle="ButtonStyle.Success">
                 <ChildContent>
                     <RadzenSplitButtonItem Text="CSV (.csv)" Value="csv" />
-                    <RadzenSplitButtonItem Text="Log lines (.log)" Value="json" />
+                    <RadzenSplitButtonItem Text="@(L["live.logLines"] + " (.log)")" Value="json" />
                 </ChildContent>
             </RadzenSplitButton>
-            <RadzenButton Icon="account_tree" Text="@(State.LiveShowLoggers ? "Hide loggers" : "Loggers")"
+            <RadzenButton Icon="account_tree" Text="@(State.LiveShowLoggers ? L["live.hideLoggers"] : L["live.loggers"])"
                           Click="@(() => State.LiveShowLoggers = !State.LiveShowLoggers)" ButtonStyle="ButtonStyle.Secondary" />
         </RadzenStack>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
             @* Applies to the buffered lines as well as to the tail, so editing it changes what is
                on screen straight away instead of only affecting lines read after the change. *@
             <RadzenTextBox @bind-Value="State.LiveText" @bind-Value:after="OnTextFilterChanged"
-                           Placeholder="text filter…" style="flex:1; min-width:220px" />
+                           Placeholder="@(L["live.textFilter"])" style="flex:1; min-width:220px" />
             <RadzenDropDown @bind-Value="State.LiveColumns" Multiple="true" AllowClear="true" Chips="true"
-                            Placeholder="Add columns…" Data="@LogColumns.Optional"
+                            Placeholder="@(L["live.addColumns"])" Data="@LogColumns.Optional"
                             TextProperty="Title" ValueProperty="Key" TValue="IEnumerable<string>" Style="width:300px" />
-            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">Filter Level / Environment / Time / Message from the column headers</RadzenText>
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["live.filterHint"]</RadzenText>
         </RadzenStack>
     </RadzenStack>
     </div>
@@ -83,17 +84,17 @@
 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-2" Wrap="FlexWrap.Wrap">
     @if (Watcher.IsWatching)
     {
-        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="watching" />
+        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@(L["live.watching"])" />
         <span class="mono">@Watcher.WatchedFile</span>
     }
     else
     {
-        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="idle" />
+        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@(L["live.idle"])" />
     }
-    <RadzenText TextStyle="TextStyle.Body2">· @Watcher.TotalEntries.ToString("N0") lines read · @_buffer.BufferedCount.ToString("N0") buffered</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2">· @L["live.linesRead", Watcher.TotalEntries.ToString("N0"), _buffer.BufferedCount.ToString("N0")]</RadzenText>
     @if (Watcher.LastActivity is { } la)
     {
-        <RadzenText TextStyle="TextStyle.Body2">· last @la.ToString("HH:mm:ss")</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2">· @L["live.last", la.ToString("HH:mm:ss")]</RadzenText>
     }
     @if (!string.IsNullOrEmpty(Watcher.LastError))
     {
@@ -101,13 +102,13 @@
     }
     @if (!State.LiveAutoScroll)
     {
-        <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="auto-scroll off" />
-        <RadzenButton Text="@(_buffer.PendingCount > 0 ? $"Show {_buffer.PendingCount:N0} new lines" : "Resume")" Icon="play_arrow"
+        <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="@(L["live.autoScrollOff"])" />
+        <RadzenButton Text="@(_buffer.PendingCount > 0 ? L["live.showNewLines", _buffer.PendingCount.ToString("N0")] : L["live.resume"])" Icon="play_arrow"
                       ButtonStyle="ButtonStyle.Warning" Variant="Variant.Outlined" Size="ButtonSize.Small"
                       Click="ResumeAutoScroll"
-                      title="Turn auto-scroll back on and catch up with the tail" />
+                      title="@(L["live.resumeTitle"])" />
     }
-    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">· click a row for detail</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">· @L["live.clickRow"]</RadzenText>
 </RadzenStack>
 
 <LiveGrid Data="@_buffer.Snapshot"
@@ -249,9 +250,9 @@
     private string SettingsSummary()
     {
         var path = State.LivePath;
-        var file = string.IsNullOrWhiteSpace(path) ? "no file selected" : Path.GetFileName(path.TrimEnd('\\', '/'));
+        var file = string.IsNullOrWhiteSpace(path) ? L["live.noFileSelected"] : Path.GetFileName(path.TrimEnd('\\', '/'));
         if (string.IsNullOrWhiteSpace(file)) file = path!;
-        return string.IsNullOrWhiteSpace(State.LiveText) ? file : $"{file} · text \"{State.LiveText}\"";
+        return string.IsNullOrWhiteSpace(State.LiveText) ? file : L["live.summaryWithText", file, State.LiveText];
     }
 
     // Export the currently displayed snapshot (CSV by default; .log = original JSON lines).
@@ -286,7 +287,7 @@
             ? Config["LogAnalyzer:DefaultLogFolder"]
             : State.LivePath;
 
-        var picked = await DialogService.OpenAsync<FileBrowserDialog>("Select the log file to watch",
+        var picked = await DialogService.OpenAsync<FileBrowserDialog>(L["live.selectFile"],
             new Dictionary<string, object?> { { "StartPath", start } },
             new DialogOptions
             {

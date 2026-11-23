@@ -1,0 +1,10 @@
+{
+  "timerange.tooltip": { "en": "Filter by time window", "it": "Filtra per intervallo di tempo", "sq": "Filtro sipas intervalit kohor" },
+  "timerange.startOfLog": { "en": "start of log", "it": "inizio del log", "sq": "fillimi i log-ut" },
+  "timerange.endOfLog": { "en": "end of log", "it": "fine del log", "sq": "fundi i log-ut" },
+  "timerange.allTimes": { "en": "All times", "it": "Tutti gli orari", "sq": "Të gjitha kohët" },
+  "timerange.from": { "en": "From", "it": "Da", "sq": "Nga" },
+  "timerange.to": { "en": "To", "it": "A", "sq": "Deri" },
+  "timerange.clear": { "en": "Clear", "it": "Azzera", "sq": "Pastro" },
+  "timerange.apply": { "en": "Apply", "it": "Applica", "sq": "Zbato" }
+}

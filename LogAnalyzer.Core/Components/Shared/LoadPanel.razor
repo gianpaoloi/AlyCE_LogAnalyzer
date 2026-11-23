@@ -5,12 +5,13 @@
 @inject IJSRuntime JS
 @inject SessionState State
 @inject DialogService Dialogs
+@inject Localizer L
 
 <RadzenCard class="rz-mb-3" Variant="Variant.Outlined">
     <div class="collapse-header @(Collapsed ? "" : "rz-mb-2")" @onclick="Toggle"
-         title="@(Collapsed ? "Expand load files" : "Collapse load files")">
+         title="@(Collapsed ? L["load.expand"] : L["load.collapse"])">
         <RadzenIcon Icon="@(Collapsed ? "expand_more" : "expand_less")" />
-        <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0"><b>Load files</b></RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0"><b>@L["load.heading"]</b></RadzenText>
         @if (Collapsed)
         {
             @if (Store.IsLoading)
@@ -20,13 +21,12 @@
             else if (Store.IsLoaded)
             {
                 <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
-                    @Store.Stats!.TotalEntries.ToString("N0") entries &middot;
-                    @Store.Stats.FileCount files &middot; @Store.LoadedPath
+                    @L["load.summary", Store.Stats!.TotalEntries.ToString("N0"), Store.Stats.FileCount, Store.LoadedPath]
                 </RadzenText>
             }
             else
             {
-                <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">nothing loaded</RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">@L["load.nothingLoaded"]</RadzenText>
             }
         }
     </div>
@@ -36,25 +36,25 @@
     <div class="@(Collapsed ? "collapse-hidden" : null)">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
         <RadzenCheckBox @bind-Value="Store.IncludeDebug" Name="dbg" Disabled="@Store.IsLoading" />
-        <RadzenLabel Text="include DEBUG" Component="dbg" title="Including DEBUG uses much more memory" />
+        <RadzenLabel Text="@(L["load.includeDebug"])" Component="dbg" title="@(L["load.includeDebugTip"])" />
         @if (Store.IsLoading)
         {
             <LoadProgress />
             @* A folder load on a slow share used to be un-escapable: nothing passed a token, so the
                store's cancellation support was unreachable. *@
-            <RadzenButton Text="Cancel" Icon="cancel" Click="Cancel"
+            <RadzenButton Text="@(L["load.cancel"])" Icon="cancel" Click="Cancel"
                           ButtonStyle="ButtonStyle.Warning" Variant="Variant.Outlined"
                           Size="ButtonSize.Small" Disabled="@(!Store.CanCancel)" />
         }
         else
         {
-            <RadzenButton Text="Paste" Icon="content_paste" Click="PasteFromClipboard"
+            <RadzenButton Text="@(L["load.paste"])" Icon="content_paste" Click="PasteFromClipboard"
                           ButtonStyle="ButtonStyle.Primary" Variant="Variant.Outlined"
-                          title="Load log lines copied to the clipboard (or press Ctrl+V anywhere on the page)" />
+                          title="@(L["load.pasteTip"])" />
             <RadzenButton Text="Grafana" Icon="cloud_download" Click="OpenGrafanaImport"
                           ButtonStyle="ButtonStyle.Primary" Variant="Variant.Outlined"
-                          title="Load log lines from a Grafana Cloud Loki query" />
-            <RadzenButton Text="Clear" Icon="delete_sweep" Click="Clear"
+                          title="@(L["load.grafanaTip"])" />
+            <RadzenButton Text="@(L["load.clear"])" Icon="delete_sweep" Click="Clear"
                           ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined"
                           Disabled="@(!Store.IsLoaded)" />
         }
@@ -63,19 +63,19 @@
     @* The zone stays rendered while loading (it holds the JS drop registration) but ignores
        input — the busy class makes that visible instead of silently swallowing a drop. *@
     <div class="drop-zone rz-mt-2 @(Store.IsLoading ? "drop-zone-busy" : null)" @ref="_dropZoneRef"
-         title="@(Store.IsLoaded ? "Click to load log files, a zip or a Grafana .json export, or drop them here":"")">
+         title="@(Store.IsLoaded ? L["load.dropHint"] : "")">
         <InputFile id="@_inputId" class="drop-zone-input" OnChange="OnDropZoneSelected" accept=".log,.zip,.json" multiple />
         @if (Store.IsLoading)
         {
             <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" ShowValue="false"
                                        Size="ProgressBarCircularSize.Small"
                                        ProgressBarStyle="ProgressBarStyle.Info" />
-            <span>Loading logs&#x2026;</span>
+            <span>@L["load.loadingLogs"]</span>
         }
         else
         {
             <RadzenIcon Icon="move_to_inbox" />
-            <span>@(Store.IsLoaded ? Store.LoadedPath : "Click to load log files, a zip or a Grafana .json export, or drop them here.")</span>
+            <span>@(Store.IsLoaded ? Store.LoadedPath : L["load.dropHint"])</span>
         }
     </div>
     @if (!string.IsNullOrWhiteSpace(_dropError))
@@ -96,8 +96,7 @@
     else if (Store.IsLoaded)
     {
         <RadzenText TextStyle="TextStyle.Body2" class="rz-mt-2 rz-color-success">
-            Loaded <b>@Store.Stats!.TotalEntries.ToString("N0")</b> entries from
-            <b>@Store.Stats.FileCount</b> files &middot; @Store.LoadedPath
+            @((MarkupString)L["load.loadedSummary", Store.Stats!.TotalEntries.ToString("N0"), Store.Stats.FileCount, System.Net.WebUtility.HtmlEncode(Store.LoadedPath)])
         </RadzenText>
     }
     </div>
@@ -167,7 +166,7 @@
 
         if (text is null)
         {
-            _dropError = "Clipboard access is blocked here — press Ctrl+V on the page instead.";
+            _dropError = L["load.clipboardBlocked"];
             return;
         }
 
@@ -182,7 +181,7 @@
     {
         if (Store.IsLoading) return;
 
-        var picked = await Dialogs.OpenAsync<GrafanaImportDialog>("Import from Grafana",
+        var picked = await Dialogs.OpenAsync<GrafanaImportDialog>(L["load.grafanaDialogTitle"],
             new Dictionary<string, object?>(),
             new DialogOptions
             {
@@ -209,7 +208,7 @@
 
         if (string.IsNullOrWhiteSpace(text))
         {
-            _dropError = "The clipboard is empty.";
+            _dropError = L["load.clipboardEmpty"];
             StateHasChanged();
             return;
         }
@@ -236,7 +235,7 @@
         {
             // GetMultipleFiles throws past the cap rather than truncating, which used to reach the
             // error boundary and blank the page.
-            _dropError = $"Too many files at once — drop at most {MaxDroppedFiles}.";
+            _dropError = L["load.tooManyFiles", MaxDroppedFiles];
             return;
         }
 
@@ -247,7 +246,7 @@
 
         if (zipFiles.Count > 1 || (zipFiles.Count > 0 && logFiles.Count > 0))
         {
-            _dropError = "Use one ZIP file or one/more LOG or JSON files, not both together.";
+            _dropError = L["load.mixedTypes"];
             return;
         }
 
@@ -275,7 +274,7 @@
             return;
         }
 
-        _dropError = "Only .zip, .log and .json files are supported.";
+        _dropError = L["load.unsupported"];
     }
 
     private void OnChanged() => RequestRefresh(ApplyAutoCollapse);

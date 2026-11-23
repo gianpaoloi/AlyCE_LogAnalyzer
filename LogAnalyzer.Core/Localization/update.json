@@ -1,0 +1,17 @@
+{
+  "update.prerelease": { "en": "Prerelease", "it": "Anteprima", "sq": "Para-publikim" },
+  "update.published": { "en": "published {0}", "it": "pubblicata il {0}", "sq": "publikuar më {0}" },
+  "update.downloading": { "en": "Downloading {0} of {1} MB…", "it": "Download di {0} su {1} MB…", "sq": "Po shkarkohet {0} nga {1} MB…" },
+  "update.downloadingPlain": { "en": "Downloading…", "it": "Download in corso…", "sq": "Po shkarkohet…" },
+  "update.cannotSelfUpdate": { "en": "This build cannot update itself", "it": "Questa versione non può aggiornarsi da sola", "sq": "Ky version nuk mund të përditësohet vetë" },
+  "update.noInstaller": { "en": "No installer in this release", "it": "Nessun programma di installazione in questa release", "sq": "Nuk ka program instalimi në këtë version" },
+  "update.noInstallerBody": { "en": "Release {0} has no setup package attached, so it has to be installed by hand.", "it": "La release {0} non include un pacchetto di installazione, quindi va installata a mano.", "sq": "Versioni {0} nuk ka paketë instalimi të bashkangjitur, prandaj duhet instaluar me dorë." },
+  "update.willDownload": { "en": "Downloads {0}{1} and runs it. The app closes while the update installs, then starts again on the new version.", "it": "Scarica {0}{1} e lo esegue. L'app si chiude durante l'installazione e poi si riavvia con la nuova versione.", "sq": "Shkarkon {0}{1} dhe e ekzekuton. Aplikacioni mbyllet gjatë instalimit, pastaj nisët përsëri me versionin e ri." },
+  "update.sha256": { "en": "The download is checked against the SHA256 published with the release.", "it": "Il download viene verificato con lo SHA256 pubblicato insieme alla release.", "sq": "Shkarkimi verifikohet me SHA256 të publikuar bashkë me versionin." },
+  "update.releaseOnGitHub": { "en": "Release on GitHub", "it": "Release su GitHub", "sq": "Versioni në GitHub" },
+  "update.later": { "en": "Later", "it": "Più tardi", "sq": "Më vonë" },
+  "update.close": { "en": "Close", "it": "Chiudi", "sq": "Mbyll" },
+  "update.downloadAndInstall": { "en": "Download and install", "it": "Scarica e installa", "sq": "Shkarko dhe instalo" },
+  "update.installing": { "en": "Installing…", "it": "Installazione…", "sq": "Po instalohet…" },
+  "update.installFailed": { "en": "The update could not be installed", "it": "Impossibile installare l'aggiornamento", "sq": "Përditësimi nuk mund të instalohej" }
+}

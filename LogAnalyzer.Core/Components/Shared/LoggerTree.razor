@@ -1,12 +1,13 @@
+@inject Localizer L
 @* Right-panel tree of logger namespaces (split on '.'). Selecting a node raises the full
    dotted prefix so the parent can filter entries under that logger. *@
 
 <RadzenStack Gap="0.4rem">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
-        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-mb-0">Loggers</RadzenText>
+        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-mb-0">@L["loggers.title"]</RadzenText>
         @if (!string.IsNullOrEmpty(Selected))
         {
-            <RadzenButton Text="clear" Icon="clear" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light" Click="Clear" />
+            <RadzenButton Text="@(L["loggers.clear"])"Icon="clear" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light" Click="Clear" />
         }
     </RadzenStack>
 
@@ -17,7 +18,7 @@
 
     @if (_roots.Count == 0)
     {
-        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">No loggers yet.</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@L["loggers.empty"]</RadzenText>
     }
     else
     {

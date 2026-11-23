@@ -1,5 +1,6 @@
 @using System.Text.RegularExpressions
 @using Markdig
+@inject Localizer L
 
 @* Shows a Markdown file that ships next to the app. The "## " sections are listed in a contents menu on the
    left; the menu switches sections in place rather than navigating, which would close the desktop window. *@
@@ -14,8 +15,8 @@ else
   <article class="md-viewer-intro">@((MarkupString)_intro)</article>
 
   <div class="md-viewer-layout">
-    <nav class="md-viewer-menu" aria-label="Contents">
-      <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted"><b>Contents</b></RadzenText>
+    <nav class="md-viewer-menu" aria-label="@(L["markdown.contents"])">
+      <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted"><b>@L["markdown.contents"]</b></RadzenText>
       <ul>
         @foreach (var section in _sections)
         {
@@ -86,7 +87,7 @@ else
     }
     catch (Exception ex)
     {
-      _loadError = $"Unable to load {FileName}: {ex.Message}";
+      _loadError = L["markdown.loadFailed", FileName, ex.Message];
     }
   }
 

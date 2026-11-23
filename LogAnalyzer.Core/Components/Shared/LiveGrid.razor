@@ -1,3 +1,5 @@
+@inject Localizer L
+
 @* The grid both live pages show: the same columns, the same header filters and the same logger
    panel, whether the entries came from a tailed file or from the network listener. Only the
    settings card above it differs, so that is what each page keeps for itself.
@@ -16,45 +18,45 @@
                         PagerHorizontalAlign="HorizontalAlign.Center" ShowPagingSummary="true">
             <Columns>
                 @* Every filter lives in its column header, on one line — as in the Explorer. *@
-                <RadzenDataGridColumn TItem="LogEntry" Title="Time" Property="Time" Width="200px">
+                <RadzenDataGridColumn TItem="LogEntry" Title="@(L["grid.time"])" Property="Time" Width="200px">
                     <HeaderTemplate>
                         <div class="col-filter">
-                            <span class="col-filter-title">Time</span>
+                            <span class="col-filter-title">@L["grid.time"]</span>
                             <TimeRangeFilter Range="@Range" RangeChanged="@RangeChanged"
-                                             FromPlaceholder="any time" ToPlaceholder="still running" />
+                                             FromPlaceholder="@(L["grid.anyTime"])" ToPlaceholder="@(L["grid.stillRunning"])" />
                         </div>
                     </HeaderTemplate>
                     <Template Context="e"><span class="mono">@e.Time.ToString("HH:mm:ss.fff")</span></Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="LogEntry" Title="Level" Property="Level" Width="200px" Filterable="false">
+                <RadzenDataGridColumn TItem="LogEntry" Title="@(L["grid.level"])" Property="Level" Width="200px" Filterable="false">
                     <HeaderTemplate>
                         <div class="col-filter">
-                            <span class="col-filter-title">Level</span>
+                            <span class="col-filter-title">@L["grid.level"]</span>
                             <RadzenDropDown Value="@Levels" ValueChanged="@LevelsChanged"
                                             Multiple="true" AllowClear="true" Chips="true"
-                                            Placeholder="All levels" Data="@LevelOptions" TValue="IEnumerable<string>" Style="width:100%" />
+                                            Placeholder="@(L["grid.allLevels"])" Data="@LevelOptions" TValue="IEnumerable<string>" Style="width:100%" />
                         </div>
                     </HeaderTemplate>
                     <Template Context="e"><LevelBadge Level="@e.Level" /></Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="LogEntry" Title="Environment" Property="Environment" Width="240px" Filterable="false">
+                <RadzenDataGridColumn TItem="LogEntry" Title="@(EnvironmentTitle ?? L["grid.environment"])" Property="Environment" Width="240px" Filterable="false">
                     <HeaderTemplate>
                         <div class="col-filter">
-                            <span class="col-filter-title">@EnvironmentTitle</span>
+                            <span class="col-filter-title">@(EnvironmentTitle ?? L["grid.environment"])</span>
                             <RadzenDropDown Value="@Environments" ValueChanged="@EnvironmentsChanged"
                                             Multiple="true" AllowClear="true" Chips="true"
-                                            Placeholder="@($"All {EnvironmentTitle.ToLowerInvariant()}s")" Data="@EnvironmentOptions"
+                                            Placeholder="@(EnvironmentPlaceholder ?? L["grid.allEnvironments"])" Data="@EnvironmentOptions"
                                             TValue="IEnumerable<string>" Style="width:100%" />
                         </div>
                     </HeaderTemplate>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="LogEntry" Title="Company" Property="Company" Width="220px" Filterable="false">
+                <RadzenDataGridColumn TItem="LogEntry" Title="@(L["grid.company"])" Property="Company" Width="220px" Filterable="false">
                     <HeaderTemplate>
                         <div class="col-filter">
-                            <span class="col-filter-title">Company</span>
+                            <span class="col-filter-title">@L["grid.company"]</span>
                             <RadzenDropDown Value="@Companies" ValueChanged="@CompaniesChanged"
                                             Multiple="true" AllowClear="true" Chips="true"
-                                            Placeholder="All companies" Data="@CompanyOptions" TValue="IEnumerable<string>" Style="width:100%" />
+                                            Placeholder="@(L["grid.allCompanies"])" Data="@CompanyOptions" TValue="IEnumerable<string>" Style="width:100%" />
                         </div>
                     </HeaderTemplate>
                     <Template Context="e"><span class="mono">@e.Company</span></Template>
@@ -67,13 +69,13 @@
                         <Template Context="e"><span class="mono">@col.Value(e)</span></Template>
                     </RadzenDataGridColumn>
                 }
-                <RadzenDataGridColumn TItem="LogEntry" Title="Message" Property="Message">
+                <RadzenDataGridColumn TItem="LogEntry" Title="@(L["grid.message"])" Property="Message">
                     <HeaderTemplate>
                         <div class="col-filter">
-                            <span class="col-filter-title">Message</span>
+                            <span class="col-filter-title">@L["grid.message"]</span>
                             <div @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
                                 <RadzenTextBox Value="@Message" ValueChanged="@MessageChanged"
-                                               Placeholder="message contains…" Style="width:100%" />
+                                               Placeholder="@(L["grid.messageContains"])" Style="width:100%" />
                             </div>
                         </div>
                     </HeaderTemplate>
@@ -81,7 +83,7 @@
                         @e.ShortMessage
                         @if (e.HasStackTrace)
                         {
-                            <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="stack" class="rz-ml-1" />
+                            <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="@(L["grid.stack"])" class="rz-ml-1" />
                         }
                     </Template>
                 </RadzenDataGridColumn>
@@ -149,7 +151,10 @@
     /// What the Environment column is called. The network listener has no environment field of its
     /// own and puts the sending machine there, so that page says so rather than mislabelling it.
     /// </summary>
-    [Parameter] public string EnvironmentTitle { get; set; } = "Environment";
+    [Parameter] public string? EnvironmentTitle { get; set; }
+
+    /// <summary>The Environment column's filter placeholder. Null means the default ("All environments").</summary>
+    [Parameter] public string? EnvironmentPlaceholder { get; set; }
 
     private Task OnRowSelect(LogEntry entry) => RowSelect.InvokeAsync(entry);
 }

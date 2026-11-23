@@ -1,0 +1,23 @@
+{
+  "load.expand": { "en": "Expand load files", "it": "Espandi il caricamento dei file", "sq": "Zgjero ngarkimin e skedarëve" },
+  "load.collapse": { "en": "Collapse load files", "it": "Comprimi il caricamento dei file", "sq": "Palos ngarkimin e skedarëve" },
+  "load.heading": { "en": "Load files", "it": "Carica file", "sq": "Ngarko skedarë" },
+  "load.summary": { "en": "{0} entries · {1} files · {2}", "it": "{0} voci · {1} file · {2}", "sq": "{0} rreshta · {1} skedarë · {2}" },
+  "load.nothingLoaded": { "en": "nothing loaded", "it": "nessun file caricato", "sq": "asnjë skedar i ngarkuar" },
+  "load.includeDebug": { "en": "include DEBUG", "it": "includi DEBUG", "sq": "përfshi DEBUG" },
+  "load.includeDebugTip": { "en": "Including DEBUG uses much more memory", "it": "Includere DEBUG usa molta più memoria", "sq": "Përfshirja e DEBUG përdor shumë më tepër memorie" },
+  "load.cancel": { "en": "Cancel", "it": "Annulla", "sq": "Anulo" },
+  "load.paste": { "en": "Paste", "it": "Incolla", "sq": "Ngjit" },
+  "load.pasteTip": { "en": "Load log lines copied to the clipboard (or press Ctrl+V anywhere on the page)", "it": "Carica le righe di log copiate negli appunti (oppure premi Ctrl+V in un punto qualsiasi della pagina)", "sq": "Ngarko rreshtat e log-ut të kopjuara në clipboard (ose shtyp Ctrl+V kudo në faqe)" },
+  "load.grafanaTip": { "en": "Load log lines from a Grafana Cloud Loki query", "it": "Carica le righe di log da una query Loki di Grafana Cloud", "sq": "Ngarko rreshtat e log-ut nga një kërkesë Loki e Grafana Cloud" },
+  "load.clear": { "en": "Clear", "it": "Svuota", "sq": "Pastro" },
+  "load.dropHint": { "en": "Click to load log files, a zip or a Grafana .json export, or drop them here.", "it": "Clicca per caricare file di log, un file zip o un export .json di Grafana, oppure trascinali qui.", "sq": "Kliko për të ngarkuar skedarë log-u, një zip ose një eksport Grafana .json, ose lësho ata këtu." },
+  "load.loadingLogs": { "en": "Loading logs…", "it": "Caricamento dei log…", "sq": "Po ngarkohen log-et…" },
+  "load.clipboardBlocked": { "en": "Clipboard access is blocked here — press Ctrl+V on the page instead.", "it": "L'accesso agli appunti è bloccato qui: premi invece Ctrl+V nella pagina.", "sq": "Qasja te clipboard-i është bllokuar këtu — shtyp Ctrl+V në faqe." },
+  "load.clipboardEmpty": { "en": "The clipboard is empty.", "it": "Gli appunti sono vuoti.", "sq": "Clipboard-i është bosh." },
+  "load.tooManyFiles": { "en": "Too many files at once — drop at most {0}.", "it": "Troppi file insieme: trascinane al massimo {0}.", "sq": "Shumë skedarë njëherësh — lësho jo më shumë se {0}." },
+  "load.mixedTypes": { "en": "Use one ZIP file or one/more LOG or JSON files, not both together.", "it": "Usa un solo file ZIP oppure uno o più file LOG o JSON, non entrambi insieme.", "sq": "Përdor një skedar ZIP ose një apo më shumë skedarë LOG ose JSON, jo të dyja së bashku." },
+  "load.unsupported": { "en": "Only .zip, .log and .json files are supported.", "it": "Sono supportati solo i file .zip, .log e .json.", "sq": "Mbështeten vetëm skedarët .zip, .log dhe .json." },
+  "load.loadedSummary": { "en": "Loaded <b>{0}</b> entries from <b>{1}</b> files · {2}", "it": "Caricate <b>{0}</b> voci da <b>{1}</b> file · {2}", "sq": "U ngarkuan <b>{0}</b> rreshta nga <b>{1}</b> skedarë · {2}" },
+  "load.grafanaDialogTitle": { "en": "Import from Grafana", "it": "Importa da Grafana", "sq": "Importo nga Grafana" }
+}

@@ -11,6 +11,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ### Added
 
+- **Languages.** The interface is available in English, Italiano and Shqip (Albanian). Choose the language from the
+  selector in the top bar. A new **Language Editor** (Appearance in the sidebar) translates the app into any other
+  language: duplicate a built-in language, edit the texts, save, and export or import the language as a file. Text
+  left empty shows in English.
 - **Skins.** A new **Skins** page (Appearance in the sidebar) changes the colours of the app. Two built-in skins
   ship with the app, *Blue*, *Daylight* and *High contrast*, next to the original *Default* look. Duplicate a skin to edit it, or
   start a new one from the active skin. Edits preview on the page straight away, and **Save** keeps them.

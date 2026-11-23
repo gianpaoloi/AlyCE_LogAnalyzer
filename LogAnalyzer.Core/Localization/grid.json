@@ -1,0 +1,14 @@
+{
+  "grid.time": { "en": "Time", "it": "Ora", "sq": "Koha" },
+  "grid.level": { "en": "Level", "it": "Livello", "sq": "Nivel" },
+  "grid.environment": { "en": "Environment", "it": "Ambiente", "sq": "Mjedisi" },
+  "grid.company": { "en": "Company", "it": "Azienda", "sq": "Kompania" },
+  "grid.message": { "en": "Message", "it": "Messaggio", "sq": "Mesazhi" },
+  "grid.anyTime": { "en": "any time", "it": "qualsiasi ora", "sq": "çdo kohë" },
+  "grid.stillRunning": { "en": "still running", "it": "ancora in corso", "sq": "ende duke vazhduar" },
+  "grid.allLevels": { "en": "All levels", "it": "Tutti i livelli", "sq": "Të gjitha nivelet" },
+  "grid.allEnvironments": { "en": "All environments", "it": "Tutti gli ambienti", "sq": "Të gjitha mjediset" },
+  "grid.allCompanies": { "en": "All companies", "it": "Tutte le aziende", "sq": "Të gjitha kompanitë" },
+  "grid.messageContains": { "en": "message contains…", "it": "il messaggio contiene…", "sq": "mesazhi përmban…" },
+  "grid.stack": { "en": "stack", "it": "stack", "sq": "stack" }
+}

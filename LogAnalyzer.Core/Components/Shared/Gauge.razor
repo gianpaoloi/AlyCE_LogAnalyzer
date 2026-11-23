@@ -16,6 +16,8 @@
 </div>
 
 @code {
+    [Inject] private Localizer L { get; set; } = default!;
+
     [Parameter, EditorRequired] public string Label { get; set; } = "";
 
     [Parameter] public double? Percent { get; set; }
@@ -26,7 +28,7 @@
     /// <summary>The tooltip that explains the figure.</summary>
     [Parameter] public string? Help { get; set; }
 
-    private string Text => Percent is double p ? $"{p.ToString("0", CultureInfo.InvariantCulture)} %" : "measuring…";
+    private string Text => Percent is double p ? $"{p.ToString("0", CultureInfo.InvariantCulture)} %" : L["gauge.measuring"];
 
     private string Width => (Math.Clamp(Percent ?? 0, 0, 100)).ToString("0.0", CultureInfo.InvariantCulture);
 }

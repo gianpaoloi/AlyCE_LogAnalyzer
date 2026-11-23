@@ -41,6 +41,9 @@ public static class MauiProgram
 				builder.Services.AddScoped<GrafanaPresetStore>();
 				// Saved app skins (colour themes) and the active one.
 				builder.Services.AddScoped<SkinStore>();
+				// Interface languages (built-in and the user's own) and the active one.
+				builder.Services.AddScoped<LanguageStore>();
+				builder.Services.AddScoped<Localizer>();
 				// Encrypts the remembered Grafana token and cookie for this Windows account (DPAPI).
 				builder.Services.AddSingleton<ISecretProtector, DpapiSecretProtector>();
 

@@ -3,6 +3,7 @@
    either a service account token or the grafana_session cookie of the browser session (SSO-friendly).
    Presets keep the selectors and window under a name. The secrets are kept only when "Remember sign-in" is
    ticked, and then encrypted before they are stored. *@
+@inject Localizer L
 @inject DialogService DialogService
 @inject GrafanaPresetStore Presets
 @inject NotificationService Notifications
@@ -14,47 +15,46 @@
     <RadzenStack Gap="0.4rem">
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
             <a href="#" @onclick="PasteLink" @onclick:preventDefault style="@LinkStyle"
-               title="Read the link from the clipboard into the box and fill the fields from it">
-                <RadzenIcon Icon="content_paste" /><span>Paste link</span>
+               title="@(L["grafana.pasteLinkTip"])">
+                <RadzenIcon Icon="content_paste" /><span>@L["grafana.pasteLink"]</span>
             </a>
             <a href="@ExploreHref()" target="_blank" rel="noopener noreferrer" style="@LinkStyle"
-               title="@(IsWebLink(_link) ? "Open the pasted link in a new tab" : "Open Grafana Explore in a new tab (paste a link to open that page instead)")">
-                <RadzenIcon Icon="open_in_new" /><span>Open link</span>
+               title="@(IsWebLink(_link) ? L["grafana.openLinkTip"] : L["grafana.openExploreTip"])">
+                <RadzenIcon Icon="open_in_new" /><span>@L["grafana.openLink"]</span>
             </a>
         </RadzenStack>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
             @* oninput keeps _link current on every keystroke, so Open link opens what is pasted. *@
             <input type="text" class="rz-textbox" style="flex:1; min-width:240px" autocomplete="off"
                    placeholder="https://teamsystem.grafana.net/a/grafana-lokiexplore-app/explore/…"
-                   title="Copy the address bar of the Loki logs page and paste it here; press Enter to fill the fields"
+                   title="@(L["grafana.linkBoxTip"])"
                    @bind="_link" @bind:event="oninput" @onchange="ApplyLink" />
-            <RadzenButton Text="Load" Icon="input" ButtonStyle="ButtonStyle.Primary" Click="LoadClicked"
-                          title="Fill the fields from the pasted link" />
+            <RadzenButton Text="@(L["grafana.load"])" Icon="input" ButtonStyle="ButtonStyle.Primary" Click="LoadClicked"
+                          title="@(L["grafana.loadTip"])" />
         </RadzenStack>
         <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
-            The team, service, environment, level, field and line filters, datasource and time range are read from the link. Nothing is sent
-            to Grafana until you press Import.
+            @L["grafana.linkHint"]
         </RadzenText>
     </RadzenStack>
 
     @* 2. Presets. Collapsed by default; Load does not open it. *@
     <RadzenStack Gap="0.4rem">
-        <RadzenButton Text="Presets" Icon="@(_presetsOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
+        <RadzenButton Text="@(L["grafana.presets"])" Icon="@(_presetsOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
                       Variant="Variant.Text" Size="ButtonSize.Small" Click="TogglePresets" class="rz-p-0"
-                      style="align-self:flex-start; font-weight:600" title="Show or hide the saved presets" />
+                      style="align-self:flex-start; font-weight:600" title="@(L["grafana.presetsTip"])" />
         @if (_presetsOpen)
         {
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
             <RadzenDropDown TValue="string" Data="@PresetNames" @bind-Value="_selectedPreset"
-                            Placeholder="No presets saved yet" style="flex:1; min-width:200px" />
-            <RadzenButton Text="Load" Icon="file_open" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
+                            Placeholder="@(L["grafana.noPresets"])" style="flex:1; min-width:200px" />
+            <RadzenButton Text="@(L["grafana.load"])" Icon="file_open" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
                           Size="ButtonSize.Small" Click="LoadPreset" Disabled="@string.IsNullOrEmpty(_selectedPreset)" />
-            <RadzenButton Text="Delete" Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined"
+            <RadzenButton Text="@(L["grafana.delete"])" Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined"
                           Size="ButtonSize.Small" Click="DeletePreset" Disabled="@string.IsNullOrEmpty(_selectedPreset)" />
         </RadzenStack>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
-            <RadzenTextBox @bind-Value="_presetName" Placeholder="Preset name" style="flex:1; min-width:200px" />
-            <RadzenButton Text="Save as preset" Icon="bookmark_add" ButtonStyle="ButtonStyle.Secondary"
+            <RadzenTextBox @bind-Value="_presetName" Placeholder="@(L["grafana.presetName"])" style="flex:1; min-width:200px" />
+            <RadzenButton Text="@(L["grafana.saveAsPreset"])" Icon="bookmark_add" ButtonStyle="ButtonStyle.Secondary"
                           Variant="Variant.Outlined" Size="ButtonSize.Small" Click="SavePreset" />
         </RadzenStack>
         }
@@ -62,27 +62,27 @@
 
     @* 3. The query. *@
     <RadzenStack Gap="0.4rem">
-        <RadzenButton Text="Query" Icon="@(_queryOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
+        <RadzenButton Text="@(L["grafana.query"])" Icon="@(_queryOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
                       Variant="Variant.Text" Size="ButtonSize.Small" Click="ToggleQuery" class="rz-p-0"
-                      style="align-self:flex-start; font-weight:600" title="Show or hide the query settings" />
+                      style="align-self:flex-start; font-weight:600" title="@(L["grafana.queryTip"])" />
         @if (_queryOpen)
         {
         <RadzenStack Orientation="Orientation.Horizontal" Gap="0.6rem" Wrap="FlexWrap.Wrap">
             <div style="flex:1 1 180px; min-width:150px">
                 <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">team</RadzenText>
-                <RadzenTextBox @bind-Value="_team" Placeholder="e.g. tse" style="width:100%" />
+                <RadzenTextBox @bind-Value="_team" Placeholder="@(L["grafana.eg", "tse"])" style="width:100%" />
             </div>
             <div style="flex:1 1 180px; min-width:150px">
                 <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">service_name</RadzenText>
-                <RadzenTextBox @bind-Value="_serviceName" Placeholder="e.g. webapi-fin" style="width:100%" />
+                <RadzenTextBox @bind-Value="_serviceName" Placeholder="@(L["grafana.eg", "webapi-fin"])" style="width:100%" />
             </div>
             <div style="flex:1 1 180px; min-width:150px">
                 <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">environment</RadzenText>
-                <RadzenTextBox @bind-Value="_environment" Placeholder="e.g. dev" style="width:100%" />
+                <RadzenTextBox @bind-Value="_environment" Placeholder="@(L["grafana.eg", "dev"])" style="width:100%" />
             </div>
         </RadzenStack>
         <div style="max-width:260px">
-            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">time range</RadzenText>
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">@L["grafana.timeRange"]</RadzenText>
             <RadzenDropDown TValue="int" Data="@_windows" TextProperty="Text" ValueProperty="Minutes"
                             @bind-Value="_windowMinutes" style="width:100%" Disabled="_useLinkRange" />
         </div>
@@ -90,44 +90,44 @@
         {
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
                 <RadzenCheckBox @bind-Value="_useLinkRange" Name="gfLinkRange" />
-                <RadzenLabel Text="@($"Use the link's dates: {linkFrom.ToLocalTime():yyyy-MM-dd HH:mm} to {(_linkTo?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "now")}")"
+                <RadzenLabel Text="@(L["grafana.useLinkDates", linkFrom.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), (_linkTo?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? L["grafana.now"])])"
                              Component="gfLinkRange" />
             </RadzenStack>
         }
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Gap="0.4rem">
             <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted mono" style="flex:1; word-break:break-all">@QueryPreview</RadzenText>
             <RadzenButton Icon="content_copy" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Size="ButtonSize.Small"
-                          Click="CopyQuery" Disabled="@(!HasLabel())" title="Copy the LogQL query to the clipboard" />
+                          Click="CopyQuery" Disabled="@(!HasLabel())" title="@(L["grafana.copyQueryTip"])" />
         </RadzenStack>
         @* Filters from the link (level, field, line text). Edit, remove or add rows; they are sent with the query. *@
-        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">Filters (from the link, editable)</RadzenText>
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">@L["grafana.filtersFromLink"]</RadzenText>
         @foreach (var row in _fieldRows)
         {
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
-                <RadzenTextBox @bind-Value="row.Name" Placeholder="field, e.g. detected_level" style="flex:1 1 180px; min-width:150px" />
+                <RadzenTextBox @bind-Value="row.Name" Placeholder="@(L["grafana.fieldEg", "detected_level"])" style="flex:1 1 180px; min-width:150px" />
                 <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0">=</RadzenText>
-                <RadzenTextBox @bind-Value="row.Value" Placeholder="value, e.g. error" style="flex:1 1 180px; min-width:150px" />
+                <RadzenTextBox @bind-Value="row.Value" Placeholder="@(L["grafana.valueEg", "error"])" style="flex:1 1 180px; min-width:150px" />
                 <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text" Size="ButtonSize.Small"
-                              Click="@(() => RemoveField(row))" title="Remove this filter" />
+                              Click="@(() => RemoveField(row))" title="@(L["grafana.removeFilter"])" />
             </RadzenStack>
         }
         @foreach (var row in _lineRows)
         {
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
-                <RadzenTextBox @bind-Value="row.Text" Placeholder="line contains…" style="flex:1 1 260px; min-width:200px" />
+                <RadzenTextBox @bind-Value="row.Text" Placeholder="@(L["grafana.lineContains"])" style="flex:1 1 260px; min-width:200px" />
                 <RadzenCheckBox @bind-Value="row.CaseInsensitive" Name="@($"gfCase{row.GetHashCode()}")" />
-                <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0">any case</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0">@L["grafana.anyCase"]</RadzenText>
                 <RadzenCheckBox @bind-Value="row.Exclude" Name="@($"gfExclude{row.GetHashCode()}")"
-                                title="Drop the lines that contain this text, instead of keeping them" />
-                <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0" title="Drop the lines that contain this text">does not contain</RadzenText>
+                                title="@(L["grafana.excludeTip"])" />
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0" title="@(L["grafana.doesNotContainTip"])">@L["grafana.doesNotContain"]</RadzenText>
                 <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text" Size="ButtonSize.Small"
-                              Click="@(() => RemoveLine(row))" title="Remove this filter" />
+                              Click="@(() => RemoveLine(row))" title="@(L["grafana.removeFilter"])" />
             </RadzenStack>
         }
         <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem" Wrap="FlexWrap.Wrap">
-            <RadzenButton Text="Add field filter" Icon="add" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
+            <RadzenButton Text="@(L["grafana.addFieldFilter"])" Icon="add" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
                           Size="ButtonSize.ExtraSmall" Click="AddField" />
-            <RadzenButton Text="Add line filter" Icon="add" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
+            <RadzenButton Text="@(L["grafana.addLineFilter"])" Icon="add" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
                           Size="ButtonSize.ExtraSmall" Click="AddLine" />
         </RadzenStack>
         }
@@ -135,29 +135,29 @@
 
     @* 4. Where to connect. *@
     <RadzenStack Gap="0.4rem">
-        <RadzenButton Text="Connection" Icon="@(_connectionOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
+        <RadzenButton Text="@(L["grafana.connection"])" Icon="@(_connectionOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
                       Variant="Variant.Text" Size="ButtonSize.Small" Click="ToggleConnection" class="rz-p-0"
-                      style="align-self:flex-start; font-weight:600" title="Show or hide the connection settings" />
+                      style="align-self:flex-start; font-weight:600" title="@(L["grafana.connectionTip"])" />
         @if (_connectionOpen)
         {
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
             <RadzenTextBox @bind-Value="_baseUrl" Placeholder="https://teamsystem.grafana.net" style="flex:1 1 240px; min-width:200px"
-                           title="Grafana Cloud address" />
+                           title="@(L["grafana.grafanaCloudAddressTip"])" />
             <RadzenDropDown TValue="string" Data="@_datasources" TextProperty="Name" ValueProperty="Uid"
-                            @bind-Value="_datasourceUid" Placeholder="Loki datasource (filled from the link)"
+                            @bind-Value="_datasourceUid" Placeholder="@(L["grafana.datasourcePlaceholder"])"
                             style="flex:1; min-width:200px" />
-            <RadzenButton Text="Find" Icon="search" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
+            <RadzenButton Text="@(L["grafana.find"])" Icon="search" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Outlined"
                           Size="ButtonSize.Small" Click="FindClicked" Disabled="@Credential().IsEmpty"
-                          title="List the Loki datasources this sign-in can read" />
+                          title="@(L["grafana.findTip"])" />
         </RadzenStack>
         }
     </RadzenStack>
 
     @* 5. How to prove who you are: a token, or your signed-in browser session. *@
     <RadzenStack Gap="0.4rem">
-        <RadzenButton Text="Sign-in" Icon="@(_signInOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
+        <RadzenButton Text="@(L["grafana.signIn"])" Icon="@(_signInOpen ? "expand_more" : "chevron_right")" ButtonStyle="ButtonStyle.Light"
                       Variant="Variant.Text" Size="ButtonSize.Small" Click="ToggleSignIn" class="rz-p-0"
-                      style="align-self:flex-start; font-weight:600" title="Show or hide the sign-in settings" />
+                      style="align-self:flex-start; font-weight:600" title="@(L["grafana.signInTip"])" />
         @if (_signInOpen)
         {
         @* onfocus selects the whole value, so pasting a new cookie replaces the remembered one. *@
@@ -166,31 +166,31 @@
             @if (!_useToken)
             {
                 <input type="@SecretInputType" class="rz-textbox" style="flex:1; min-width:0" autocomplete="off" onfocus="this.select()"
-                       placeholder="grafana_session cookie (from your signed-in browser)"
+                       placeholder="@(L["grafana.cookiePlaceholder"])"
                        @bind="_sessionCookie" @bind:event="oninput" />
             }
             else
             {
                 <input type="@SecretInputType" class="rz-textbox" style="flex:1; min-width:0" autocomplete="off" onfocus="this.select()"
-                       placeholder="service account token" @bind="_token" @bind:event="oninput" />
+                       placeholder="@(L["grafana.tokenPlaceholder"])" @bind="_token" @bind:event="oninput" />
             }
             <RadzenButton Icon="@(_showSecret ? "visibility_off" : "visibility")" ButtonStyle="ButtonStyle.Secondary"
                           Variant="Variant.Text" Size="ButtonSize.Small" Click="ToggleSecret"
-                          title="@(_showSecret ? "Hide the text" : "Show the text in clear")" />
+                          title="@(_showSecret ? L["grafana.hideText"] : L["grafana.showText"])" />
             <RadzenButton Icon="help_outline" ButtonStyle="ButtonStyle.Secondary" Variant="Variant.Text" Size="ButtonSize.Small"
                           Click="@(() => ShowSignInHelp(_useToken))"
-                          title="Where to find the grafana_session cookie or a service account token" />
+                          title="@(L["grafana.helpTip"])" />
         </RadzenStack>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
             <RadzenCheckBox @bind-Value="_remember" Name="gfRemember" />
-            <RadzenLabel Text="Remember sign-in on this computer" Component="gfRemember"
-                         title="Saved on this computer, encrypted: for this Windows account in the desktop app, with the server's keys in the web app. Untick to forget it after the import." />
-            <RadzenButton Text="Forget sign-in" Icon="delete_sweep" ButtonStyle="ButtonStyle.Danger"
+            <RadzenLabel Text="@(L["grafana.rememberLabel"])" Component="gfRemember"
+                         title="@(L["grafana.rememberTip"])" />
+            <RadzenButton Text="@(L["grafana.forgetSignIn"])" Icon="delete_sweep" ButtonStyle="ButtonStyle.Danger"
                           Variant="Variant.Text" Size="ButtonSize.ExtraSmall" Click="ForgetSignIn" />
         </RadzenStack>
         <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
-            Click <b>?</b> for where to find the @(_useToken ? "service account token" : "grafana_session cookie").
-            @(_useToken ? "The token works until you revoke it in Grafana." : "The cookie stops working when your Grafana session ends.")
+            @((MarkupString)L["grafana.clickHelp", _useToken ? L["grafana.tokenName"] : L["grafana.cookieName"]])
+            @(_useToken ? L["grafana.tokenWorks"] : L["grafana.cookieStops"])
         </RadzenText>
         }
     </RadzenStack>
@@ -201,23 +201,16 @@
     }
 
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
-        <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" Variant="Variant.Outlined" Click="Cancel" />
-        <RadzenButton Text="Import logs" Icon="cloud_download" ButtonStyle="ButtonStyle.Primary" Click="Import" />
+        <RadzenButton Text="@(L["grafana.cancel"])" ButtonStyle="ButtonStyle.Light" Variant="Variant.Outlined" Click="Cancel" />
+        <RadzenButton Text="@(L["grafana.importLogs"])" Icon="cloud_download" ButtonStyle="ButtonStyle.Primary" Click="Import" />
     </RadzenStack>
 </RadzenStack>
 
 @code {
     private sealed record WindowOption(string Text, int Minutes);
 
-    private readonly List<WindowOption> _windows = new()
-    {
-        new WindowOption("last 15 minutes", 15),
-        new WindowOption("last hour", 60),
-        new WindowOption("last 6 hours", 360),
-        new WindowOption("last 24 hours", 1440),
-        new WindowOption("last 7 days", 10080),
-        new WindowOption("last 30 days", 43200),
-    };
+    // Filled in OnInitialized, because the localized text needs the injected Localizer.
+    private readonly List<WindowOption> _windows = new();
 
     /// <summary>Shared look of the two link labels above the box, so they read as one pair.</summary>
     private const string LinkStyle =
@@ -227,6 +220,22 @@
     private bool _queryOpen;
     private bool _presetsOpen;
     private bool _signInOpen = true;
+
+    protected override void OnInitialized()
+    {
+        _windows.AddRange(new[]
+        {
+            new WindowOption(L["grafana.win15m"], 15),
+            new WindowOption(L["grafana.winHour"], 60),
+            new WindowOption(L["grafana.win6h"], 360),
+            new WindowOption(L["grafana.win24h"], 1440),
+            new WindowOption(L["grafana.win7d"], 10080),
+            new WindowOption(L["grafana.win30d"], 43200),
+        });
+
+        _signInModes.Add(new SignInMode(L["grafana.cookieSso"], false));
+        _signInModes.Add(new SignInMode(L["grafana.serviceToken"], true));
+    }
 
     private async Task TogglePresets()
     {
@@ -311,11 +320,8 @@
     /// <summary>The two sign-in modes; the selector shows one at a time.</summary>
     private sealed record SignInMode(string Text, bool UsesToken);
 
-    private readonly List<SignInMode> _signInModes = new()
-    {
-        new SignInMode("grafana_session cookie (SSO)", false),
-        new SignInMode("Service account token", true),
-    };
+    // Filled in OnInitialized, because the localized text needs the injected Localizer.
+    private readonly List<SignInMode> _signInModes = new();
 
     private bool _useToken;
 
@@ -370,7 +376,7 @@
 
     private async Task ShowSignInHelp(bool useToken) =>
         await DialogService.OpenAsync<GrafanaSignInHelp>(
-            useToken ? "Service account token" : "grafana_session cookie",
+            useToken ? L["grafana.serviceToken"] : L["grafana.cookieName"],
             new Dictionary<string, object?> { ["UseToken"] = useToken },
             new DialogOptions { Width = "560px" });
 
@@ -392,8 +398,8 @@
     private static string? Blank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private string CredentialHint() => _useToken
-        ? "Paste a service account token first."
-        : "Paste the grafana_session cookie first.";
+        ? L["grafana.errPasteToken"]
+        : L["grafana.errPasteCookie"];
 
     private LokiQuery CurrentQuery() => new(
         _baseUrl.Trim(), _datasourceUid.Trim(), _team.Trim(), _serviceName.Trim(), _environment.Trim(),
@@ -429,7 +435,7 @@
 
     private string QueryPreview => HasLabel()
         ? GrafanaLokiClient.BuildQuery(CurrentQuery())
-        : "Paste the link, or enter at least one of team, service_name or environment.";
+        : L["grafana.previewEmpty"];
 
     /// <summary>Copies the raw LogQL, the same text the preview shows, so it can be run in Grafana as it is.</summary>
     private async Task CopyQuery()
@@ -442,8 +448,8 @@
             Notifications.Notify(new NotificationMessage
             {
                 Severity = NotificationSeverity.Success,
-                Summary = "Copied",
-                Detail = "The LogQL query is on the clipboard.",
+                Summary = L["grafana.copied"],
+                Detail = L["grafana.copiedDetail"],
                 Duration = 2200
             });
         }
@@ -452,8 +458,8 @@
             Notifications.Notify(new NotificationMessage
             {
                 Severity = NotificationSeverity.Error,
-                Summary = "Copy failed",
-                Detail = "Clipboard access is not available.",
+                Summary = L["grafana.copyFailed"],
+                Detail = L["grafana.copyFailedDetail"],
                 Duration = 2800
             });
         }
@@ -486,7 +492,9 @@
     {
         if (_windows.Any(w => w.Minutes == minutes)) return;
 
-        var text = minutes % 1440 == 0 ? $"last {minutes / 1440} days" : $"last {minutes} minutes";
+        var text = minutes % 1440 == 0
+            ? L["grafana.winDays", minutes / 1440]
+            : L["grafana.winMinutes", minutes];
         _windows.Add(new WindowOption(text, minutes));
         _windows.Sort((a, b) => a.Minutes.CompareTo(b.Minutes));
     }
@@ -504,8 +512,8 @@
         if (string.IsNullOrWhiteSpace(text))
         {
             _error = text is null
-                ? "Clipboard access is blocked here. Click in the link box and press Ctrl+V instead."
-                : "The clipboard is empty. Copy the Grafana link first.";
+                ? L["grafana.errClipboardBlocked"]
+                : L["grafana.errClipboardEmpty"];
             return;
         }
 
@@ -520,7 +528,7 @@
         var parsed = GrafanaExploreLinkParser.TryParse(_link);
         if (parsed is null)
         {
-            _error = "That does not look like a Grafana link with Loki filters or a datasource.";
+            _error = L["grafana.errNotLink"];
             return;
         }
 
@@ -574,12 +582,12 @@
         var name = _presetName.Trim();
         if (name.Length == 0)
         {
-            _error = "Give the preset a name to save it.";
+            _error = L["grafana.errGiveName"];
             return;
         }
         if (!HasLabel())
         {
-            _error = "Enter at least one of team, service_name or environment before saving.";
+            _error = L["grafana.errNeedLabel"];
             return;
         }
 
@@ -603,7 +611,7 @@
         _error = null;
         if (!ValidAddress())
         {
-            _error = "Enter the Grafana address, for example https://teamsystem.grafana.net.";
+            _error = L["grafana.errAddress"];
             return false;
         }
         var credential = Credential();
@@ -635,7 +643,7 @@
     {
         if (!ValidAddress())
         {
-            _error = "Enter the Grafana address, for example https://teamsystem.grafana.net.";
+            _error = L["grafana.errAddress"];
             return;
         }
         if (Credential().IsEmpty)
@@ -645,13 +653,13 @@
         }
         if (!HasLabel())
         {
-            _error = "Paste the Grafana link, or enter at least one of team, service_name or environment.";
+            _error = L["grafana.errNeedLinkOrLabel"];
             return;
         }
 
         if (!FieldNamesValid())
         {
-            _error = "A field name may only contain letters, digits and underscores, for example cid or detected_level.";
+            _error = L["grafana.errFieldNames"];
             return;
         }
 
@@ -661,8 +669,8 @@
             if (string.IsNullOrWhiteSpace(_datasourceUid))
             {
                 _error = _datasources.Count == 0
-                    ? "No Loki datasource is visible to this sign-in."
-                    : "Several Loki datasources were found: choose one in the list.";
+                    ? L["grafana.errNoDatasource"]
+                    : L["grafana.errSeveralDatasources"];
                 return;
             }
         }
@@ -676,8 +684,8 @@
                 Notifications.Notify(new NotificationMessage
                 {
                     Severity = NotificationSeverity.Warning,
-                    Summary = "Sign-in not remembered",
-                    Detail = "The sign-in could not be encrypted or stored on this computer, so it was not kept.",
+                    Summary = L["grafana.signInNotRemembered"],
+                    Detail = L["grafana.signInNotRememberedDetail"],
                     Duration = 6000,
                 });
         }

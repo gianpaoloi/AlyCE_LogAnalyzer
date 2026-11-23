@@ -2,6 +2,7 @@
 @inject NotificationService Notifications
 @inject DialogService Dialogs
 @inject UpdateChecker Updates
+@inject Localizer L
 
 @* No Bootstrap spacing utilities here: the padding is set in CSS instead, so the narrow sidebar
    keeps as much width as possible for the labels. *@
@@ -11,7 +12,7 @@
     </div>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<input type="checkbox" title="@(L["nav.navigationMenu"])" class="navbar-toggler" />
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     @* Two groups, because the pages answer two different questions: the first three work on a set of
@@ -21,39 +22,44 @@
     <nav class="flex-column">
         @* Icons come from the Material Symbols font Radzen already ships, so they match the icons on
            every button in the app and inherit the link colour as it changes between states. *@
-        <h2 class="nav-group">File analysis</h2>
+        <h2 class="nav-group">@L["nav.fileAnalysis"]</h2>
         <div class="nav-item">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="dashboard" /></span> Overview
+                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="dashboard" /></span> @L["nav.overview"]
             </NavLink>
         </div>
         <div class="nav-item">
             <NavLink class="nav-link" href="explorer">
-                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="manage_search" /></span> Explorer
+                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="manage_search" /></span> @L["nav.explorer"]
             </NavLink>
         </div>
         <div class="nav-item">
             <NavLink class="nav-link" href="triage">
-                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="warning" /></span> Triage
+                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="warning" /></span> @L["nav.triage"]
             </NavLink>
         </div>
 
-        <h2 class="nav-group">Live watch</h2>
+        <h2 class="nav-group">@L["nav.liveWatch"]</h2>
         <div class="nav-item">
             <NavLink class="nav-link" href="live">
-                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="sensors" /></span> File Live Watch
+                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="sensors" /></span> @L["nav.fileLiveWatch"]
             </NavLink>
         </div>
         <div class="nav-item">
             <NavLink class="nav-link" href="network">
-                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="lan" /></span> Network Live Watch
+                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="lan" /></span> @L["nav.networkLiveWatch"]
             </NavLink>
         </div>
 
-        <h2 class="nav-group">Appearance</h2>
+        <h2 class="nav-group">@L["nav.appearance"]</h2>
         <div class="nav-item">
             <NavLink class="nav-link" href="skins">
-                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="palette" /></span> Skin Editor
+                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="palette" /></span> @L["nav.skinEditor"]
+            </NavLink>
+        </div>
+        <div class="nav-item">
+            <NavLink class="nav-link" href="languages">
+                <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="translate" /></span> @L["nav.languageEditor"]
             </NavLink>
         </div>
     </nav>
@@ -63,9 +69,9 @@
     @if (_update is not null)
     {
         <button type="button" class="nav-update" @onclick="ShowUpdate"
-                title="@($"Version {_update.Version} is available — click for details")">
+                title="@(L["layout.updateTip", _update.Version])">
             <span class="nav-icon" aria-hidden="true"><RadzenIcon Icon="system_update_alt" /></span>
-            <span class="nav-update-text">Update to v@(_update.Version)</span>
+            <span class="nav-update-text">@L["layout.updateTo", _update.Version]</span>
         </button>
     }
 
@@ -89,8 +95,18 @@
     </div>
 </div>
 
+@implements IDisposable
+
 @code {
     private UpdateInfo? _update;
+
+    // The sidebar has no parameters, so Blazor does not redraw it when the page redraws. It listens for a
+    // language change itself, so its labels change at once instead of on the next click.
+    protected override void OnInitialized() => L.Changed += OnLanguageChanged;
+
+    private void OnLanguageChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => L.Changed -= OnLanguageChanged;
 
     /// <summary>
     /// Asked for after the first paint rather than in OnInitialized: the sidebar must not wait on
@@ -121,29 +137,29 @@
     {
         if (_update is null) return;
 
-        await Dialogs.OpenAsync<UpdateDialog>($"Version {_update.Version} is available",
+        await Dialogs.OpenAsync<UpdateDialog>(L["layout.updateAvailable", _update.Version],
             new Dictionary<string, object?> { { "Release", _update } },
             new DialogOptions { Width = "680px", Resizable = true, Draggable = true });
     }
 
-    private static string Tooltip =>
+    private string Tooltip =>
         AppVersion.Commit is null
-            ? $"Version {AppVersion.Display} — open the releases page on GitHub"
-            : $"Version {AppVersion.Display} (commit {AppVersion.ShortCommit}) — open the releases page on GitHub";
+            ? L["layout.versionTip", AppVersion.Display]
+            : L["layout.versionTipCommit", AppVersion.Display, AppVersion.ShortCommit];
 
-    private static string CopyTooltip => $"Copy {AppVersion.Full}";
+    private string CopyTooltip => L["layout.copyVersion", AppVersion.Full];
 
     private async Task CopyVersion()
     {
         try
         {
             await JS.InvokeVoidAsync("copyTextToClipboard", AppVersion.Full);
-            Notify(NotificationSeverity.Success, "Copied", AppVersion.Full);
+            Notify(NotificationSeverity.Success, L["layout.copied"], AppVersion.Full);
         }
         catch
         {
             // No clipboard (policy, or a non-secure context): show the value so it can be read off.
-            Notify(NotificationSeverity.Info, "Version", AppVersion.Full);
+            Notify(NotificationSeverity.Info, L["layout.version"], AppVersion.Full);
         }
     }
 

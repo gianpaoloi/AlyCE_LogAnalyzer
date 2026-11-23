@@ -1,0 +1,14 @@
+{
+  "volume.title": { "en": "Log volume", "it": "Volume dei log", "sq": "Vëllimi i log-eve" },
+  "volume.expandChart": { "en": "Expand chart", "it": "Espandi il grafico", "sq": "Zgjero grafikun" },
+  "volume.collapseChart": { "en": "Collapse chart", "it": "Comprimi il grafico", "sq": "Mbyll grafikun" },
+  "volume.selectedWindow": { "en": "Selected time window", "it": "Intervallo di tempo selezionato", "sq": "Intervali kohor i zgjedhur" },
+  "volume.clearTimeFilter": { "en": "Clear time filter", "it": "Rimuovi il filtro temporale", "sq": "Hiq filtrin e kohës" },
+  "volume.dragHint": { "en": "drag to filter a time window", "it": "trascina per filtrare un intervallo di tempo", "sq": "tërhiqe për të filtruar një interval kohor" },
+  "volume.perBar": { "en": "{0} per bar", "it": "{0} per barra", "sq": "{0} për shtyllë" },
+  "volume.noTimestamps": { "en": "No timestamped entries.", "it": "Nessuna voce con data e ora.", "sq": "Nuk ka hyrje me kohë." },
+  "volume.bucketTooltip": { "en": "{0} · {1} entries{2} — drag to filter", "it": "{0} · {1} voci{2} — trascina per filtrare", "sq": "{0} · {1} hyrje{2} — tërhiqe për të filtruar" },
+  "volume.stopFilterBy": { "en": "Stop filtering by {0}", "it": "Smetti di filtrare per {0}", "sq": "Hiq filtrimin sipas {0}" },
+  "volume.filterBy": { "en": "Filter by {0}", "it": "Filtra per {0}", "sq": "Filtro sipas {0}" },
+  "volume.total": { "en": "Total: {0}", "it": "Totale: {0}", "sq": "Totali: {0}" }
+}

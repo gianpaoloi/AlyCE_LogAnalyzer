@@ -1,3 +1,5 @@
+@inject Localizer L
+
 @* Grafana-style log volume panel: stacked bars per time bucket, auto bucket size,
    level totals in the legend. Pure CSS/HTML (no SVG) so it scales with the container.
    Doubles as a filter: drag across the bars to pick a time window, click a legend
@@ -6,17 +8,17 @@
 <div class="lv-panel">
     <div class="lv-head">
         <span class="lv-head-toggle" @onclick="ToggleCollapsed"
-              title="@(Collapsed ? "Expand chart" : "Collapse chart")">
+              title="@(Collapsed ? L["volume.expandChart"] : L["volume.collapseChart"])">
             <RadzenIcon Icon="@(Collapsed ? "chevron_right" : "expand_more")" />
-            <span class="lv-title">@Title (@Compact(_total))</span>
+            <span class="lv-title">@(Title ?? L["volume.title"]) (@Compact(_total))</span>
         </span>
 
         @if (Range is { } r)
         {
-            <span class="lv-range" title="Selected time window">
+            <span class="lv-range" title="@(L["volume.selectedWindow"])">
                 <RadzenIcon Icon="schedule" />
                 @r.ToString()
-                <span class="lv-range-clear" title="Clear time filter" @onclick="ClearRange">
+                <span class="lv-range-clear" title="@(L["volume.clearTimeFilter"])" @onclick="ClearRange">
                     <RadzenIcon Icon="close" />
                 </span>
             </span>
@@ -27,9 +29,9 @@
             <span class="lv-bucket">
                 @if (Range is null)
                 {
-                    <span class="lv-hint">drag to filter a time window &middot; </span>
+                    <span class="lv-hint">@L["volume.dragHint"] &middot; </span>
                 }
-                @_bucketLabel per bar
+                @L["volume.perBar", _bucketLabel]
             </span>
         }
     </div>
@@ -38,7 +40,7 @@
     {
         @if (_buckets.Count == 0)
         {
-            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-m-0">No timestamped entries.</RadzenText>
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-m-0">@L["volume.noTimestamps"]</RadzenText>
         }
         else
         {
@@ -90,10 +92,10 @@
                 @foreach (var (name, key, count) in Series())
                 {
                     <button type="button" class="lv-legend-item @(IsLevelActive(key) ? "lv-legend-on" : null)"
-                            title="@(IsLevelActive(key) ? $"Stop filtering by {name}" : $"Filter by {name}")"
+                            title="@(IsLevelActive(key) ? L["volume.stopFilterBy", name] : L["volume.filterBy", name])"
                             @onclick="() => LevelToggled.InvokeAsync(key)">
                         <i style="background:@ChartColors.Level(key)"></i>@name
-                        <span class="lv-legend-total">Total: @Compact(count)</span>
+                        <span class="lv-legend-total">@L["volume.total", Compact(count)]</span>
                     </button>
                 }
             </div>
@@ -103,7 +105,8 @@
 
 @code {
     [Parameter] public IReadOnlyList<LogEntry> Entries { get; set; } = Array.Empty<LogEntry>();
-    [Parameter] public string Title { get; set; } = "Log volume";
+    /// <summary>Heading of the panel. Null means the default ("Log volume").</summary>
+    [Parameter] public string? Title { get; set; }
 
     /// <summary>Collapsed state; supports <c>@bind-Collapsed</c> so the caller can persist it.</summary>
     [Parameter] public bool Collapsed { get; set; }
@@ -319,7 +322,7 @@
         if (b.Error > 0) parts.Add($"error {b.Error:N0}");
         if (b.Other > 0) parts.Add($"other {b.Other:N0}");
         var detail = parts.Count > 0 ? $" ({string.Join(", ", parts)})" : "";
-        return $"{b.Start:yyyy-MM-dd HH:mm:ss} · {b.Total:N0} entries{detail} — drag to filter";
+        return L["volume.bucketTooltip", b.Start.ToString("yyyy-MM-dd HH:mm:ss"), b.Total.ToString("N0"), detail];
     }
 
     /// <summary>Highlight for a bar: the live drag wins, otherwise the committed window — plus the

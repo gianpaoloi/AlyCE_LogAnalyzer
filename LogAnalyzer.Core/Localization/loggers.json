@@ -1,0 +1,5 @@
+{
+  "loggers.title": { "en": "Loggers", "it": "Logger", "sq": "Loggers" },
+  "loggers.clear": { "en": "clear", "it": "rimuovi", "sq": "hiq" },
+  "loggers.empty": { "en": "No loggers yet.", "it": "Nessun logger per ora.", "sq": "Ende asnjë logger." }
+}

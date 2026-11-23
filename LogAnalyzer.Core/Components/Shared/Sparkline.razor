@@ -1,8 +1,9 @@
 @using System.Globalization
 @using System.Text
+@inject Localizer L
 
 @* A small line chart of recent values. Missing values (null) leave a gap. *@
-<svg class="res-spark" viewBox="0 0 @Width @Height" preserveAspectRatio="none" role="img" aria-label="@Label trend">
+<svg class="res-spark" viewBox="0 0 @Width @Height" preserveAspectRatio="none" role="img" aria-label="@Label @(L["sparkline.trend"])">
     @if (Help is not null)
     {
         <title>@Help</title>

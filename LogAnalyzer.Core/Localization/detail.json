@@ -1,0 +1,16 @@
+{
+  "detail.copyMessage": { "en": "Copy message", "it": "Copia messaggio", "sq": "Kopjo mesazhin" },
+  "detail.copyDetails": { "en": "Copy details", "it": "Copia dettagli", "sq": "Kopjo detajet" },
+  "detail.logger": { "en": "Logger", "it": "Logger", "sq": "Loggers" },
+  "detail.environment": { "en": "Environment", "it": "Ambiente", "sq": "Mjedisi" },
+  "detail.user": { "en": "User", "it": "Utente", "sq": "Përdoruesi" },
+  "detail.company": { "en": "Company / CID", "it": "Azienda / CID", "sq": "Kompania / CID" },
+  "detail.thread": { "en": "Thread", "it": "Thread", "sq": "Thread" },
+  "detail.file": { "en": "File", "it": "File", "sq": "Skedari" },
+  "detail.message": { "en": "Message", "it": "Messaggio", "sq": "Mesazhi" },
+  "detail.copied": { "en": "Copied", "it": "Copiato", "sq": "U kopjua" },
+  "detail.copiedDetails": { "en": "Log detail copied to clipboard.", "it": "Dettaglio del log copiato negli appunti.", "sq": "Detajet e log-ut u kopjuan në clipboard." },
+  "detail.copiedMessage": { "en": "Message copied to clipboard.", "it": "Messaggio copiato negli appunti.", "sq": "Mesazhi u kopjua në clipboard." },
+  "detail.copyFailed": { "en": "Copy failed", "it": "Copia non riuscita", "sq": "Kopjimi dështoi" },
+  "detail.clipboardUnavailable": { "en": "Clipboard access is not available.", "it": "L'accesso agli appunti non è disponibile.", "sq": "Qasja te clipboard nuk është e disponueshme." }
+}

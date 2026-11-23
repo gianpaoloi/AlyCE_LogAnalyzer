@@ -129,6 +129,20 @@ jobs:
             -p:InformationalVersion="${{ steps.version.outputs.VERSION }}"
 
       # ---------------------------------------------------------------
+      # 7b. Check the Quick Info documents are in the publish output
+      # ---------------------------------------------------------------
+      # Quick Info shows README-HOW-TO.<language>.md (English, Italian, Albanian) from the app folder, and both
+      # packages are made from this folder, so a missing copy would ship without its translation.
+      - name: Check Quick Info documents
+        shell: pwsh
+        run: |
+          $publish = "LogAnalyzer.Maui/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish"
+          $missing = @('README-HOW-TO.md', 'README-HOW-TO.it.md', 'README-HOW-TO.sq.md') |
+              Where-Object { -not (Test-Path -LiteralPath (Join-Path $publish $_)) }
+          if ($missing) { throw "Missing from the publish output: $($missing -join ', ')" }
+          Write-Host "Quick Info documents present in the publish output."
+
+      # ---------------------------------------------------------------
       # 8. Package the portable (redistributable) ZIP
       # ---------------------------------------------------------------
       # Same publish output as the installer, wrapped with a relative-path launcher and a README.

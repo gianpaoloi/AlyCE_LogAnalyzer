@@ -13,4 +13,9 @@
     <PackageReference Include="Markdig" Version="1.1.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- UI translations: one file per area, each key with its English, Italian and Albanian text. -->
+    <EmbeddedResource Include="Localization/*.json" />
+  </ItemGroup>
+
 </Project>
