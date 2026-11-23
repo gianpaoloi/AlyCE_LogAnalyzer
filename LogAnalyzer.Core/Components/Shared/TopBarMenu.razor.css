@@ -1,0 +1,71 @@
+.tbm {
+    position: relative;
+    display: inline-flex;
+}
+
+.tbm-button {
+    display: inline-flex;
+    align-items: center;
+    gap: .1rem;
+    padding: .3rem .45rem;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    color: var(--txt);
+    cursor: pointer;
+}
+
+.tbm-button:hover,
+.tbm-button[aria-expanded="true"] {
+    border-color: var(--brand);
+}
+
+.tbm-caret {
+    opacity: .8;
+}
+
+/* Catches a click outside the list, so the list closes. Sits under the list. */
+.tbm-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+}
+
+/* Opens below the button, lined up with its right edge, so it stays inside the window. */
+.tbm-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 1001;
+    width: 200px;
+    margin: 0;
+    padding: .3rem;
+    list-style: none;
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+.tbm-item {
+    display: block;
+    width: 100%;
+    padding: .45rem .6rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--txt);
+    font-size: .9rem;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.tbm-item:hover {
+    background: color-mix(in srgb, var(--txt) 10%, transparent);
+}
+
+.tbm-item.current {
+    color: var(--brand);
+    font-weight: 600;
+}

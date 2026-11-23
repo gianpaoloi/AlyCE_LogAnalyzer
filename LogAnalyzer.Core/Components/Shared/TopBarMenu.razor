@@ -1,0 +1,41 @@
+@* A top-bar selector: an icon button that opens a fixed-width list of labelled choices, aligned to the button's right edge. *@
+<div class="tbm">
+    <button type="button" class="tbm-button" title="@Title" aria-label="@Title"
+            aria-haspopup="listbox" aria-expanded="@_open" @onclick="Toggle">
+        <RadzenIcon Icon="@Icon" />
+        <RadzenIcon Icon="arrow_drop_down" class="tbm-caret" />
+    </button>
+    @if (_open)
+    {
+        <div class="tbm-backdrop" @onclick="Close"></div>
+        <ul class="tbm-menu" role="listbox" aria-label="@Title">
+            @foreach (var item in Items)
+            {
+                <li role="option" aria-selected="@(item.Value == Current)">
+                    <button type="button" class="@(item.Value == Current ? "tbm-item current" : "tbm-item")"
+                            @onclick="() => Choose(item.Value)">@item.Label</button>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Icon { get; set; } = "";
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public IReadOnlyList<TopBarMenuItem> Items { get; set; } = Array.Empty<TopBarMenuItem>();
+    [Parameter] public string? Current { get; set; }
+    [Parameter] public EventCallback<string> Selected { get; set; }
+
+    private bool _open;
+
+    private void Toggle() => _open = !_open;
+
+    private void Close() => _open = false;
+
+    private async Task Choose(string value)
+    {
+        _open = false;
+        await Selected.InvokeAsync(value);
+    }
+}
