@@ -9,7 +9,12 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **No white line above the app in the desktop window.** The window's title bar now uses the app's dark colors, and
+  the page and window backgrounds match the app, so no white strip shows under the title bar, including when the
+  window is maximized on a monitor with a different display scale.
+- **Removed an unused layout element** from the web host page.
 
 ## [1.2.7] — 2026-11-18
 

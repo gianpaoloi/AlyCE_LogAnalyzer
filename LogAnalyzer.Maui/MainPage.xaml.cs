@@ -16,6 +16,11 @@ public partial class MainPage : ContentPage
 #if WINDOWS
 		LoadStartupFileIfAny();
 
+		// WebView2 paints white until the page renders; match the app background so no white
+		// strip shows at the top edge (e.g. in full-screen, where the control can sit a pixel off).
+		if (blazorWebView.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.WebView2 webView)
+			webView.DefaultBackgroundColor = Windows.UI.Color.FromArgb(0xFF, 0x0F, 0x10, 0x21);
+
 		if (_dropHooksAttached) return;
 
 		if (blazorWebView.Handler?.PlatformView is Microsoft.UI.Xaml.FrameworkElement element)
