@@ -13,7 +13,7 @@ namespace LogAnalyzer.Services;
 /// </para>
 /// <para>
 /// This replaces a "Version: 1.0 / Build Date: 2026-07-16" block that was typed by hand into
-/// README-HOW-TO.md and displayed on the Quick Start page — it had been wrong for weeks, which is
+/// QUICK-INFO.md and displayed on the Quick Start page — it had been wrong for weeks, which is
 /// what hand-maintained version strings always end up being.
 /// </para>
 /// </summary>

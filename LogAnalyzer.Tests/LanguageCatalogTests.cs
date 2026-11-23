@@ -124,6 +124,20 @@ public class LanguageCatalogTests
     }
 
     [Fact]
+    public void ValidateReadme_AcceptsMarkdownText()
+    {
+        Assert.Null(LanguageCatalog.ValidateReadme("# Guida\n\nTesto."));
+    }
+
+    [Fact]
+    public void ValidateReadme_RejectsEmptyOversizedAndBinaryText()
+    {
+        Assert.NotNull(LanguageCatalog.ValidateReadme("   "));
+        Assert.NotNull(LanguageCatalog.ValidateReadme(new string('a', LanguageCatalog.MaxReadmeLength + 1)));
+        Assert.NotNull(LanguageCatalog.ValidateReadme("text\0binary"));
+    }
+
+    [Fact]
     public void UniqueName_AvoidsBuiltInNames()
     {
         Assert.Equal("Italiano (2)", LanguageCatalog.UniqueName("Italiano", Array.Empty<string>()));

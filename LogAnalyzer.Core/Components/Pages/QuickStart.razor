@@ -1,9 +1,32 @@
 @page "/quick-info"
 @inject Localizer L
+@inject LanguageStore Store
 
 <PageTitle>@L["quickstart.title"] · AlyCE Log Analyzer</PageTitle>
 
 <RadzenText TextStyle="TextStyle.H4" class="rz-mb-3">@L["quickstart.title"]</RadzenText>
 
-@* The page is rebuilt on a language change (see MainLayout), so the file is chosen again for the new language. *@
-<MarkdownViewer FileName="@(LocalizedFiles.Resolve("README-HOW-TO.md", L.CurrentCode))" />
+@* The page is rebuilt on a language change (see MainLayout), so the README is chosen again for the new language.
+   A custom language shows the README uploaded for it; without one, the English README is shown. *@
+@if (_loaded)
+{
+    <MarkdownViewer FileName="@_fileName" Content="@_content" />
+}
+
+@code {
+    private const string ReadmeFile = "QUICK-INFO.md";
+
+    private bool _loaded;
+    private string _fileName = ReadmeFile;
+    private string? _content;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var code = L.CurrentCode;
+        if (!LanguageCatalog.IsBuiltInCode(code))
+            _content = await Store.GetReadmeAsync(code);
+
+        _fileName = LocalizedFiles.Resolve(ReadmeFile, code);
+        _loaded = true;
+    }
+}

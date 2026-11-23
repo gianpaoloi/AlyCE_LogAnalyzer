@@ -295,7 +295,7 @@ dotnet publish LogAnalyzer.Maui/LogAnalyzer.Maui.csproj `
 # 2a. Portable ZIP
 .\LogAnalyzer.Maui\create-portable-zip.ps1 `
     -PublishDir "LogAnalyzer.Maui/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish" `
-    -Version 1.0.0 -OutputDir "LogAnalyzer.Maui/dist" -HowToPath "README-HOW-TO.md"
+    -Version 1.0.0 -OutputDir "LogAnalyzer.Maui/dist" -HowToPath "QUICK-INFO.md"
 # Output: LogAnalyzer.Maui/dist/AlyCE-LogAnalyzer-1.0.0-win-x64.zip
 
 # 2b. Installer (requires Inno Setup 6 — https://jrsoftware.org/isinfo.php)

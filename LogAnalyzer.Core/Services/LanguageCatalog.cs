@@ -111,6 +111,18 @@ public static class LanguageCatalog
     public static string Placeholders(string text) =>
         string.Join(",", PlaceholderPattern.Matches(text).Select(m => m.Groups[1].Value).Distinct().OrderBy(x => x, StringComparer.Ordinal));
 
+    /// <summary>The largest README a language can carry, in characters.</summary>
+    public const int MaxReadmeLength = 256 * 1024;
+
+    /// <summary>The first problem with an uploaded README, or null when it can be saved.</summary>
+    public static string? ValidateReadme(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return "The file is empty or is not a text file.";
+        if (text.Length > MaxReadmeLength) return $"The file is too large for a README (at most {MaxReadmeLength / 1024} KB).";
+        if (text.Contains('\0')) return "The file is not a text file.";
+        return null;
+    }
+
     /// <summary>True for a language code such as <c>fr</c> or <c>pt-BR</c>.</summary>
     public static bool IsValidCode(string? code) => code is not null && CodePattern.IsMatch(code);
 

@@ -139,7 +139,7 @@ dotnet publish LogAnalyzer.Maui.csproj -c Release -f net10.0-windows10.0.19041.0
     -PublishDir "bin/Release/net10.0-windows10.0.19041.0/win-x64/publish" `
     -Version 1.2.3 `
     -OutputDir dist `
-    -HowToPath ../README-HOW-TO.md
+    -HowToPath ../QUICK-INFO.md
 ```
 
 | Parameter | |
@@ -156,7 +156,7 @@ into the user's current directory:
 AlyCE-LogAnalyzer-1.2.3-win-x64/
 ├── Application/       the publish output
 ├── Launch.bat         starts Application\LogAnalyzer.Maui.exe via a path relative to itself
-└── README.txt         version header, WebView2 note, then README-HOW-TO.md
+└── README.txt         version header, WebView2 note, then QUICK-INFO.md
 ```
 
 The launcher is a `.bat` rather than a `.lnk` on purpose: a shortcut stores the absolute path it was

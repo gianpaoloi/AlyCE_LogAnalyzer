@@ -1,4 +1,5 @@
 @page "/languages"
+@using Markdig
 @inject LanguageStore Store
 @inject Localizer L
 @inject IJSRuntime JS
@@ -77,9 +78,58 @@
                     </label>
                     <RadzenButton Text="@(L["languages.delete"])" Icon="delete" ButtonStyle="ButtonStyle.Danger"
                                   Disabled="@readOnly" Click="DeleteSelected" />
+                    @if (!readOnly)
+                    {
+                        <RadzenButton Text="@(L["languages.save"])" Icon="save" ButtonStyle="ButtonStyle.Success" Disabled="@(!_dirty)" Click="SaveDraft" />
+                        <RadzenButton Text="@(L["languages.discard"])" Icon="undo" ButtonStyle="ButtonStyle.Light" Disabled="@(!_dirty)" Click="DiscardDraft" />
+                    }
                 </RadzenStack>
 
                 <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@(L["languages.progress", translated, LanguageCatalog.Keys.Count])</RadzenText>
+
+                @if (!readOnly)
+                {
+                    <div class="lang-readme">
+                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0">@(L["languages.readme"])</RadzenText>
+                        <span class="rz-color-muted">
+                            @(_readme is null ? L["languages.readmeDefault"] : L["languages.readmeCustom", _readme.Length / 1024])
+                        </span>
+                        <label class="rz-button rz-button-md rz-secondary rz-shade-default rz-button-icon-left lang-import" title="@(L["languages.uploadReadmeTip"])">
+                            <span class="rz-button-box"><RadzenIcon Icon="upload_file" /><span>@(L["languages.uploadReadme"])</span></span>
+                            <InputFile OnChange="UploadReadme" accept=".md,.txt,text/markdown,text/plain" class="lang-import-input" />
+                        </label>
+                        @if (!_editingReadme)
+                        {
+                            <RadzenButton Text="@(L["languages.editReadme"])" Icon="edit" ButtonStyle="ButtonStyle.Secondary" Click="StartEditReadme" />
+                        }
+                        @if (_readme is not null)
+                        {
+                            <RadzenButton Text="@(L["languages.removeReadme"])" Icon="delete" ButtonStyle="ButtonStyle.Light" Click="RemoveReadme" />
+                        }
+                    </div>
+                }
+                    @if (_editingReadme)
+                    {
+                        <div class="lang-readme-editor">
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap" AlignItems="AlignItems.Center">
+                                <RadzenButton Text="@(_readmePreview ? L["languages.readmeSource"] : L["languages.readmePreview"])"
+                                              Icon="@(_readmePreview ? "code" : "visibility")" ButtonStyle="ButtonStyle.Secondary"
+                                              Click="ToggleReadmePreview" />
+                                <RadzenButton Text="@(L["languages.saveReadme"])" Icon="save" ButtonStyle="ButtonStyle.Success" Click="SaveReadme" />
+                                <RadzenButton Text="@(L["languages.cancelReadme"])" Icon="close" ButtonStyle="ButtonStyle.Light" Click="CancelEditReadme" />
+                            </RadzenStack>
+                            @if (_readmePreview)
+                            {
+                                <article class="lang-readme-preview">@((MarkupString)RenderReadme(_readmeDraft))</article>
+                            }
+                            else
+                            {
+                                <textarea class="lang-readme-text" spellcheck="false" aria-label="@(L["languages.readme"])"
+                                          @oninput="OnReadmeInput">@_readmeDraft</textarea>
+                            }
+                            <span class="rz-color-muted">@(L["languages.readmeEditHint"])</span>
+                        </div>
+                    }
 
                 @if (!readOnly)
                 {
@@ -105,7 +155,7 @@
                     </RadzenStack>
                     <RadzenStack Gap="0.25rem" Style="min-width:200px;flex:1">
                         <RadzenLabel Text="@(L["languages.search"])" Component="lang-search" />
-                        <RadzenTextBox Name="lang-search" Value="@_search" Change="@(v => { _search = v ?? ""; })" />
+                        <input id="lang-search" type="search" class="rz-textbox" value="@_search" @oninput="OnSearchInput" autocomplete="off" />
                     </RadzenStack>
                     <RadzenCheckBox TValue="bool" Value="@_onlyMissing" Name="lang-missing" Change="@(v => { _onlyMissing = v; })" />
                     <RadzenLabel Text="@(L["languages.onlyMissing"])" Component="lang-missing" />
@@ -136,13 +186,6 @@
                     }
                 </div>
 
-                @if (!readOnly)
-                {
-                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap" class="rz-mt-2">
-                        <RadzenButton Text="@(L["languages.save"])" Icon="save" ButtonStyle="ButtonStyle.Success" Disabled="@(!_dirty)" Click="SaveDraft" />
-                        <RadzenButton Text="@(L["languages.discard"])" Icon="undo" ButtonStyle="ButtonStyle.Light" Disabled="@(!_dirty)" Click="DiscardDraft" />
-                    </RadzenStack>
-                }
             </RadzenStack>
         }
     </RadzenCard>
@@ -159,6 +202,11 @@
     private bool _messageIsError;
     private string? _area;
     private string _search = "";
+    private string? _readme;
+    private bool _editingReadme;
+    private bool _readmePreview;
+    private string _readmeDraft = "";
+    private const string ReadmeFile = "QUICK-INFO.md";
     private bool _onlyMissing;
 
     private static readonly IReadOnlyList<string> _areas = LanguageCatalog.Keys
@@ -190,6 +238,7 @@
         if (await Store.FindAsync(_activeCode) is null) _activeCode = LanguageCatalog.EnglishCode;
         _selected = _activeCode;
         LoadDraft();
+        await LoadReadmeAsync();
         StateHasChanged();
     }
 
@@ -229,6 +278,9 @@
         }
     }
 
+    // Filters as the user types, not when the box loses focus.
+    private void OnSearchInput(ChangeEventArgs e) => _search = e.Value?.ToString() ?? "";
+
     private void SetArea(string? area)
     {
         _area = string.IsNullOrEmpty(area) ? null : area;
@@ -239,6 +291,7 @@
         _message = _dirty ? L["languages.msgUnsavedDiscarded", _selected ?? ""] : null;
         _selected = code;
         LoadDraft();
+        await LoadReadmeAsync();
         await Task.CompletedTask;
     }
 
@@ -285,21 +338,28 @@
         // Save the new code first, then drop the old one, so a failed save never loses the language.
         if (renamed && _selected is not null)
         {
+            // Deleting the old code also removes its README, so keep a copy for the new code first.
+            var movedReadme = await Store.GetReadmeAsync(_selected);
             await Store.DeleteAsync(_selected);
-            if (string.Equals(_activeCode, _selected, StringComparison.OrdinalIgnoreCase))
-                await L.SetCurrentAsync(code);
+            if (movedReadme is not null) await Store.SetReadmeAsync(code, movedReadme);
             _activeCode = string.Equals(_activeCode, _selected, StringComparison.OrdinalIgnoreCase) ? code : _activeCode;
         }
 
         _custom = await Store.GetCustomAsync();
         _selected = code;
         LoadDraft();
+        await LoadReadmeAsync();
         Show(L["languages.msgSaved", name], false);
+
+        // The saved language is the one on screen: load its new texts. This redraws the page, so it comes last.
+        if (string.Equals(_activeCode, code, StringComparison.OrdinalIgnoreCase))
+            await L.SetCurrentAsync(code);
     }
 
     private async Task DiscardDraft()
     {
         LoadDraft();
+        await LoadReadmeAsync();
         Show(L["languages.msgDiscarded"], false);
         await Task.CompletedTask;
     }
@@ -325,6 +385,7 @@
         _custom = await Store.GetCustomAsync();
         _selected = code;
         LoadDraft();
+        await LoadReadmeAsync();
         Show(L["languages.msgNew", name], false);
     }
 
@@ -334,9 +395,12 @@
         var code = LanguageCatalog.UniqueCode(source.Code, AllCodes);
         var name = LanguageCatalog.UniqueName(L["languages.copyName", source.Name], AllNames);
         await Store.SaveAsync(new AppLanguage(code, name, new Dictionary<string, string>(source.Strings, StringComparer.Ordinal)));
+        var readme = await ReadmeOf(source.Code);
+        if (readme is not null) await Store.SetReadmeAsync(code, readme);
         _custom = await Store.GetCustomAsync();
         _selected = code;
         LoadDraft();
+        await LoadReadmeAsync();
         Show(L["languages.msgCopy", name], false);
     }
 
@@ -356,6 +420,7 @@
         }
         _selected = _activeCode;
         LoadDraft();
+        await LoadReadmeAsync();
         Show(L["languages.msgDeleted", deleted], false);
     }
 
@@ -369,6 +434,103 @@
         using var streamRef = new DotNetStreamReference(stream);
         await JS.InvokeVoidAsync("downloadFileFromStream", $"language-{(file.Length == 0 ? "language" : file)}.json", streamRef);
     }
+
+    // The README uploaded for the selected custom language, shown in the editor.
+    private async Task LoadReadmeAsync()
+    {
+        _editingReadme = false; // switching language closes an open README editor
+        _readme = _draft is not null && !LanguageCatalog.IsBuiltInCode(_draft.Code)
+            ? await Store.GetReadmeAsync(_draft.Code)
+            : null;
+    }
+
+    // The README to copy when a language is duplicated: a built-in language's file, or a custom language's upload.
+    private async Task<string?> ReadmeOf(string code)
+    {
+        if (!LanguageCatalog.IsBuiltInCode(code)) return await Store.GetReadmeAsync(code);
+        var path = Path.Combine(AppContext.BaseDirectory, LocalizedFiles.Resolve(ReadmeFile, code));
+        return File.Exists(path) ? await File.ReadAllTextAsync(path) : null;
+    }
+
+    private async Task UploadReadme(InputFileChangeEventArgs e)
+    {
+        if (_draft is null || LanguageCatalog.IsBuiltInCode(_draft.Code)) return;
+
+        const long maxBytes = 1024 * 1024;
+        if (e.File.Size > maxBytes)
+        {
+            Show(L["languages.readmeTooLarge", LanguageCatalog.MaxReadmeLength / 1024], true);
+            return;
+        }
+
+        string text;
+        using (var reader = new StreamReader(e.File.OpenReadStream(maxBytes)))
+            text = await reader.ReadToEndAsync();
+
+        var problem = LanguageCatalog.ValidateReadme(text);
+        if (problem is not null)
+        {
+            Show(problem, true);
+            return;
+        }
+
+        if (!await Store.SetReadmeAsync(_draft.Code, text))
+        {
+            Show(L["languages.msgReadmeSaveFailed"], true);
+            return;
+        }
+
+        _readme = text;
+        Show(L["languages.msgReadmeUploaded", _draft.Name], false);
+    }
+
+    private async Task RemoveReadme()
+    {
+        if (_draft is null || LanguageCatalog.IsBuiltInCode(_draft.Code)) return;
+        await Store.RemoveReadmeAsync(_draft.Code);
+        _readme = null;
+        Show(L["languages.msgReadmeRemoved", _draft.Name], false);
+    }
+
+    // The README editor starts from the custom README, or from the English one when the language has none yet.
+    private async Task StartEditReadme()
+    {
+        _readmeDraft = _readme ?? await ReadmeOf(LanguageCatalog.EnglishCode) ?? "";
+        _readmePreview = false;
+        _editingReadme = true;
+    }
+
+    private void CancelEditReadme() => _editingReadme = false;
+
+    private void ToggleReadmePreview() => _readmePreview = !_readmePreview;
+
+    private void OnReadmeInput(ChangeEventArgs e) => _readmeDraft = e.Value?.ToString() ?? "";
+
+    private async Task SaveReadme()
+    {
+        if (_draft is null || LanguageCatalog.IsBuiltInCode(_draft.Code)) return;
+
+        var problem = LanguageCatalog.ValidateReadme(_readmeDraft);
+        if (problem is not null)
+        {
+            Show(problem, true);
+            return;
+        }
+
+        if (!await Store.SetReadmeAsync(_draft.Code, _readmeDraft))
+        {
+            Show(L["languages.msgReadmeSaveFailed"], true);
+            return;
+        }
+
+        _readme = _readmeDraft;
+        _editingReadme = false;
+        Show(L["languages.msgReadmeSaved", _draft.Name], false);
+    }
+
+    private static readonly MarkdownPipeline ReadmePipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+
+    private static string RenderReadme(string markdown) => Markdown.ToHtml(markdown, ReadmePipeline);
 
     private async Task ImportFile(InputFileChangeEventArgs e)
     {

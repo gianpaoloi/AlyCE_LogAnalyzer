@@ -14,23 +14,23 @@ public class LocalizedFilesTests : IDisposable
     [Fact]
     public void English_IsTheBaseFile()
     {
-        File.WriteAllText(Path.Combine(_folder, "README-HOW-TO.it.md"), "x");
+        File.WriteAllText(Path.Combine(_folder, "QUICK-INFO.it.md"), "x");
 
-        Assert.Equal("README-HOW-TO.md", LocalizedFiles.Resolve("README-HOW-TO.md", "en", _folder));
+        Assert.Equal("QUICK-INFO.md", LocalizedFiles.Resolve("QUICK-INFO.md", "en", _folder));
     }
 
     [Fact]
     public void MissingTranslation_FallsBackToEnglish()
     {
-        Assert.Equal("README-HOW-TO.md", LocalizedFiles.Resolve("README-HOW-TO.md", "sq", _folder));
+        Assert.Equal("QUICK-INFO.md", LocalizedFiles.Resolve("QUICK-INFO.md", "sq", _folder));
     }
 
     [Fact]
     public void ExistingTranslation_IsChosen()
     {
-        File.WriteAllText(Path.Combine(_folder, "README-HOW-TO.it.md"), "x");
+        File.WriteAllText(Path.Combine(_folder, "QUICK-INFO.it.md"), "x");
 
-        Assert.Equal("README-HOW-TO.it.md", LocalizedFiles.Resolve("README-HOW-TO.md", "it", _folder));
+        Assert.Equal("QUICK-INFO.it.md", LocalizedFiles.Resolve("QUICK-INFO.md", "it", _folder));
     }
 
     [Theory]
@@ -39,6 +39,6 @@ public class LocalizedFilesTests : IDisposable
     [InlineData("")]
     public void InvalidCode_NeverNamesAFile(string code)
     {
-        Assert.Equal("README-HOW-TO.md", LocalizedFiles.Resolve("README-HOW-TO.md", code, _folder));
+        Assert.Equal("QUICK-INFO.md", LocalizedFiles.Resolve("QUICK-INFO.md", code, _folder));
     }
 }

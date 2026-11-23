@@ -77,6 +77,11 @@
                     </label>
                     <RadzenButton Text="@(L["skins.delete"])" Icon="delete" ButtonStyle="ButtonStyle.Danger"
                                   Disabled="@readOnly" Click="DeleteSelected" />
+                    @if (!readOnly)
+                    {
+                        <RadzenButton Text="@(L["skins.save"])" Icon="save" ButtonStyle="ButtonStyle.Success" Disabled="@(!_dirty)" Click="SaveDraft" />
+                        <RadzenButton Text="@(L["skins.discard"])" Icon="undo" ButtonStyle="ButtonStyle.Light" Disabled="@(!_dirty)" Click="DiscardDraft" />
+                    }
                 </RadzenStack>
 
                 @if (!readOnly)
@@ -123,13 +128,6 @@
                     }
                 }
 
-                @if (!readOnly)
-                {
-                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap" class="rz-mt-2">
-                        <RadzenButton Text="@(L["skins.save"])" Icon="save" ButtonStyle="ButtonStyle.Success" Disabled="@(!_dirty)" Click="SaveDraft" />
-                        <RadzenButton Text="@(L["skins.discard"])" Icon="undo" ButtonStyle="ButtonStyle.Light" Disabled="@(!_dirty)" Click="DiscardDraft" />
-                    </RadzenStack>
-                }
             </RadzenStack>
         }
 

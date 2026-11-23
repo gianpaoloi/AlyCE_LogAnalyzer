@@ -47,6 +47,8 @@ else
   /// first section after it. Null opens on the first section.
   /// </summary>
   [Parameter] public string? SkipSectionTitle { get; set; }
+  /// <summary>The Markdown to show, when it is not read from <see cref="FileName"/> (for example a README uploaded in the app). Null reads the file.</summary>
+  [Parameter] public string? Content { get; set; }
 
   /// <summary>One "## " section: its title in the contents menu and its rendered HTML.</summary>
   private sealed record Section(string Title, string Html);
@@ -75,7 +77,7 @@ else
   {
     try
     {
-      var text = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, FileName)).Replace("\r\n", "\n");
+      var text = (Content ?? File.ReadAllText(Path.Combine(AppContext.BaseDirectory, FileName))).Replace("\r\n", "\n");
 
       // Each "## " line starts a section. The text before the first one is the introduction, shown above all of them.
       var parts = Regex.Split(text, "^(?=## )", RegexOptions.Multiline);

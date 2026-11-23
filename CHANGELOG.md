@@ -15,11 +15,27 @@ tag is collected under *Unreleased* until it is moved under a version heading.
   selector in the top bar. A new **Language Editor** (Appearance in the sidebar) translates the app into any other
   language: duplicate a built-in language, edit the texts, save, and export or import the language as a file. Text
   left empty shows in English.
-- **Skins.** A new **Skins** page (Appearance in the sidebar) changes the colours of the app. Two built-in skins
-  ship with the app, *Blue*, *Daylight* and *High contrast*, next to the original *Default* look. Duplicate a skin to edit it, or
-  start a new one from the active skin. Edits preview on the page straight away, and **Save** keeps them.
+- **Language selector in the top bar.** An icon-only menu next to the skin selector; the open list shows the
+  language names.
+- **Quick Info in each language.** The Quick Info page shows its guide in the language in use: `QUICK-INFO.it.md`
+  and `QUICK-INFO.sq.md` are shipped with the app, and any other language falls back to the English guide.
+- **Custom guide per language.** In the Language Editor, a custom language can carry its own Quick Info guide:
+  upload a Markdown file, view and edit it with a live preview, or remove it. Duplicating a language copies its guide,
+  renaming keeps it, and deleting the language removes it. A custom language without a guide shows the English one.
+- **Live search in the Language Editor.** The list of texts filters while you type.
+- **Skins.** A new **Skin Editor** (Appearance in the sidebar) changes the colours of the app. Three built-in skins
+  ship with the app: *Blue*, *Daylight* and *High contrast*, next to the original *Default* look. Duplicate a skin to
+  edit it, or start a new one from the active skin. Edits preview on the page straight away, and **Save** keeps them.
   Skins can be **exported** to a `.json` file and **imported** back, including on another machine. The active skin
-  is applied when the app starts.
+  is applied when the app starts. The top-bar skin selector switches skins from any page.
+
+### Changed
+
+- **Quick Info guide renamed** from `README-HOW-TO` to `QUICK-INFO`, in the files, the release workflow and the
+  packaging scripts.
+- **Built-in skins renamed:** *Launcher* is now *Default*, and *Slate* is now *Blue*, with its colours changed to
+  blue. A saved choice of either old name still works.
+- **Skin Editor and Language Editor:** **Save** and **Discard** sit in the top button row with the other actions.
 
 ### Fixed
 
@@ -27,6 +43,8 @@ tag is collected under *Unreleased* until it is moved under a version heading.
   the page and window backgrounds match the app, so no white strip shows under the title bar, including when the
   window is maximized on a monitor with a different display scale.
 - **Removed an unused layout element** from the web host page.
+- **Sidebar follows the language.** Its labels change as soon as the language changes, not on the next click.
+- **Saved language updates at once.** Saving a custom language shows its new texts straight away, without reloading.
 
 ## [1.2.7] — 2026-11-18
 

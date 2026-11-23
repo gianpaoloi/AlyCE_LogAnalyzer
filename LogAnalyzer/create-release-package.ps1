@@ -135,12 +135,12 @@ LogAnalyzer.exe
 Write-Host "  [OK] Created Launch.bat" -ForegroundColor Green
 
 # Copy README from repo root
-$readmeSourcePath = Join-Path (Split-Path -Parent $projectPath) "README-HOW-TO.md"
+$readmeSourcePath = Join-Path (Split-Path -Parent $projectPath) "QUICK-INFO.md"
 if (Test-Path $readmeSourcePath) {
     Copy-Item -Path $readmeSourcePath -Destination (Join-Path $packageDir "README.txt")
     Write-Host "  [OK] Added README.txt" -ForegroundColor Green
 } else {
-    Write-Host "  Warning: README-HOW-TO.md not found at $readmeSourcePath" -ForegroundColor Yellow
+    Write-Host "  Warning: QUICK-INFO.md not found at $readmeSourcePath" -ForegroundColor Yellow
 }
 
 # Create ZIP archive

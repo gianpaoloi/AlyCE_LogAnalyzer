@@ -1,8 +1,8 @@
 namespace LogAnalyzer.Services;
 
 /// <summary>
-/// Picks the translated copy of a document that ships next to the app. For <c>README-HOW-TO.md</c> and the
-/// language <c>it</c> the file <c>README-HOW-TO.it.md</c> is used when it exists; otherwise the English file is.
+/// Picks the translated copy of a document that ships next to the app. For <c>QUICK-INFO.md</c> and the
+/// language <c>it</c> the file <c>QUICK-INFO.it.md</c> is used when it exists; otherwise the English file is.
 /// </summary>
 public static class LocalizedFiles
 {

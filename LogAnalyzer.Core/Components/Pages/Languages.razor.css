@@ -140,3 +140,42 @@
     cursor: pointer;
     z-index: 2;
 }
+
+/* The README row under the progress line: wraps on a narrow window. */
+.lang-readme {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .6rem;
+    padding: .5rem .75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+/* The README editor: a source text area, or a rendered preview of the same text. */
+.lang-readme-editor {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.lang-readme-text {
+    width: 100%;
+    min-height: 360px;
+    padding: .6rem;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: .85rem;
+    color: var(--txt);
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    resize: vertical;
+}
+
+.lang-readme-preview {
+    max-height: 60vh;
+    overflow: auto;
+    padding: .8rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}

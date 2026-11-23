@@ -135,12 +135,12 @@ Write-Host "  Copying application files..." -ForegroundColor Yellow
 Copy-Item -Path "$publishPath\*" -Destination $appDir -Recurse -Force
 
 # Copy README from repo root
-$readmeSourcePath = Join-Path (Split-Path -Parent $projectPath) "README-HOW-TO.md"
+$readmeSourcePath = Join-Path (Split-Path -Parent $projectPath) "QUICK-INFO.md"
 if (Test-Path $readmeSourcePath) {
     $readmeContent = Get-Content -Path $readmeSourcePath -Raw
 } else {
-    Write-Host "  Warning: README-HOW-TO.md not found at $readmeSourcePath" -ForegroundColor Yellow
-    $readmeContent = "See README-HOW-TO.md for usage instructions."
+    Write-Host "  Warning: QUICK-INFO.md not found at $readmeSourcePath" -ForegroundColor Yellow
+    $readmeContent = "See QUICK-INFO.md for usage instructions."
 }
 
 $readmePath = Join-Path $packageDir "README.txt"

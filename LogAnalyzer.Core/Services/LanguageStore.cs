@@ -12,6 +12,7 @@ public sealed class LanguageStore
     // Stored through the generic localStorage helpers in download.js (pathHistoryLoad/Save take any key).
     private const string LanguagesKey = "alyce.languages";
     private const string ActiveKey = "alyce.activeLanguage";
+    private const string ReadmeKeyPrefix = "alyce.readme.";
 
     private readonly IJSRuntime _js;
 
@@ -64,13 +65,58 @@ public sealed class LanguageStore
         return await WriteAsync(list);
     }
 
-    /// <summary>Removes the language with that code. Built-in languages cannot be removed.</summary>
+    /// <summary>Removes the language with that code, and its README. Built-in languages cannot be removed.</summary>
     public async Task<bool> DeleteAsync(string code)
     {
         var list = await GetCustomAsync();
         if (list.RemoveAll(l => string.Equals(l.Code, code, StringComparison.OrdinalIgnoreCase)) == 0) return false;
+        await RemoveReadmeAsync(code);
         return await WriteAsync(list);
     }
+
+    /// <summary>The README a custom language carries, or null when none was uploaded (the English README is then shown).</summary>
+    public async Task<string?> GetReadmeAsync(string code)
+    {
+        try
+        {
+            var stored = await _js.InvokeAsync<string[]>("pathHistoryLoad", ReadmeKey(code));
+            return stored.Length == 0 ? null : stored[0];
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Stores the README for a custom language. Returns false when the text is not acceptable or cannot be stored.</summary>
+    public async Task<bool> SetReadmeAsync(string code, string text)
+    {
+        if (LanguageCatalog.ValidateReadme(text) is not null || LanguageCatalog.IsBuiltInCode(code)) return false;
+        try
+        {
+            await _js.InvokeVoidAsync("pathHistorySave", ReadmeKey(code), new[] { text });
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Removes the README of a custom language, so it shows the English README again.</summary>
+    public async Task RemoveReadmeAsync(string code)
+    {
+        try
+        {
+            await _js.InvokeVoidAsync("pathHistorySave", ReadmeKey(code), Array.Empty<string>());
+        }
+        catch
+        {
+            // Nothing stored, or storage blocked: there is nothing to remove.
+        }
+    }
+
+    private static string ReadmeKey(string code) => ReadmeKeyPrefix + code.ToLowerInvariant();
 
     /// <summary>The code of the language last chosen, or null when none was chosen.</summary>
     public async Task<string?> GetActiveCodeAsync()
