@@ -89,6 +89,31 @@
     "it": "ChatGPT (OpenAI)",
     "sq": "ChatGPT (OpenAI)"
   },
+  "ai.help.anthropic": {
+    "en": "Claude API. The address is fixed. Enter a model such as claude-haiku-5-5 and an API key from the Claude Console.",
+    "it": "API di Claude. L'indirizzo è fisso. Inserisci un modello come claude-haiku-5-5 e una chiave API dalla Claude Console.",
+    "sq": "API e Claude. Adresa është fikse. Shkruaj një model si claude-haiku-5-5 dhe një çelës API nga Claude Console."
+  },
+  "ai.help.openai": {
+    "en": "OpenAI chat-completions API. The address is fixed. Enter a model such as gpt-4o-mini and an API key from the OpenAI platform.",
+    "it": "API chat-completions di OpenAI. L'indirizzo è fisso. Inserisci un modello come gpt-4o-mini e una chiave API dalla piattaforma OpenAI.",
+    "sq": "API chat-completions e OpenAI. Adresa është fikse. Shkruaj një model si gpt-4o-mini dhe një çelës API nga platforma OpenAI."
+  },
+  "ai.help.gemini": {
+    "en": "Gemini's native API. Keep the Google address for an AI Studio key, or enter a gateway address up to its root (e.g. .../ai-gateway/gemini). Enter a model such as gemini-2.5-flash and the key or token.",
+    "it": "API nativa di Gemini. Mantieni l'indirizzo di Google per una chiave di AI Studio, oppure inserisci l'indirizzo di un gateway fino alla sua radice (es. .../ai-gateway/gemini). Inserisci un modello come gemini-2.5-flash e la chiave o il token.",
+    "sq": "API native e Gemini. Mbaje adresën e Google për një çelës AI Studio, ose shkruaj adresën e një gateway-i deri te rrënja e tij (p.sh. .../ai-gateway/gemini). Shkruaj një model si gemini-2.5-flash dhe çelësin ose token-in."
+  },
+  "ai.help.responses": {
+    "en": "OpenAI Responses API (/v1/responses). Enter the address up to the gateway root (e.g. .../ai-gateway/mlflow), the model name as the endpoint lists it, and its token or key.",
+    "it": "API Responses di OpenAI (/v1/responses). Inserisci l'indirizzo fino alla radice del gateway (es. .../ai-gateway/mlflow), il nome del modello come lo elenca l'endpoint, e il suo token o chiave.",
+    "sq": "API Responses e OpenAI (/v1/responses). Shkruaj adresën deri te rrënja e gateway-it (p.sh. .../ai-gateway/mlflow), emrin e modelit siç e liston endpoint-i, dhe token-in ose çelësin e tij."
+  },
+  "ai.help.gateway": {
+    "en": "Any OpenAI chat-completions server: a local model (Ollama, LM Studio, llama.cpp, vLLM) or a gateway such as LiteLLM. Enter its address, with or without /v1, the model name as the server lists it, and a key only if it requires one.",
+    "it": "Qualsiasi server chat-completions di OpenAI: un modello locale (Ollama, LM Studio, llama.cpp, vLLM) o un gateway come LiteLLM. Inserisci il suo indirizzo, con o senza /v1, il nome del modello come lo elenca il server, e una chiave solo se la richiede.",
+    "sq": "Çdo server chat-completions i OpenAI: një model lokal (Ollama, LM Studio, llama.cpp, vLLM) ose një gateway si LiteLLM. Shkruaj adresën e tij, me ose pa /v1, emrin e modelit siç e liston serveri, dhe një çelës vetëm nëse e kërkon."
+  },
   "ai.kindGemini": {
     "en": "Google Gemini (native API, e.g. Databricks AI Gateway)",
     "it": "Google Gemini (API nativa, es. Databricks AI Gateway)",
@@ -205,9 +230,14 @@
     "sq": "Analizo grupet me AI"
   },
   "ai.triage.hint": {
-    "en": "Ranks the clusters below: what to fix soon, what can wait, and what is probably noise. You read the text before anything is sent.",
-    "it": "Ordina i cluster qui sotto: cosa correggere presto, cosa può attendere e cosa è probabilmente rumore. Leggi il testo prima che venga inviato.",
-    "sq": "Renditi grupet më poshtë: çfarë të rregullohet shpejt, çfarë mund të presë dhe çfarë është ndoshta zhurmë. Lexon tekstin para se të dërgohet diçka."
+    "en": "Ranks the clusters below: what to fix soon, what can wait, and what is probably noise.",
+    "it": "Ordina i cluster qui sotto: cosa correggere presto, cosa può attendere e cosa è probabilmente rumore.",
+    "sq": "Renditi grupet më poshtë: çfarë të rregullohet shpejt, çfarë mund të presë dhe çfarë është ndoshta zhurmë."
+  },
+  "ai.review.onNote": {
+    "en": "You read the text before anything is sent.",
+    "it": "Leggi il testo prima che venga inviato.",
+    "sq": "Lexon tekstin para se të dërgohet diçka."
   },
   "ai.triage.empty": {
     "en": "No clusters to analyse with the current filter.",
@@ -265,9 +295,9 @@
     "sq": "Përmbledhje AI e këtij skedari"
   },
   "ai.overview.hint": {
-    "en": "Counts, the busiest hours and the most frequent problems. You read the text before anything is sent.",
-    "it": "Conteggi, le ore più intense e i problemi più frequenti. Leggi il testo prima che venga inviato.",
-    "sq": "Numërime, orët më të ngarkuara dhe problemet më të shpeshta. Lexon tekstin para se të dërgohet diçka."
+    "en": "Counts, the busiest hours and the most frequent problems.",
+    "it": "Conteggi, le ore più intense e i problemi più frequenti.",
+    "sq": "Numërime, orët më të ngarkuara dhe problemet më të shpeshta."
   },
   "ai.overview.button": {
     "en": "Summarise with AI",
@@ -298,6 +328,11 @@
     "en": "Why did it change?",
     "it": "Perché è cambiato?",
     "sq": "Pse ndryshoi?"
+  },
+  "ai.window.close": {
+    "en": "Close",
+    "it": "Chiudi",
+    "sq": "Mbyll"
   },
   "ai.window.incident": {
     "en": "Summarise this window",

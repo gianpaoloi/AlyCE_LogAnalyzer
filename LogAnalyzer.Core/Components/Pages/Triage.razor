@@ -37,6 +37,8 @@ else
             <RadzenLabel Text="@(L["triage.warnings"])" Component="wrn" />
             <RadzenDropDown @bind-Value="_env" @bind-Value:after="Recompute" Data="@Store.DistinctEnvironments()" TValue="string"
                             AllowClear="true" Placeholder="@(L["triage.allEnvironments"])" style="min-width:220px" />
+            <RadzenButton Text="@(L["ai.triage.analyse"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Small" Click="OpenAi" Disabled="@(!_aiReady)" />
         </RadzenStack>
     </RadzenCard>
 
@@ -44,14 +46,19 @@ else
         @(L["triage.summary", _groups.Count.ToString("N0"), _groups.Sum(g => g.Count).ToString("N0")])
     </RadzenText>
 
-    <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
-        <RadzenStack Gap="0.5rem">
-            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+    @if (_aiOpen)
+    {
+        <AiWindow Title="@L["ai.triage.analyse"]" OnClose="CloseAi">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Wrap="FlexWrap.Wrap">
                 <AiReviewToggle />
                 <RadzenButton Text="@(L["ai.triage.analyse"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
                               Size="ButtonSize.Small" Click="RunTriageAnalysis" Disabled="@(!_aiReady)" />
                 <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">
                     @(_aiReady ? L["ai.triage.hint"] : L["ai.notConfigured"])
+                    @if (_aiReady && Session.AiReview)
+                    {
+                        <span>@L["ai.review.onNote"]</span>
+                    }
                 </RadzenText>
             </RadzenStack>
             @if (_explain.TryGetValue(TriageKey, out var triage))
@@ -61,8 +68,8 @@ else
                                 OnSend="@(text => SendExplain(TriageKey, text))"
                                 OnCancel="@(() => CancelExplain(TriageKey))" />
             }
-        </RadzenStack>
-    </RadzenCard>
+        </AiWindow>
+    }
 
     <RadzenDataGrid Data="@_groups" TItem="MessageGroup" AllowPaging="true" PageSize="25"
                     AllowSorting="true" Density="Density.Compact" ExpandMode="DataGridExpandMode.Single">
@@ -226,6 +233,12 @@ else
     private readonly Dictionary<string, DraftState> _drafts = new(StringComparer.Ordinal);
 
     private bool _aiReady;
+    private bool _aiOpen;
+
+    private void OpenAi() => _aiOpen = true;
+
+    /// <summary>Hides the AI window; the analysis stays until the next run.</summary>
+    private void CloseAi() => _aiOpen = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

@@ -156,3 +156,70 @@ public class ResponsesApiTests
         }
     }
 }
+
+public class GeminiGoogleKeyTests
+{
+    [Fact]
+    public async Task Google_AI_Studio_key_is_sent_in_the_x_goog_api_key_header_not_as_a_bearer_token()
+    {
+        var handler = new CapturingGoogle();
+        using var http = new HttpClient(handler);
+        var settings = new AiSettings(AiProviderKind.GeminiNative, "https://generativelanguage.googleapis.com", "gemini-2.5-flash", "aistudio-key");
+
+        await AiAssistant.TestAsync(settings, http: http);
+
+        Assert.Equal("aistudio-key", handler.GoogleKeyHeader);
+        Assert.Null(handler.Authorization);
+        Assert.Contains("/v1beta/models/gemini-2.5-flash:generateContent", handler.Url);
+    }
+
+    private sealed class CapturingGoogle : HttpMessageHandler
+    {
+        public string? Url { get; private set; }
+        public string? GoogleKeyHeader { get; private set; }
+        public string? Authorization { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Url = request.RequestUri!.ToString();
+            GoogleKeyHeader = request.Headers.TryGetValues("x-goog-api-key", out var v) ? v.Single() : null;
+            Authorization = request.Headers.Authorization?.ToString();
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"OK\"}]}}]}", Encoding.UTF8, "application/json"),
+            });
+        }
+    }
+}
+
+public class GeminiAddressFormTests
+{
+    [Theory]
+    [InlineData("https://generativelanguage.googleapis.com", "gemini-2.5-flash")]
+    [InlineData("https://generativelanguage.googleapis.com/v1beta", "gemini-2.5-flash")]
+    [InlineData("https://generativelanguage.googleapis.com/v1beta/", "models/gemini-2.5-flash")]
+    public async Task Address_and_model_are_accepted_with_or_without_the_repeated_parts(string address, string model)
+    {
+        var handler = new UrlOnly();
+        using var http = new HttpClient(handler);
+        var settings = new AiSettings(AiProviderKind.GeminiNative, address, model, "k");
+
+        await AiAssistant.TestAsync(settings, http: http);
+
+        Assert.Equal("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", handler.Url);
+    }
+
+    private sealed class UrlOnly : HttpMessageHandler
+    {
+        public string? Url { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Url = request.RequestUri!.ToString();
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"OK\"}]}}]}", Encoding.UTF8, "application/json"),
+            });
+        }
+    }
+}

@@ -77,6 +77,7 @@
                 <RadzenLabel Text="@L["ai.providerType"]" Component="ai-kind" />
                 <RadzenDropDown TValue="AiProviderKind" Data="@Kinds" TextProperty="Label" ValueProperty="Kind"
                                 @bind-Value="_kind" @bind-Value:after="OnKindChanged" Name="ai-kind" Style="width: 100%;" />
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L[HelpKey(_kind)]</RadzenText>
             </RadzenStack>
 
             <RadzenStack Gap="0.25rem">
@@ -189,6 +190,16 @@
         await Usage.ResetAsync(id);
         await ReloadAsync();
     }
+
+    /// <summary>The short how-to-configure note for a provider type, shown under the type selector.</summary>
+    private static string HelpKey(AiProviderKind kind) => kind switch
+    {
+        AiProviderKind.Anthropic => "ai.help.anthropic",
+        AiProviderKind.OpenAi => "ai.help.openai",
+        AiProviderKind.GeminiNative => "ai.help.gemini",
+        AiProviderKind.ResponsesApi => "ai.help.responses",
+        _ => "ai.help.gateway",
+    };
 
     private string KindLabel(AiProviderKind kind) => kind switch
     {

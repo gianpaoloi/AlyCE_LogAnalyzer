@@ -38,39 +38,51 @@ else
     </RadzenRow>
 
     <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
-        <b>@L["home.timeSpan"]</b> @Fmt(s.FirstTime) &rarr; @Fmt(s.LastTime)
-        @if (s.Span is { } sp)
-        {
-            <span class="rz-color-muted"> (@FormatSpan(sp))</span>
-        }
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+            <span>
+                <b>@L["home.timeSpan"]</b> @Fmt(s.FirstTime) &rarr; @Fmt(s.LastTime)
+                @if (s.Span is { } sp)
+                {
+                    <span class="rz-color-muted"> (@FormatSpan(sp))</span>
+                }
+            </span>
+            <RadzenButton Text="@(L["ai.overview.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Small" Click="OpenAi" Disabled="@(!_aiReady)" />
+            @if (!_aiReady)
+            {
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["ai.notConfigured"]</RadzenText>
+            }
+        </RadzenStack>
     </RadzenCard>
 
-    <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
-        <RadzenText TextStyle="TextStyle.H6">@L["ai.overview.title"]</RadzenText>
-        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@L["ai.overview.hint"]</RadzenText>
-        <AiReviewToggle />
-        <RadzenButton Text="@(L["ai.overview.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
-                      Size="ButtonSize.Small" Click="StartOverview" Disabled="@(!_aiReady)" />
-        @if (!_aiReady)
-        {
-            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-mt-1">@L["ai.notConfigured"]</RadzenText>
-        }
-        @if (_overviewAsk)
-        {
-            <div class="rz-mt-2">
+    @if (_aiOpen)
+    {
+        <AiWindow Title="@L["ai.overview.title"]" OnClose="CloseAi">
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">
+                @L["ai.overview.hint"]
+                @if (Session.AiReview)
+                {
+                    <span>@L["ai.review.onNote"]</span>
+                }
+            </RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                <AiReviewToggle />
+                <RadzenButton Text="@(L["ai.overview.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Small" Click="StartOverview" Disabled="@(!_aiReady)" />
+            </RadzenStack>
+            @if (_overviewAsk)
+            {
                 <AiContextConfirm Message="@L["ai.large.overview", Store.Stats!.TotalEntries.ToString("N0"), Fmt(Store.Stats.FirstTime), Fmt(Store.Stats.LastTime)]"
                                   OnProceed="@(() => ProceedOverview())" OnCancel="@(() => CancelOverviewAsk())" />
-            </div>
-        }
-        @if (_overview is not null)
-        {
-            <div class="rz-mt-2">
+            }
+            @if (_overview is not null)
+            {
                 <AiExplainPanel Settings="@_overview.Settings" Preview="@_overview.Preview" Result="@_overview.Result" Response="@_overview.Response"
                                 Error="@_overview.Error" Busy="@_overview.Busy"
                                 OnSend="@(text => SendOverview(text))" OnCancel="@(() => CloseOverview())" />
-            </div>
-        }
-    </RadzenCard>
+            }
+        </AiWindow>
+    }
 
     <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
         <RadzenText TextStyle="TextStyle.H6">@L["home.logVolume", _bucketLabel]</RadzenText>
@@ -149,6 +161,12 @@ else
     private AiPanelState? _overview;
     private bool _overviewAsk;
     private bool _aiReady;
+    private bool _aiOpen;
+
+    private void OpenAi() => _aiOpen = true;
+
+    /// <summary>Hides the AI window; the overview stays until it is closed by the user.</summary>
+    private void CloseAi() => _aiOpen = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

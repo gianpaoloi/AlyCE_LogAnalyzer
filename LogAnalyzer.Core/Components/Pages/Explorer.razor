@@ -47,48 +47,53 @@ else
             <RadzenDropDown @bind-Value="State.ExplorerColumns" Multiple="true" AllowClear="true" Chips="true"
                             Placeholder="@(L["explorer.addColumns"])" Data="@LogColumns.Optional"
                             TextProperty="Title" ValueProperty="Key" TValue="IEnumerable<string>" Style="width:300px" />
+            <RadzenButton Text="@(L["ai.query.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Small" Click="OpenAi" Disabled="@(!_aiReady)" />
             <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["explorer.filterHint"]</RadzenText>
         </RadzenStack>
     </RadzenCard>
 
-    <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
-        <RadzenStack Gap="0.5rem">
-            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
-                <RadzenTextBox @bind-Value="_question" Placeholder="@(L["ai.query.placeholder"])" style="flex:1; min-width:320px"
-                               title="@(L["ai.query.hint"])" />
-                <AiReviewToggle />
-                <RadzenButton Text="@(L["ai.query.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
-                              Size="ButtonSize.Small" Click="RunQuestion" Disabled="@(!_aiReady)" />
-                @if (State.ExplorerRange is not null)
-                {
-                    <RadzenButton Text="@(L["ai.window.spike"])" Icon="show_chart" ButtonStyle="ButtonStyle.Light"
-                                  Size="ButtonSize.Small" Click="@(() => StartWindow(WindowMode.Spike))" Disabled="@(!_aiReady)" />
-                    <RadzenButton Text="@(L["ai.window.incident"])" Icon="summarize" ButtonStyle="ButtonStyle.Light"
-                                  Size="ButtonSize.Small" Click="@(() => StartWindow(WindowMode.Incident))" Disabled="@(!_aiReady)" />
-                }
-            </RadzenStack>
-            @if (!_aiReady)
-            {
-                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["ai.notConfigured"]</RadzenText>
-            }
-            @if (_windowAsk is not null)
-            {
-                <AiContextConfirm Message="@WindowAskText()" OnProceed="@(() => ProceedWindow())" OnCancel="@(() => CancelWindowAsk())" />
-            }
-            @if (_query is not null)
-            {
-                <AiExplainPanel Settings="@_query.Settings" Preview="@_query.Preview" Result="@_query.Result" Response="@_query.Response"
-                                Error="@_query.Error" Busy="@_query.Busy"
-                                OnSend="@(text => SendQuestion(text))" OnCancel="@(() => CloseQuestion())" />
-            }
-            @if (_windowAnalysis is not null)
-            {
-                <AiExplainPanel Settings="@_windowAnalysis.Settings" Preview="@_windowAnalysis.Preview" Result="@_windowAnalysis.Result" Response="@_windowAnalysis.Response"
-                                Error="@_windowAnalysis.Error" Busy="@_windowAnalysis.Busy"
-                                OnSend="@(text => SendWindow(text))" OnCancel="@(() => CloseWindow())" />
-            }
-        </RadzenStack>
-    </RadzenCard>
+    @if (_aiOpen)
+    {
+        <AiWindow Title="@L["ai.query.button"]" OnClose="CloseAi">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+                        <RadzenTextBox @bind-Value="_question" Placeholder="@(L["ai.query.placeholder"])" style="flex:1; min-width:280px"
+                                       title="@(L["ai.query.hint"])" />
+                        <AiReviewToggle />
+                        <RadzenButton Text="@(L["ai.query.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
+                                      Size="ButtonSize.Small" Click="RunQuestion" Disabled="@(!_aiReady)" />
+                        @if (State.ExplorerRange is not null)
+                        {
+                            <RadzenButton Text="@(L["ai.window.spike"])" Icon="show_chart" ButtonStyle="ButtonStyle.Light"
+                                          Size="ButtonSize.Small" Click="@(() => StartWindow(WindowMode.Spike))" Disabled="@(!_aiReady)" />
+                            <RadzenButton Text="@(L["ai.window.incident"])" Icon="summarize" ButtonStyle="ButtonStyle.Light"
+                                          Size="ButtonSize.Small" Click="@(() => StartWindow(WindowMode.Incident))" Disabled="@(!_aiReady)" />
+                        }
+                    </RadzenStack>
+                    @if (!_aiReady)
+                    {
+                        <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["ai.notConfigured"]</RadzenText>
+                    }
+                    @if (_windowAsk is not null)
+                    {
+                        <AiContextConfirm Message="@WindowAskText()" OnProceed="@(() => ProceedWindow())" OnCancel="@(() => CancelWindowAsk())" />
+                    }
+                    @if (_query is not null)
+                    {
+                        <AiExplainPanel Settings="@_query.Settings" Preview="@_query.Preview" Result="@_query.Result" Response="@_query.Response"
+                                        Error="@_query.Error" Busy="@_query.Busy"
+                                        OnSend="@(text => SendQuestion(text))" OnCancel="@(() => CloseQuestion())" />
+                    }
+                    @if (_windowAnalysis is not null)
+                    {
+                        <AiExplainPanel Settings="@_windowAnalysis.Settings" Preview="@_windowAnalysis.Preview" Result="@_windowAnalysis.Result" Response="@_windowAnalysis.Response"
+                                        Error="@_windowAnalysis.Error" Busy="@_windowAnalysis.Busy"
+                                        OnSend="@(text => SendWindow(text))" OnCancel="@(() => CloseWindow())" />
+                    }
+                </RadzenStack>
+        </AiWindow>
+    }
 
     <div class="side-layout">
         <div class="side-main">
@@ -265,6 +270,12 @@ else
     private AiPanelState? _windowAnalysis;
     private WindowMode? _windowAsk;
     private bool _aiReady;
+    private bool _aiOpen;
+
+    private void OpenAi() => _aiOpen = true;
+
+    /// <summary>Hides the AI window; the question and any answer stay until the next time it opens.</summary>
+    private void CloseAi() => _aiOpen = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

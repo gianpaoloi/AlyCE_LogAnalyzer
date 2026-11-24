@@ -20,14 +20,20 @@ public sealed class GeminiChatClient : IChatClient
     private readonly string _root;
     private readonly string _model;
     private readonly string _apiKey;
+    private readonly bool _isGoogle;
 
     /// <param name="baseUrl">The address up to, not including, <c>/v1beta</c>, e.g. <c>https://generativelanguage.googleapis.com</c>.</param>
     public GeminiChatClient(HttpClient http, string baseUrl, string model, string apiKey)
     {
         _http = http;
-        _root = baseUrl.Trim().TrimEnd('/');
-        _model = model.Trim();
+        // Accept the address with or without its "/v1beta" and the model with or without "models/": the app adds both.
+        var root = baseUrl.Trim().TrimEnd('/');
+        if (root.EndsWith("/v1beta", StringComparison.OrdinalIgnoreCase)) root = root[..^7];
+        _root = root.TrimEnd('/');
+        var name = model.Trim();
+        _model = name.StartsWith("models/", StringComparison.OrdinalIgnoreCase) ? name[7..] : name;
         _apiKey = apiKey.Trim();
+        _isGoogle = new Uri(_root).Host.EndsWith("generativelanguage.googleapis.com", StringComparison.OrdinalIgnoreCase);
     }
 
     public ChatClientMetadata Metadata => new("gemini-generate-content", new Uri(_root), _model);
@@ -40,7 +46,9 @@ public sealed class GeminiChatClient : IChatClient
         {
             Content = new StringContent(BuildRequest(messages, options).ToJsonString(), Encoding.UTF8, "application/json"),
         };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+        // Google AI Studio keys go in x-goog-api-key; gateways such as Databricks take a Bearer token.
+        if (_isGoogle) request.Headers.Add("x-goog-api-key", _apiKey);
+        else request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
 
         using var response = await _http.SendAsync(request, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
