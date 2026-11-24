@@ -4,6 +4,7 @@
 @inject AiSettingsStore AiStore
 @inject AiUsageStore UsageStore
 @inject SessionState Session
+@inject DialogService DialogService
 @inject UpdateChecker Updates
 @inherits ObservingComponentBase
 @implements IDisposable
@@ -98,6 +99,8 @@ else
                     <RadzenButton Text="@(L["ai.draft.button"])" Icon="bug_report" ButtonStyle="ButtonStyle.Light"
                                   Size="ButtonSize.Small" Disabled="@(!_aiReady)"
                                   Click="@(() => RunDraft(g))" />
+                    <RadzenButton Text="@(L["triage.issueManual"])" Icon="bug_report" ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.Small" Click="@(() => OpenManualIssue(g))" />
                 </RadzenStack>
                 @if (_explain.TryGetValue(g.Signature, out var explain))
                 {
@@ -122,9 +125,8 @@ else
                             <RadzenTextBox @bind-Value="draft.Title" Placeholder="@(L["ai.draft.titleLabel"])" style="width:100%" />
                             <RadzenTextArea @bind-Value="draft.Body" Rows="10" style="width:100%" class="rz-mt-2" />
                             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mt-2">
-                                <a class="btn btn-primary btn-sm" href="@IssueUrl(draft)" target="_blank" rel="noopener noreferrer">
-                                    @L["ai.draft.open"]
-                                </a>
+                                <RadzenButton Text="@(L["ai.draft.open"])" ButtonStyle="ButtonStyle.Primary"
+                                              Size="ButtonSize.Small" Click="@(() => OpenIssueDialog(draft.Title ?? "", draft.Body ?? ""))" />
                                 <RadzenButton Text="@(L["ai.draft.discard"])" ButtonStyle="ButtonStyle.Light"
                                               Size="ButtonSize.Small" Click="@(() => CancelDraft(g.Signature))" />
                             </RadzenStack>
@@ -289,9 +291,27 @@ else
 
     private void CancelDraft(string signature) => _drafts.Remove(signature);
 
-    /// <summary>The GitHub new-issue address for the edited draft. The user still presses Submit there.</summary>
-    private string IssueUrl(DraftState draft) =>
-        IssueLink.Build(Updates.Options.Repository, IssueKind.Bug, draft.Title, draft.Body, IssueLink.Footer(DraftFooter));
+    /// <summary>Asks which repository the edited draft goes to, then opens its new-issue page. The user still presses Submit there.</summary>
+    /// <summary>Opens a hand-written issue for one cluster, without AI: the title is the message, the body the details.</summary>
+    private Task OpenManualIssue(MessageGroup g)
+    {
+        var message = (g.SampleMessage ?? "").ReplaceLineEndings(" ").Trim();
+        var title = "[AlyCE] " + (message.Length > 80 ? message[..80] : message);
+        return OpenIssueDialog(title, "Product: AlyCE\n\n" + BuildDetails(g));
+    }
+
+    private async Task OpenIssueDialog(string title, string body)
+    {
+        await DialogService.OpenAsync<GitHubIssueDialog>(L["ai.draft.open"],
+            new Dictionary<string, object?>
+            {
+                { "Title", title },
+                { "Body", body },
+                { "Footer", DraftFooter },
+                { "DefaultRepository", Updates.Options.Repository }
+            },
+            new DialogOptions { Width = "620px", Resizable = true, Draggable = true });
+    }
 
     /// <summary>Sends the previewed text, once the user has pressed Send on it.</summary>
     private async Task SendExplain(string signature, string text)

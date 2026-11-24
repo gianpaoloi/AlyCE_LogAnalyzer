@@ -329,6 +329,26 @@
     "it": "Perché è cambiato?",
     "sq": "Pse ndryshoi?"
   },
+  "triage.issueManual": {
+    "en": "Draft issue",
+    "it": "Bozza di segnalazione",
+    "sq": "Skicë çështjeje"
+  },
+  "ai.issue.repoHint": {
+    "en": "Choose the GitHub repository where this issue goes. It is often not the same as the app's repository. The page opens in your browser, where you still press Submit.",
+    "it": "Scegli il repository GitHub dove va questa segnalazione. Spesso non è quello dell'app. La pagina si apre nel browser, dove devi ancora premere Invia.",
+    "sq": "Zgjidh repository-n GitHub ku shkon kjo çështje. Shpesh nuk është ai i aplikacionit. Faqja hapet në shfletues, ku duhet ende të shtypësh Dërgo."
+  },
+  "ai.issue.repoLabel": {
+    "en": "GitHub repository (owner/name)",
+    "it": "Repository GitHub (proprietario/nome)",
+    "sq": "Repository GitHub (pronari/emri)"
+  },
+  "ai.issue.repoInvalid": {
+    "en": "Enter the repository as owner/name, for example acme/alyce-platform.",
+    "it": "Inserisci il repository come proprietario/nome, per esempio acme/alyce-platform.",
+    "sq": "Shkruaj repository-n si pronari/emri, për shembull acme/alyce-platform."
+  },
   "ai.window.close": {
     "en": "Close",
     "it": "Chiudi",

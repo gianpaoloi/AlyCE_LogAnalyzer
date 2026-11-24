@@ -94,6 +94,9 @@ public sealed class SessionState
     /// </summary>
     public bool AiReview { get; set; }
 
+    /// <summary>The GitHub repository (owner/name) the last AI issue draft was sent to. Kept for the session only.</summary>
+    public string? IssueRepository { get; set; }
+
     // ---- Live ----
     private IEnumerable<string> _liveLevels = Array.Empty<string>();
     private IEnumerable<string> _liveEnvironments = Array.Empty<string>();

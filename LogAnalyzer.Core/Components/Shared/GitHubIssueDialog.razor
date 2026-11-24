@@ -1,0 +1,51 @@
+@* Asks which GitHub repository the AI issue draft goes to, then opens the new-issue page there. The user still presses Submit on GitHub. *@
+@inject Localizer L
+@inject SessionState Session
+@inject DialogService DialogService
+
+<RadzenStack Gap="0.75rem">
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@L["ai.issue.repoHint"]</RadzenText>
+    <RadzenLabel Text="@L["ai.issue.repoLabel"]" Component="issue-repo" />
+    <RadzenTextBox Name="issue-repo" @bind-Value="_repository" @bind-Value:after="Remember"
+                   Placeholder="owner/repository" style="width:100%" />
+    @if (_url is null)
+    {
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-color-danger">@L["ai.issue.repoInvalid"]</RadzenText>
+    }
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" JustifyContent="JustifyContent.End">
+        <RadzenButton Text="@L["ai.window.close"]" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                      Click="@(() => DialogService.Close())" />
+        <a class="btn btn-primary btn-sm @(_url is null ? "disabled" : "")" href="@_url" target="_blank" rel="noopener noreferrer">
+            @L["ai.draft.open"]
+        </a>
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Body { get; set; } = "";
+    [Parameter] public string Footer { get; set; } = "";
+    [Parameter] public string DefaultRepository { get; set; } = "";
+
+    private string _repository = "";
+
+    protected override void OnInitialized()
+    {
+        _repository = string.IsNullOrWhiteSpace(Session.IssueRepository) ? DefaultRepository : Session.IssueRepository!;
+    }
+
+    /// <summary>The new-issue address for the repository typed, or null while it is not owner/name.</summary>
+    private string? _url => BuildUrl(_repository);
+
+    private string? BuildUrl(string repository)
+    {
+        var parts = repository.Trim().Trim('/').Split('/');
+        if (parts.Length != 2 || parts[0].Length == 0 || parts[1].Length == 0) return null;
+        return IssueLink.Build(repository.Trim(), IssueKind.Bug, Title, Body, IssueLink.Footer(Footer));
+    }
+
+    private void Remember()
+    {
+        if (_url is not null) Session.IssueRepository = _repository.Trim();
+    }
+}
