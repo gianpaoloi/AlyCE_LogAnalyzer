@@ -164,6 +164,50 @@ Përmbledhja, Eksploruesi dhe Triazhimi mund të ngarkojnë logje drejtpërdrejt
 
 Për ta mbajtur mend hyrjen për herën tjetër, zgjidh **Mbaji mend hyrjen në këtë kompjuter**. Tokeni ose cookie-i ruhet i enkriptuar: për këtë llogari Windows në aplikacionin desktop, ose me çelësat e serverit në aplikacionin web. **Harro hyrjen** e heq. Trajto cookie-n ose tokenin si një fjalëkalim, dhe përdor **Harro hyrjen** në një kompjuter të përbashkët.
 
+## Asistenti AI (opsional)
+
+Asistenti AI është i çaktivizuar derisa të shtosh një ofrues. Teksti i logjeve dërgohet përmes internetit te ofruesi vetëm kur e kërkon ti, kurrë në sfond.
+
+### Konfigurimi i një ofruesi
+
+1. Kliko **AI** në shiritin e sipërm.
+2. Shtyp **Shto ofrues**, zgjidh llojin dhe plotëso fushat e tij:
+   - **Claude (Anthropic)** ose **ChatGPT (OpenAI)**: një çelës API dhe një model.
+   - **Gateway tjetër ose model lokal**: një adresë dhe një model, plus një çelës API nëse serveri e kërkon.
+3. Shtyp **Testo lidhjen**. Shfaqet një shenjë e gjelbër kur ofruesi përgjigjet. Shtyp **Ruaj**.
+4. Shtyp **Përdore për shpjegimet** te ofruesi që dëshiron aktiv. Mund të ruash disa dhe të ndërrosh midis tyre.
+
+Çelësi API ruhet i enkriptuar në këtë kompjuter. Një çelës nuk dërgohet kurrë te një adresë me `http` të thjeshtë, përveç nëse adresa është ky kompjuter.
+
+Çdo ofrues i ruajtur tregon token-ët e përdorur përmes tij. **Rivendos përdorimin** pastron totalet e tij.
+
+### Ofruesit e pajtueshëm
+
+- **Claude (Anthropic):** API e Claude. Adresa është fikse. Përdor një çelës API nga Claude Console.
+- **ChatGPT (OpenAI):** API e OpenAI. Adresa është fikse. Përdor një çelës API nga platforma OpenAI.
+- **Google Gemini (API native):** API `generateContent` e vetë Gemini. Përdore për endpoint-in e Google ose për një gateway që shërben Gemini në mënyrë native, si Databricks AI Gateway. Shkruaj adresën deri te rrënja e gateway-it, p.sh. `https://<workspace>.azuredatabricks.net/ai-gateway/gemini`; aplikacioni shton `/v1beta/models/<modeli>:generateContent`. Shkruaj emrin e modelit siç e liston endpoint-i, dhe token-in ose çelësin që kërkon gateway-i (për Databricks, një personal access token). Adresa e Google plotësohet si parazgjedhje. Për një çelës nga [Google AI Studio](https://aistudio.google.com/), mbaje atë adresë, shkruaj një emër modeli si `gemini-2.5-flash` dhe ngjit çelësin; aplikacioni e dërgon në header-in `x-goog-api-key` që kërkon Google.
+- **OpenAI Responses API:** API `/v1/responses` e OpenAI, të cilën e përdorin modelet më të reja të OpenAI, dhe gateway-et që e ofrojnë, si Databricks AI Gateway. Shkruaj adresën deri te rrënja e gateway-it, p.sh. `https://<workspace>.azuredatabricks.net/ai-gateway/mlflow`; aplikacioni shton `/v1/responses`. Shkruaj emrin e modelit siç e liston endpoint-i, dhe token-in ose çelësin që kërkon gateway-i. Adresa e OpenAI plotësohet si parazgjedhje.
+- **Gateway tjetër ose model lokal:** çdo server që ofron API-n chat-completions të OpenAI (`/v1/chat/completions`). Shembuj: një gateway LiteLLM, që mund të drejtojë te Gemini, Claude dhe modele të tjera; Ollama; LM Studio; vLLM; serveri llama.cpp. Shkruaj adresën e serverit, me ose pa `/v1`, emrin e modelit saktësisht siç e liston serveri, dhe një çelës API vetëm nëse serveri e kërkon.
+
+Jo të mbështetura drejtpërdrejt: Azure OpenAI dhe formate që nuk janë as OpenAI as Gemini. Arrije përmes një gateway-i që ofron një endpoint të pajtueshëm me OpenAI ose me API-n native të Gemini. Vetëm llojet Claude dhe ChatGPT kanë adresa fikse; një çelës nuk dërgohet kurrë përmes `http` të thjeshtë përveç nëse adresa është ky kompjuter, prandaj një gateway në distancë kërkon `https`.
+
+### Ku ndihmon AI
+
+- **Detajet e logut** (Eksploruesi, Live, Network): **Shpjego** përshkruan një mesazh dhe shkakun e mundshëm. Në Eksploruesi, **Gjej log-et e lidhura** liston hyrjet me të njëjtin CID, ose të njëjtin thread brenda dy minutash në të njëjtin mjedis. Këto rreshta të lidhur përfshihen në shpjegim.
+- **Triazhimi**: **Analizo grupet me AI** renditi grupet në ekran në *Rregullo shpejt*, *Shiko më vonë* dhe *Ndoshta zhurmë*. Çdo grup ka edhe **Shpjego** dhe **Skicë çështjeje me AI**. Skica hapet në GitHub në shfletues, ku ende shtyp Dërgo. Aplikacioni kurrë nuk e publikon.
+- **Përmbledhja**: **Përmblidh me AI** përshkruan skedarin e ngarkuar. Për një skedar me 50.000 hyrje ose më shumë, aplikacioni pyet së pari.
+- **Eksploruesi**: shkruaj një pyetje me fjalë të thjeshta, p.sh. *gabime nga pagesat dje*, dhe **Pyet** vendos filtrat. Kur ke zgjedhur një interval kohe te grafiku, **Pse ndryshoi?** e krahason atë me një periudhë me të njëjtën gjatësi para tij, dhe **Përmblidh këtë interval** e përshkruan. Një interval i madh kërkon konfirmim së pari.
+- **Live**: **Shpjego gabimet e reja me AI** vendos çdo gabim të ri në radhë për miratimin tënd. Asgjë nuk dërgohet derisa të shtypësh **Dërgo** mbi të.
+
+### Shqyrto para dërgimit
+
+Ndërrimi **Shqyrto tekstin para dërgimit** ndodhet pranë butonave AI. Është i çaktivizuar si parazgjedhje.
+
+- **Jo i zgjedhur:** kërkesa dërgohet menjëherë pasi shtyp butonin. Teksti nuk shfaqet, por vlerat si adresat e e-mailit, adresat IP, fjalëkalimet dhe token-ët maskohen para se të largohet nga kompjuteri.
+- **I zgjedhur:** teksti i saktë shfaqet dhe mund ta ndryshosh. Dërgo dërgon atë që është në kuti.
+
+Çdo përgjigje tregon token-ët e përdorur nga kërkesa e saj, kur ofruesi i raporton.
+
 ## Zgjidhja e problemeve
 
 ### Aplikacioni nuk nis

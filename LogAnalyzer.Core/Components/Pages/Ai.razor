@@ -1,0 +1,398 @@
+@page "/ai"
+@inject AiSettingsStore Store
+@inject AiUsageStore Usage
+@inject Localizer L
+
+<PageTitle>@L["ai.title"] · AlyCE Log Analyzer</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H4">@L["ai.title"]</RadzenText>
+<RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted rz-mb-3">@L["ai.intro"]</RadzenText>
+
+<RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween"
+                 Wrap="FlexWrap.Wrap" Gap="0.5rem">
+        <RadzenText TextStyle="TextStyle.H6">@L["ai.configured"]</RadzenText>
+        @if (!_formOpen)
+        {
+            <RadzenButton Text="@L["ai.add"]" Icon="add" ButtonStyle="ButtonStyle.Primary" Disabled="@_busy" Click="@StartAdd" />
+        }
+    </RadzenStack>
+
+    @if (_configs.Count == 0)
+    {
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted rz-mt-2">@L["ai.noProviders"]</RadzenText>
+    }
+
+    @foreach (var config in _configs)
+    {
+        var isActive = config.Id == _activeId;
+        <div class="ai-provider @(isActive ? "ai-provider-active" : "")">
+            <RadzenStack Gap="0.25rem">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                    <b>@config.Name</b>
+                    @if (config.Settings.Verified)
+                    {
+                        <span class="ai-verified" title="@L["ai.verified"]" aria-label="@L["ai.verified"]">
+                            <RadzenIcon Icon="check_circle" />
+                        </span>
+                    }
+                    @if (isActive)
+                    {
+                        <span class="ai-badge">@L["ai.inUse"]</span>
+                    }
+                </RadzenStack>
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@Describe(config.Settings)</RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted" title="@L["ai.usage.hint"]">@UsageText(config.Id)</RadzenText>
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                @if (!isActive)
+                {
+                    <RadzenButton Text="@L["ai.use"]" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Disabled="@_busy"
+                                  Click="@(() => UseAsync(config))" />
+                }
+                <RadzenButton Text="@L["ai.test"]" Icon="wifi_tethering" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Disabled="@_busy" Click="@(() => TestSavedAsync(config))" />
+                <RadzenButton Text="@L["ai.edit"]" Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Disabled="@_busy" Click="@(() => StartEdit(config))" />
+                <RadzenButton Text="@L["ai.usage.reset"]" Icon="restart_alt" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Disabled="@_busy" Click="@(() => ResetUsageAsync(config.Id))" />
+                <RadzenButton Text="@L["ai.remove"]" Icon="delete" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Disabled="@_busy" Click="@(() => RemoveAsync(config))" />
+            </RadzenStack>
+        </div>
+    }
+
+    @if (_listStatus is not null)
+    {
+        <RadzenText TextStyle="TextStyle.Body2" class="@(_listStatusIsError ? "ai-error" : "")">@_listStatus</RadzenText>
+    }
+</RadzenCard>
+
+@if (_formOpen)
+{
+    <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+        <RadzenText TextStyle="TextStyle.H6">@(_editingId is null ? L["ai.newProvider"] : L["ai.editProvider"])</RadzenText>
+        <RadzenStack Gap="1rem" Style="max-width: 640px;">
+            <RadzenStack Gap="0.25rem">
+                <RadzenLabel Text="@L["ai.providerType"]" Component="ai-kind" />
+                <RadzenDropDown TValue="AiProviderKind" Data="@Kinds" TextProperty="Label" ValueProperty="Kind"
+                                @bind-Value="_kind" @bind-Value:after="OnKindChanged" Name="ai-kind" Style="width: 100%;" />
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L[HelpKey(_kind)]</RadzenText>
+            </RadzenStack>
+
+            <RadzenStack Gap="0.25rem">
+                <RadzenLabel Text="@L["ai.name"]" Component="ai-name" />
+                <RadzenTextBox @bind-Value="_name" Name="ai-name" Style="width: 100%;" />
+            </RadzenStack>
+
+            @* Only a gateway or local model needs an address; the hosted providers have a fixed one. *@
+            @if (_kind is AiProviderKind.Gateway or AiProviderKind.GeminiNative or AiProviderKind.ResponsesApi)
+            {
+                <RadzenStack Gap="0.25rem">
+                    <RadzenLabel Text="@L["ai.address"]" Component="ai-address" />
+                    <RadzenTextBox @bind-Value="_baseUrl" @bind-Value:after="ClearVerified" Name="ai-address" Style="width: 100%;" />
+                </RadzenStack>
+            }
+
+            <RadzenStack Gap="0.25rem">
+                <RadzenLabel Text="@L["ai.model"]" Component="ai-model" />
+                <RadzenTextBox @bind-Value="_model" @bind-Value:after="ClearVerified" Name="ai-model" Style="width: 100%;" />
+            </RadzenStack>
+
+            <RadzenStack Gap="0.25rem">
+                <RadzenLabel Text="@(_kind == AiProviderKind.Gateway ? L["ai.apiKeyOptional"] : L["ai.apiKey"])" Component="ai-key" />
+                <input id="ai-key" type="password" class="rz-textbox" autocomplete="off" style="width: 100%;"
+                       @bind="_apiKey" @bind:event="oninput" @bind:after="ClearVerified" />
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["ai.apiKeyHint"]</RadzenText>
+            </RadzenStack>
+
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                <RadzenButton Text="@L["ai.save"]" Icon="save" ButtonStyle="ButtonStyle.Primary" Disabled="@_busy" Click="@SaveAsync" />
+                <RadzenButton Text="@L["ai.test"]" Icon="wifi_tethering" ButtonStyle="ButtonStyle.Light" Disabled="@_busy" Click="@TestAsync" />
+                <RadzenButton Text="@L["ai.cancel"]" ButtonStyle="ButtonStyle.Light" Disabled="@_busy" Click="@CancelForm" />
+                @if (_verified)
+                {
+                    <span class="ai-verified" title="@L["ai.verified"]" aria-label="@L["ai.verified"]">
+                        <RadzenIcon Icon="check_circle" />
+                    </span>
+                }
+            </RadzenStack>
+
+            @if (_formStatus is not null)
+            {
+                <RadzenText TextStyle="TextStyle.Body2" class="@(_formStatusIsError ? "ai-error" : "")">@_formStatus</RadzenText>
+            }
+        </RadzenStack>
+    </RadzenCard>
+}
+
+@code {
+    public sealed record KindOption(AiProviderKind Kind, string Label);
+
+    private List<AiProviderConfig> _configs = new();
+    private string? _activeId;
+    private bool _busy;
+    private string? _listStatus;
+    private bool _listStatusIsError;
+
+    // The add/edit form. _editingId is null while a new provider is being added.
+    private bool _formOpen;
+    private string? _editingId;
+    private AiProviderKind _kind = AiProviderKind.Anthropic;
+    private string _name = "";
+    private string _baseUrl = "";
+    private string _model = "";
+    private string _apiKey = "";
+    private bool _verified;
+    private string? _formStatus;
+    private bool _formStatusIsError;
+
+    private IEnumerable<KindOption> Kinds =>
+    [
+        new(AiProviderKind.Anthropic, L["ai.kindAnthropic"]),
+        new(AiProviderKind.OpenAi, L["ai.kindOpenAi"]),
+        new(AiProviderKind.GeminiNative, L["ai.kindGemini"]),
+        new(AiProviderKind.ResponsesApi, L["ai.kindResponses"]),
+        new(AiProviderKind.Gateway, L["ai.kindGateway"]),
+    ];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Browser storage is only reachable after the first render, so the saved providers load here.
+        if (firstRender) await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _configs = await Store.GetAllAsync();
+        _activeId = (await Store.GetActiveAsync())?.Id;
+        _usage = await Usage.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private IReadOnlyDictionary<string, AiUsage> _usage = new Dictionary<string, AiUsage>();
+
+    /// <summary>The token totals of one saved provider, in words the user can read.</summary>
+    private string UsageText(string id)
+    {
+        if (!_usage.TryGetValue(id, out var usage) || usage.Requests == 0) return L["ai.usage.none"];
+
+        var text = L["ai.usage.line", usage.Requests.ToString("N0"), usage.InputTokens.ToString("N0"), usage.OutputTokens.ToString("N0")];
+        if (usage.Requests > usage.ReportedRequests)
+            text += " · " + L["ai.usage.unreported", (usage.Requests - usage.ReportedRequests).ToString("N0")];
+        if (usage.LastUsedUtc is { } last)
+            text += " · " + L["ai.usage.last", last.ToLocalTime().ToString("yyyy-MM-dd HH:mm")];
+        return text;
+    }
+
+    private async Task ResetUsageAsync(string id)
+    {
+        await Usage.ResetAsync(id);
+        await ReloadAsync();
+    }
+
+    /// <summary>The short how-to-configure note for a provider type, shown under the type selector.</summary>
+    private static string HelpKey(AiProviderKind kind) => kind switch
+    {
+        AiProviderKind.Anthropic => "ai.help.anthropic",
+        AiProviderKind.OpenAi => "ai.help.openai",
+        AiProviderKind.GeminiNative => "ai.help.gemini",
+        AiProviderKind.ResponsesApi => "ai.help.responses",
+        _ => "ai.help.gateway",
+    };
+
+    private string KindLabel(AiProviderKind kind) => kind switch
+    {
+        AiProviderKind.Anthropic => L["ai.kindAnthropic"],
+        AiProviderKind.OpenAi => L["ai.kindOpenAi"],
+        AiProviderKind.GeminiNative => L["ai.kindGemini"],
+        AiProviderKind.ResponsesApi => L["ai.kindResponses"],
+        _ => L["ai.kindGateway"],
+    };
+
+    /// <summary>One line describing a saved provider: its type, model and, for a gateway, its address.</summary>
+    private string Describe(AiSettings settings) =>
+        settings.Kind is AiProviderKind.Gateway or AiProviderKind.GeminiNative or AiProviderKind.ResponsesApi
+            ? $"{KindLabel(settings.Kind)} · {settings.Model} · {settings.BaseUrl}"
+            : $"{KindLabel(settings.Kind)} · {settings.Model}";
+
+    // ------------------------------------------------------------ form
+
+    /// <summary>Each provider type has its own address and model format, so choosing one fills in its defaults.</summary>
+    private void ApplyDefaults(AiProviderKind kind)
+    {
+        _baseUrl = AiSettings.DefaultBaseUrl(kind);
+        _model = kind == AiProviderKind.Anthropic ? "claude-haiku-5-5" : "";
+    }
+
+    private void StartAdd()
+    {
+        _editingId = null;
+        _kind = AiProviderKind.Anthropic;
+        ApplyDefaults(_kind);
+        _name = KindLabel(_kind);
+        _apiKey = "";
+        _verified = false;
+        _formStatus = null;
+        _listStatus = null;
+        _formOpen = true;
+    }
+
+    private void StartEdit(AiProviderConfig config)
+    {
+        var settings = config.Settings;
+        _editingId = config.Id;
+        _kind = settings.Kind;
+        _name = config.Name;
+        _baseUrl = settings.BaseUrl;
+        _model = settings.Model;
+        _apiKey = settings.ApiKey ?? "";
+        _verified = settings.Verified;
+        _formStatus = null;
+        _listStatus = null;
+        _formOpen = true;
+    }
+
+    private void CancelForm()
+    {
+        _formOpen = false;
+        _editingId = null;
+        _apiKey = "";
+        _formStatus = null;
+    }
+
+    private void OnKindChanged()
+    {
+        ApplyDefaults(_kind);
+        if (_editingId is null) _name = KindLabel(_kind);
+        _verified = false;
+        _formStatus = null;
+    }
+
+    private void ClearVerified() => _verified = false;
+
+    private AiSettings CurrentSettings(bool verified) =>
+        new(_kind, _baseUrl.Trim(), _model.Trim(), string.IsNullOrWhiteSpace(_apiKey) ? null : _apiKey.Trim(), verified);
+
+    private AiProviderConfig CurrentConfig(bool verified) =>
+        new(_editingId ?? Guid.NewGuid().ToString("N"),
+            string.IsNullOrWhiteSpace(_name) ? KindLabel(_kind) : _name.Trim(),
+            CurrentSettings(verified));
+
+    private void FormShow(string message, bool error)
+    {
+        _formStatus = message;
+        _formStatusIsError = error;
+        StateHasChanged();
+    }
+
+    private void ListShow(string message, bool error)
+    {
+        _listStatus = message;
+        _listStatusIsError = error;
+        StateHasChanged();
+    }
+
+    private async Task SaveAsync()
+    {
+        // The check is kept only when the values were not changed since the test that passed.
+        var problem = CurrentSettings(_verified).Validate();
+        if (problem is not null)
+        {
+            FormShow(problem, error: true);
+            return;
+        }
+
+        if (!await Store.SaveAsync(CurrentConfig(_verified)))
+        {
+            FormShow(L["ai.saveFailed"], error: true);
+            return;
+        }
+
+        CancelForm();
+        await ReloadAsync();
+        ListShow(L["ai.saved"], error: false);
+    }
+
+    private async Task TestAsync()
+    {
+        var settings = CurrentSettings(verified: false);
+        if (settings.Validate() is { } problem)
+        {
+            FormShow(problem, error: true);
+            return;
+        }
+
+        _busy = true;
+        FormShow(L["ai.testing"], error: false);
+        try
+        {
+            var reply = await AiAssistant.TestAsync(settings);
+            // A test of a saved provider uses its tokens too; a new provider has no totals yet.
+            await Usage.RecordAsync(_editingId, reply);
+            _verified = true;
+            if (_editingId is null)
+            {
+                // A new provider is remembered when it is saved.
+                FormShow(L["ai.testOk", reply.Text], error: false);
+            }
+            else
+            {
+                // An existing provider keeps its passing test, so the check survives leaving the page.
+                var remembered = await Store.SaveAsync(CurrentConfig(verified: true));
+                FormShow(remembered ? L["ai.testOk", reply.Text] : L["ai.verifiedNotSaved"], error: !remembered);
+                await ReloadAsync();
+            }
+        }
+        catch (AiException e)
+        {
+            _verified = false;
+            FormShow(e.Message, error: true);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // ------------------------------------------------------------ list
+
+    private async Task UseAsync(AiProviderConfig config)
+    {
+        await Store.SetActiveAsync(config.Id);
+        await ReloadAsync();
+    }
+
+    private async Task RemoveAsync(AiProviderConfig config)
+    {
+        await Store.RemoveAsync(config.Id);
+        if (_editingId == config.Id) CancelForm();
+        await ReloadAsync();
+        ListShow(L["ai.removed"], error: false);
+    }
+
+    /// <summary>Tests a saved provider from its row. A pass is remembered; a failure clears the check.</summary>
+    private async Task TestSavedAsync(AiProviderConfig config)
+    {
+        _busy = true;
+        ListShow(L["ai.testing"], error: false);
+        try
+        {
+            var reply = await AiAssistant.TestAsync(config.Settings with { Verified = false });
+            await Usage.RecordAsync(config.Id, reply);
+            var remembered = await Store.SaveAsync(config with { Settings = config.Settings with { Verified = true } });
+            await ReloadAsync();
+            ListShow(remembered ? L["ai.testOk", reply.Text] : L["ai.verifiedNotSaved"], error: !remembered);
+        }
+        catch (AiException e)
+        {
+            await Store.SaveAsync(config with { Settings = config.Settings with { Verified = false } });
+            await ReloadAsync();
+            ListShow(e.Message, error: true);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

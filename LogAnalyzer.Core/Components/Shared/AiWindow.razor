@@ -1,0 +1,51 @@
+@* A floating window that holds the AI controls of a page. The page owns the open state and the logic; this only frames the content. *@
+@inject Localizer L
+
+<div class="ai-overlay" @onclick="OnClose">
+    <div class="ai-window" @onclick:stopPropagation="true">
+        <div class="ai-window-header">
+            <RadzenText TextStyle="TextStyle.H6">@Title</RadzenText>
+            <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="OnClose" title="@L["ai.window.close"]" />
+        </div>
+        <RadzenStack Gap="0.5rem">
+            @ChildContent
+        </RadzenStack>
+    </div>
+</div>
+
+<style>
+    .ai-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 8vh;
+        z-index: 1000;
+    }
+
+    .ai-window {
+        width: min(960px, 92vw);
+        max-height: 84vh;
+        overflow: auto;
+        padding: 1rem;
+        border-radius: 8px;
+        background: var(--rz-base-background-color, #1b1b1b);
+        border: 1px solid var(--rz-base-300, #444);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .ai-window-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+</style>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+}

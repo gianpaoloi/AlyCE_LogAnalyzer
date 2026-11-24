@@ -6,6 +6,8 @@
 @inject DialogService DialogService
 @inject PathHistory History
 @inject IJSRuntime JS
+@inject AiSettingsStore AiStore
+@inject AiUsageStore UsageStore
 @inherits ObservingComponentBase
 @implements IDisposable
 
@@ -81,6 +83,51 @@
     </div>
 </RadzenCard>
 
+<RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+    <RadzenStack Gap="0.5rem">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+            <AiReviewToggle />
+            <RadzenCheckBox @bind-Value="_autoExplain" Name="ae" Disabled="@(!_aiReady)" />
+            <RadzenLabel Text="@(L["ai.live.toggle"])" Component="ae" title="@(L["ai.live.warning"])" />
+            @if (_autoItems.Count > 0)
+            {
+                <RadzenButton Text="@(L["ai.live.clear"])" Icon="clear_all" ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.Small" Click="ClearAutoExplanations" />
+            }
+        </RadzenStack>
+        <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">
+            @(_aiReady ? L["ai.live.warning"] : L["ai.notConfigured"])
+        </RadzenText>
+        @foreach (var item in _pending)
+        {
+            <div class="rz-mb-2">
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0">
+                    <b>@item.Time.ToString("HH:mm:ss")</b> <LevelBadge Level="@item.Level" /> <span class="mono">@item.Message</span>
+                </RadzenText>
+                <AiExplainPanel Settings="@item.State.Settings" Preview="@item.State.Preview" Result="@item.State.Result" Response="@item.State.Response"
+                                Error="@item.State.Error" Busy="@item.State.Busy" Approval="true"
+                                OnSend="@(text => ApproveAsync(item, text))" OnCancel="@(() => DiscardPending(item))" />
+            </div>
+        }
+        @foreach (var item in _autoItems)
+        {
+            <div class="rz-mb-2">
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0">
+                    <b>@item.Time.ToString("HH:mm:ss")</b> <LevelBadge Level="@item.Level" /> <span class="mono">@item.Message</span>
+                </RadzenText>
+                @if (item.Result is not null)
+                {
+                    <pre class="detail-message">@item.Result</pre>
+                }
+                @if (item.Error is not null)
+                {
+                    <RadzenText TextStyle="TextStyle.Body2" class="ai-error">@item.Error</RadzenText>
+                }
+            </div>
+        }
+    </RadzenStack>
+</RadzenCard>
+
 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-2" Wrap="FlexWrap.Wrap">
     @if (Watcher.IsWatching)
     {
@@ -124,6 +171,23 @@
           RowSelect="@OpenDetail" />
 
 @code {
+    /// <summary>Automatic explanations of new errors. Off by default and not kept after the page is left.</summary>
+    private bool _autoExplain;
+    private bool _aiReady;
+    private DateTime _autoLastQueued = DateTime.MinValue;
+    private readonly HashSet<string> _autoSeen = new(StringComparer.Ordinal);
+    private readonly List<QueuedExplanation> _pending = new();
+    private readonly List<AutoExplanation> _autoItems = new();
+    private const int MaxPending = 10;
+    private const int MaxAutoExplanations = 10;
+    private static readonly TimeSpan AutoExplainGap = TimeSpan.FromSeconds(30);
+
+    /// <summary>An answered explanation, kept on the page until cleared.</summary>
+    private sealed record AutoExplanation(DateTime Time, string Level, string Message, string? Result, string? Error);
+
+    /// <summary>A request waiting for the user to press Send on its preview.</summary>
+    private sealed record QueuedExplanation(DateTime Time, string Level, string Message, AiPanelState State);
+
     // The tail produces faster than a browser can render. Queueing one refresh per poll (plus one per
     // status change) let the render queue grow without bound, which is what made a long watch freeze:
     // instead a single loop refreshes at most every RefreshInterval, only when something changed, and
@@ -205,11 +269,77 @@
         // localStorage is only reachable once the component is interactive.
         if (!firstRender) return;
         _recentFiles = await History.GetAsync(PathHistory.LiveFileKey);
-        if (_recentFiles.Count > 0) StateHasChanged();
+        _aiReady = await AiStore.HasUsableProviderAsync();
+        StateHasChanged();
     }
 
     /// <summary>Ingest. Runs on the watcher's poll thread; the buffer does the work off the renderer.</summary>
-    private void OnEntries(IReadOnlyList<LogEntry> entries) => _buffer.Ingest(entries);
+    private void OnEntries(IReadOnlyList<LogEntry> entries)
+    {
+        _buffer.Ingest(entries);
+        if (!_autoExplain) return;
+
+        // Runs on the watcher's thread: only picks the newest ERROR here. The rules are applied on the UI thread.
+        LogEntry? error = null;
+        foreach (var e in entries)
+            if (LogLevels.Series(e.Level) == LogLevels.Error) error = e;
+        if (error is not null) _ = InvokeAsync(() => TryQueueAutoExplain(error));
+    }
+
+    /// <summary>
+    /// Puts one new ERROR in the approval queue when automatic explanations are on. Nothing is sent here: the
+    /// request waits until the user presses Send on its preview. A new item is queued at most every 30 seconds,
+    /// the queue holds 10, and each message signature is queued once per session.
+    /// </summary>
+    private async Task TryQueueAutoExplain(LogEntry entry)
+    {
+        if (!_autoExplain || _pending.Count >= MaxPending) return;
+        if (!_autoSeen.Add(entry.Signature)) return;
+        if (DateTime.UtcNow - _autoLastQueued < AutoExplainGap)
+        {
+            _autoSeen.Remove(entry.Signature);
+            return;
+        }
+        _autoLastQueued = DateTime.UtcNow;
+
+        var settings = (await AiStore.GetActiveAsync())?.Settings;
+        var state = AiPanelState.Prepare(settings, L["ai.notConfigured"],
+            () => AiLogAnalysis.BuildEntryPreview(entry, Array.Empty<CorrelatedEntry>(), L.CurrentCode));
+        if (state.Preview is null)
+        {
+            // Without a usable provider there is nothing to send, so the feature switches itself off.
+            _autoExplain = false;
+            AddAutoExplanation(new AutoExplanation(entry.Time, entry.Level, entry.ShortMessage, null, state.Error));
+            StateHasChanged();
+            return;
+        }
+
+        _pending.Add(new QueuedExplanation(entry.Time, entry.Level, entry.ShortMessage, state));
+        StateHasChanged();
+    }
+
+    /// <summary>Sends one queued request, after the user has pressed Send on its preview.</summary>
+    private async Task ApproveAsync(QueuedExplanation item, string text)
+    {
+        var sending = item.State.SendAsync(UsageStore, text);
+        StateHasChanged();
+        await sending;
+
+        _pending.Remove(item);
+        AddAutoExplanation(new AutoExplanation(item.Time, item.Level, item.Message, item.State.Result, item.State.Error));
+        StateHasChanged();
+    }
+
+    /// <summary>Drops a queued request without sending it. Its message stays marked as seen, so it is not queued again.</summary>
+    private void DiscardPending(QueuedExplanation item) => _pending.Remove(item);
+
+    private void AddAutoExplanation(AutoExplanation item)
+    {
+        _autoItems.Insert(0, item);
+        if (_autoItems.Count > MaxAutoExplanations) _autoItems.RemoveRange(MaxAutoExplanations, _autoItems.Count - MaxAutoExplanations);
+    }
+
+    private void ClearAutoExplanations() => _autoItems.Clear();
 
     private void Rebuild() => _buffer.Rebuild(new LiveDisplayFilter(
         State.LiveLevels, State.LiveEnvironments, State.LiveCompanies, State.LiveLoggerPrefix, State.LiveText,

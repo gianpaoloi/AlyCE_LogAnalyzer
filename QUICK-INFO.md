@@ -164,6 +164,50 @@ Overview, Explorer and Triage can load logs straight from Grafana Cloud Loki.
 
 To keep the sign-in for next time, tick **Remember sign-in on this computer**. The token or cookie is stored encrypted: for this Windows account in the desktop app, or with the server's keys in the web app. **Forget sign-in** removes it. Treat the cookie or token like a password, and use **Forget sign-in** on a shared computer.
 
+## AI assistant (optional)
+
+The AI assistant is off until you add a provider. Log text is sent over the internet to that provider only when you ask for it, never in the background.
+
+### Set up a provider
+
+1. Click **AI** in the top bar.
+2. Press **Add provider**, choose the type, and fill in its fields:
+   - **Claude (Anthropic)** or **ChatGPT (OpenAI)**: an API key and a model.
+   - **Other gateway or local model**: an address and a model, plus an API key if the server needs one.
+3. Press **Test connection**. A green check appears when the provider answers. Press **Save**.
+4. Press **Use for explanations** on the provider you want active. You can save several and switch between them.
+
+The API key is stored encrypted on this computer. A key is never sent to an address over plain `http`, unless that address is this computer.
+
+Each saved provider shows the tokens used through it. **Reset usage** clears its totals.
+
+### Compatible providers
+
+- **Claude (Anthropic):** the Claude API. The address is fixed. Use an API key from the Claude Console.
+- **ChatGPT (OpenAI):** the OpenAI API. The address is fixed. Use an API key from the OpenAI platform.
+- **Google Gemini (native API):** Gemini's own `generateContent` API. Use it for Google's endpoint, or for a gateway that serves Gemini natively, such as Databricks AI Gateway. Enter the address up to the gateway root, for example `https://<workspace>.azuredatabricks.net/ai-gateway/gemini`; the app adds `/v1beta/models/<model>:generateContent`. Enter the model name as the endpoint lists it, and the token or key the gateway requires (for Databricks, a personal access token). Google's own address is filled in by default. For a key from [Google AI Studio](https://aistudio.google.com/), keep that address, enter a model name such as `gemini-2.5-flash`, and paste the key; the app sends it in the `x-goog-api-key` header that Google requires.
+- **OpenAI Responses API:** OpenAI's `/v1/responses` API, which newer OpenAI models use, and gateways that serve it, such as Databricks AI Gateway. Enter the address up to the gateway root, for example `https://<workspace>.azuredatabricks.net/ai-gateway/mlflow`; the app adds `/v1/responses`. Enter the model name as the endpoint lists it, and the token or key the gateway requires. OpenAI's own address is filled in by default.
+- **Other gateway or local model:** any server that offers the OpenAI chat-completions API (`/v1/chat/completions`). Examples are a LiteLLM gateway, which can route to Gemini, Claude and other models; Ollama; LM Studio; vLLM; and the llama.cpp server. Enter the server's address, with or without `/v1`, the model name exactly as the server lists it, and an API key only if the server requires one.
+
+Not supported directly: Azure OpenAI and other formats that are neither OpenAI's nor Gemini's. Reach them through a gateway that offers an OpenAI-compatible or Gemini-native endpoint. Only the Claude and ChatGPT types have fixed addresses; a key is never sent over plain `http` unless the address is this computer, so a remote gateway needs `https`.
+
+### Where AI helps
+
+- **Log detail** (Explorer, Live, Network): **Explain** describes one message and its likely cause. In Explorer, **Find related logs** lists the entries with the same CID, or the same thread within two minutes in the same environment. These related lines are included in the explanation.
+- **Triage**: **Analyse clusters with AI** ranks the groups on screen into *Fix soon*, *Look at later* and *Probably noise*. Each cluster also has **Explain** and **Draft issue with AI**. The draft opens on GitHub in your browser, where you still press Submit. The app never posts it.
+- **Overview**: **Summarise with AI** describes the loaded file. For a file of 50,000 entries or more, the app asks you to confirm first.
+- **Explorer**: type a question in plain words, for example *errors from payments yesterday*, and **Ask** sets the filters. With a time range selected on the chart, **Why did it change?** compares that range with the same length of time before it, and **Summarise this window** describes it. A large window asks for confirmation first.
+- **Live**: **Explain new errors with AI** queues each new error for your approval. Nothing is sent until you press **Send** on it.
+
+### Review before sending
+
+The **Review text before sending** switch sits next to the AI buttons. It is off by default.
+
+- **Off:** the request is sent as soon as you press the button. Its text is not shown, but values such as e-mail addresses, IP addresses, passwords and tokens are masked before it leaves the computer.
+- **On:** the exact text is shown and you can edit it. Send sends what is in the box.
+
+Every answer shows the tokens its request used, when the provider reports them.
+
 ## Troubleshooting
 
 ### The application does not start

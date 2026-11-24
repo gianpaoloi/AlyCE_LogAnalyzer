@@ -1,0 +1,17 @@
+@* The review switch shown next to the AI controls of a page. The setting is shared by every AI control of the session. *@
+@inject SessionState State
+@inject Localizer L
+
+<span class="ai-review-toggle" title="@L["ai.review.hint"]">
+    <RadzenCheckBox @bind-Value="State.AiReview" Name="ai-review" />
+    <RadzenLabel Text="@L["ai.review.label"]" Component="ai-review" />
+</span>
+
+<style>
+    .ai-review-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-right: 0.5rem;
+    }
+</style>

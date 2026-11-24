@@ -1,0 +1,102 @@
+@inject IJSRuntime JS
+@inject Localizer L
+@inject SessionState Session
+
+<div class="ai-explain">
+    @if (Error is not null)
+    {
+        <RadzenText TextStyle="TextStyle.Body2" class="ai-error">@Error</RadzenText>
+        @if (Settings is null)
+        {
+            <a href="ai">@L["ai.title"]</a>
+        }
+    }
+
+    @* With Review off the request is sent as soon as it is built, so no preview is shown, except in the live
+       queue, where each request still waits for approval. *@
+    @if (Preview is not null && Result is null && (Session.AiReview || Approval))
+    {
+        @if (Session.AiReview)
+        {
+            <RadzenText TextStyle="TextStyle.Body2">@L["ai.explain.previewIntro", ProviderLabel, Settings?.Model ?? "", Preview.Redactions]</RadzenText>
+        }
+        @if (Session.AiReview)
+        {
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["ai.review.hint"]</RadzenText>
+            <RadzenTextArea @bind-Value="_draft" Rows="10" Disabled="@Busy" style="width:100%; font-family: monospace;" />
+        }
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            <RadzenButton Text="@L["ai.explain.send"]" Icon="send" ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Small" Disabled="@Busy" Click="@(() => OnSend.InvokeAsync(_draft ?? Preview.User))" />
+            <RadzenButton Text="@L["ai.explain.cancel"]" ButtonStyle="ButtonStyle.Light"
+                          Size="ButtonSize.Small" Disabled="@Busy" Click="@(() => OnCancel.InvokeAsync())" />
+        </RadzenStack>
+    }
+
+    @if (Busy)
+    {
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@L["ai.explain.busy", ProviderLabel]</RadzenText>
+    }
+
+    @if (Result is not null)
+    {
+        <pre class="detail-message">@Result</pre>
+        @if (Response is not null)
+        {
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@TokenText</RadzenText>
+        }
+        <RadzenButton Text="@L["ai.explain.copy"]" Icon="content_copy" ButtonStyle="ButtonStyle.Light"
+                      Size="ButtonSize.Small" Click="@CopyResultAsync" />
+    }
+</div>
+
+@code {
+    [Parameter] public AiSettings? Settings { get; set; }
+    [Parameter] public AiPreview? Preview { get; set; }
+    [Parameter] public string? Result { get; set; }
+
+    /// <summary>The answer this request got, for its token counts. Null when none is known.</summary>
+    [Parameter] public AiResponse? Response { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>True in the live queue, where a request waits for the user's Send even when Review is off.</summary>
+    [Parameter] public bool Approval { get; set; }
+
+    /// <summary>Called with the text to send: the preview's text, or the reviewed text when the user changed it.</summary>
+    [Parameter] public EventCallback<string> OnSend { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private string? _draft;
+    private AiPreview? _lastPreview;
+
+    protected override void OnParametersSet()
+    {
+        // A new preview starts again from its own text, so an edit never carries over to another request.
+        if (ReferenceEquals(Preview, _lastPreview)) return;
+        _lastPreview = Preview;
+        _draft = Preview?.User;
+    }
+
+    /// <summary>
+    /// The saved provider's name, as the user gave it. Without one (a provider not saved yet), the kind's name.
+    /// Brand names are not translated.
+    /// </summary>
+    private string ProviderLabel => !string.IsNullOrWhiteSpace(Settings?.ProviderName) ? Settings!.ProviderName! : Settings?.Kind switch
+    {
+        AiProviderKind.Anthropic => "Claude",
+        AiProviderKind.OpenAi => "ChatGPT",
+        _ => L["ai.kindGateway"],
+    };
+
+    /// <summary>The token counts of this one request, or a note when the provider did not report them.</summary>
+    private string TokenText => Response is { InputTokens: not null } or { OutputTokens: not null }
+        ? L["ai.tokens.line", (Response!.InputTokens ?? 0).ToString("N0"), (Response.OutputTokens ?? 0).ToString("N0")]
+        : L["ai.tokens.notReported"];
+
+    private async Task CopyResultAsync()
+    {
+        if (!string.IsNullOrEmpty(Result))
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Result);
+    }
+}

@@ -1,5 +1,6 @@
 using LogAnalyzer.Components;
 using LogAnalyzer.Services;
+using LogAnalyzer.Services.Ai;
 using LogAnalyzer.Services.Updates;
 using Radzen;
 
@@ -38,6 +39,9 @@ builder.Services.AddScoped<SkinStore>();
 // Interface languages (built-in and the user's own) and the active one.
 builder.Services.AddScoped<LanguageStore>();
 builder.Services.AddScoped<Localizer>();
+// AI provider settings (the key is encrypted before it reaches the browser's storage).
+builder.Services.AddScoped<AiSettingsStore>();
+builder.Services.AddScoped<AiUsageStore>();
 // Encrypts the remembered Grafana token and cookie before they reach the browser's storage.
 builder.Services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
 

@@ -2,6 +2,10 @@
 @inject IJSRuntime JS
 @inject NotificationService Notifications
 @inject Localizer L
+@inject LogStore Store
+@inject AiSettingsStore AiStore
+@inject AiUsageStore UsageStore
+@inject SessionState Session
 
 <RadzenStack Gap="0.75rem">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
@@ -26,10 +30,151 @@
 
     <RadzenText TextStyle="TextStyle.Overline">@L["detail.message"]</RadzenText>
     <pre class="detail-message">@Entry.PrettyMessage</pre>
+
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+        <AiReviewToggle />
+        <RadzenButton Text="@(L["ai.explain.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Light"
+                      Size="ButtonSize.Small" Click="RunExplain" Disabled="@(!_aiReady)" />
+        @if (Correlate)
+        {
+            <RadzenButton Text="@(L["ai.related.button"])" Icon="account_tree" ButtonStyle="ButtonStyle.Light"
+                          Size="ButtonSize.Small" Click="FindRelated" />
+        }
+    </RadzenStack>
+
+    @* The preview with its Send button sits right under the Explain button, so it is the first thing the click shows. *@
+    @if (_explaining)
+    {
+        <AiExplainPanel Settings="@_aiSettings" Preview="@_preview" Result="@_result" Response="@_response" Error="@_aiError" Busy="@_busy"
+                        OnSend="@(text => SendExplain(text))" OnCancel="@(() => CancelExplain())" />
+    }
+
+    @if (_related is not null)
+    {
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@L["ai.related.hint"]</RadzenText>
+        @if (_related.Count == 0)
+        {
+            <RadzenText TextStyle="TextStyle.Body2">@L["ai.related.none"]</RadzenText>
+        }
+        else
+        {
+            <div class="ai-related-scroll">
+                <table class="ai-related">
+                    <thead>
+                        <tr>
+                            <th>@L["ai.related.colTime"]</th>
+                            <th>@L["ai.related.colLevel"]</th>
+                            <th>@L["ai.related.colReason"]</th>
+                            <th>@L["ai.related.colMessage"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in _related)
+                        {
+                            <tr>
+                                <td class="mono">@r.Entry.Time.ToString("HH:mm:ss.fff")</td>
+                                <td>@r.Entry.Level</td>
+                                <td>@(r.Reason == CorrelationReason.Cid ? L["ai.related.reasonCid"] : L["ai.related.reasonThread"])</td>
+                                <td class="mono">@r.Entry.ShortMessage</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+
 </RadzenStack>
 
 @code {
     [Parameter] public LogEntry Entry { get; set; } = default!;
+
+    /// <summary>
+    /// Offers "Find related logs". Only the explorer sets it: that is where the whole loaded dataset is
+    /// searched. Live and network entries are not in that dataset, so related lines are not offered there.
+    /// </summary>
+    [Parameter] public bool Correlate { get; set; }
+
+    private bool _aiReady;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Browser storage is reachable only once the dialog is interactive.
+        if (!firstRender) return;
+        _aiReady = await AiStore.HasUsableProviderAsync();
+        StateHasChanged();
+    }
+
+    private IReadOnlyList<CorrelatedEntry>? _related;
+    private bool _explaining;
+    private AiSettings? _aiSettings;
+    private AiPreview? _preview;
+    private string? _result;
+    private AiResponse? _response;
+    private string? _aiError;
+    private bool _busy;
+
+    private void FindRelated() =>
+        _related = LogCorrelation.Find(Store.Entries, Entry, LogCorrelation.DefaultWindow);
+
+    /// <summary>Previews the request for this entry. Nothing leaves the machine until Send is pressed.</summary>
+    private async Task StartExplain()
+    {
+        _result = null;
+        _aiError = null;
+        _preview = null;
+        _explaining = true;
+        _aiSettings = (await AiStore.GetActiveAsync())?.Settings;
+
+        if (_aiSettings is null) { _aiError = L["ai.notConfigured"]; return; }
+        if (_aiSettings.Validate() is { } problem) { _aiError = problem; return; }
+
+        // The related lines go into the preview, which the user reads before Send. The list is shown only when asked for.
+        IReadOnlyList<CorrelatedEntry> related = Correlate
+            ? LogCorrelation.Find(Store.Entries, Entry, LogCorrelation.DefaultWindow)
+            : Array.Empty<CorrelatedEntry>();
+        _preview = AiLogAnalysis.BuildEntryPreview(Entry, related, L.CurrentCode);
+    }
+
+    private async Task SendExplain(string text)
+    {
+        if (_aiSettings is null || _preview is null) return;
+
+        _busy = true;
+        _aiError = null;
+        StateHasChanged();
+        try
+        {
+            var response = await AiAssistant.SendAsync(_aiSettings, _preview! with { User = text });
+            _result = response.Text;
+            _response = response;
+            await UsageStore.RecordAsync(_aiSettings.ProviderId, response);
+        }
+        catch (AiException e)
+        {
+            _aiError = e.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>With Review off, the explanation is sent as soon as its request is built.</summary>
+    private async Task RunExplain()
+    {
+        await StartExplain();
+        if (!Session.AiReview && _preview is { } preview) await SendExplain(preview.User);
+    }
+
+    private void CancelExplain()
+    {
+        _explaining = false;
+        _aiSettings = null;
+        _preview = null;
+        _result = null;
+        _aiError = null;
+    }
 
     private async Task CopyDetails()
     {

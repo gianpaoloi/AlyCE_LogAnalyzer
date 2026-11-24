@@ -11,6 +11,29 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ### Added
 
+- **AI (opt-in).** A new **AI** link in the top bar opens the providers page. Add as many providers as you need, each
+  with its own name and parameters, and choose the one used for explanations. A provider connects to an AI provider:
+  Claude (Anthropic), ChatGPT (OpenAI), or any other OpenAI-compatible server such as a local model (Ollama, LM Studio)
+  or a gateway. On **Triage**, **Explain** on a
+  cluster shows the exact text that would be sent, with e-mail addresses, IP addresses and secrets masked; nothing is
+  sent until you press **Send**. The API key is encrypted on the computer and never stored in clear text.
+  Built on **Microsoft Agent Framework**: each provider is a model client behind one abstraction
+  (`IAiChatClientFactory`), so models can be added without changing the explain flow.
+- **AI features across the app** (all opt-in, all disabled until a provider is set up):
+  - **Explorer:** ask in plain words to turn a question into a filter, and explain a time window (*Why did it change?*
+    or an incident summary). **Find related logs** lists the same-thread and same-correlation-ID lines around a log.
+  - **Live:** explain the newest error as it arrives. Each explanation waits for your approval in a queue.
+  - **Overview:** summarise the loaded file. Large files ask for confirmation first.
+  - **Triage:** rank the clusters (what to fix soon, what can wait, what is noise), explain a cluster, and draft a
+    GitHub issue from it.
+  - **Review switch** (off by default). On: you read and edit the exact text before it is sent. Off: the text is sent
+    straight away, with values masked.
+  - **Token usage** per saved provider and per answer, with a reset button.
+  - **Providers:** Google Gemini (native API, for Google AI Studio and Databricks AI Gateway) and the OpenAI Responses
+    API. Each provider type has a short note on how to configure it.
+  - AI windows open from a button in Explorer, Triage and the Overview; closing one keeps its answer.
+- **Draft a GitHub issue without AI.** On Triage, **Draft issue** writes a title and body from the cluster and opens a
+  dialog to choose the GitHub repository (owner/name) before the new-issue page opens. You still press Submit on GitHub.
 - **Languages.** The interface is available in English, Italiano and Shqip (Albanian). Choose the language from the
   selector in the top bar. A new **Language Editor** (Appearance in the sidebar) translates the app into any other
   language: duplicate a built-in language, edit the texts, save, and export or import the language as a file. Text
@@ -36,6 +59,7 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 - **Built-in skins renamed:** *Launcher* is now *Default*, and *Slate* is now *Blue*, with its colours changed to
   blue. A saved choice of either old name still works.
 - **Skin Editor and Language Editor:** **Save** and **Discard** sit in the top button row with the other actions.
+- **AI drafts name AlyCE as the product.** An AI issue draft is titled `[AlyCE]` and states the product, not the log viewer.
 
 ### Fixed
 

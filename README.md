@@ -2,7 +2,8 @@
 
 **Read, filter and tail structured application logs on Windows.** Point it at a folder of `.log` files —
 or a ZIP straight off a server — and it parses them into something you can search, chart, group by error
-and watch live. It is a desktop app rather than a service, so the logs never leave the machine.
+and watch live. It is a desktop app rather than a service: the logs stay on the machine, except for the
+text you explicitly send to an AI provider from the Triage page (the AI link in the top bar, off by default).
 
 Built with .NET MAUI + Blazor Hybrid. Self-contained: no .NET runtime to install.
 

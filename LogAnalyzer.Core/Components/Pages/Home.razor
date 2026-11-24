@@ -1,6 +1,9 @@
 @page "/"
 @inject Localizer L
 @inject LogStore Store
+@inject AiSettingsStore AiStore
+@inject AiUsageStore UsageStore
+@inject SessionState Session
 @inherits ObservingComponentBase
 @implements IDisposable
 
@@ -35,12 +38,51 @@ else
     </RadzenRow>
 
     <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
-        <b>@L["home.timeSpan"]</b> @Fmt(s.FirstTime) &rarr; @Fmt(s.LastTime)
-        @if (s.Span is { } sp)
-        {
-            <span class="rz-color-muted"> (@FormatSpan(sp))</span>
-        }
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+            <span>
+                <b>@L["home.timeSpan"]</b> @Fmt(s.FirstTime) &rarr; @Fmt(s.LastTime)
+                @if (s.Span is { } sp)
+                {
+                    <span class="rz-color-muted"> (@FormatSpan(sp))</span>
+                }
+            </span>
+            <RadzenButton Text="@(L["ai.overview.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Small" Click="OpenAi" Disabled="@(!_aiReady)" />
+            @if (!_aiReady)
+            {
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["ai.notConfigured"]</RadzenText>
+            }
+        </RadzenStack>
     </RadzenCard>
+
+    @if (_aiOpen)
+    {
+        <AiWindow Title="@L["ai.overview.title"]" OnClose="CloseAi">
+            <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">
+                @L["ai.overview.hint"]
+                @if (Session.AiReview)
+                {
+                    <span>@L["ai.review.onNote"]</span>
+                }
+            </RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                <AiReviewToggle />
+                <RadzenButton Text="@(L["ai.overview.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Small" Click="StartOverview" Disabled="@(!_aiReady)" />
+            </RadzenStack>
+            @if (_overviewAsk)
+            {
+                <AiContextConfirm Message="@L["ai.large.overview", Store.Stats!.TotalEntries.ToString("N0"), Fmt(Store.Stats.FirstTime), Fmt(Store.Stats.LastTime)]"
+                                  OnProceed="@(() => ProceedOverview())" OnCancel="@(() => CancelOverviewAsk())" />
+            }
+            @if (_overview is not null)
+            {
+                <AiExplainPanel Settings="@_overview.Settings" Preview="@_overview.Preview" Result="@_overview.Result" Response="@_overview.Response"
+                                Error="@_overview.Error" Busy="@_overview.Busy"
+                                OnSend="@(text => SendOverview(text))" OnCancel="@(() => CloseOverview())" />
+            }
+        </AiWindow>
+    }
 
     <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
         <RadzenText TextStyle="TextStyle.H6">@L["home.logVolume", _bucketLabel]</RadzenText>
@@ -115,6 +157,70 @@ else
 
 @code {
     private record ChartPoint(string Label, double Value);
+
+    private AiPanelState? _overview;
+    private bool _overviewAsk;
+    private bool _aiReady;
+    private bool _aiOpen;
+
+    private void OpenAi() => _aiOpen = true;
+
+    /// <summary>Hides the AI window; the overview stays until it is closed by the user.</summary>
+    private void CloseAi() => _aiOpen = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Browser storage is reachable only once the component is interactive.
+        if (!firstRender) return;
+        _aiReady = await AiStore.HasUsableProviderAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>Previews the overview request. Nothing leaves the machine until Send is pressed.</summary>
+    private async Task StartOverview()
+    {
+        // A large file gets a confirmation first; the preview is built only after the user agrees.
+        if (AiFeatures.IsLargeContext(Store.Stats!.TotalEntries))
+        {
+            _overviewAsk = true;
+            _overview = null;
+            return;
+        }
+        await PrepareOverview();
+        if (!Session.AiReview && _overview?.Preview is { } overviewPreview) await SendOverview(overviewPreview.User);
+    }
+
+    private async Task ProceedOverview()
+    {
+        _overviewAsk = false;
+        await PrepareOverview();
+        if (!Session.AiReview && _overview?.Preview is { } overviewPreview) await SendOverview(overviewPreview.User);
+        StateHasChanged();
+    }
+
+    private void CancelOverviewAsk() => _overviewAsk = false;
+
+    private async Task PrepareOverview()
+    {
+        var settings = (await AiStore.GetActiveAsync())?.Settings;
+        _overview = AiPanelState.Prepare(settings, L["ai.notConfigured"], () =>
+        {
+            var problems = Store.Triage(new[] { "ERROR", "FATAL", "WARN", "WARNING" }, null);
+            return AiFeatures.BuildOverviewPreview(Store.Stats!, problems, L.CurrentCode);
+        });
+    }
+
+    private void CloseOverview() => _overview = null;
+
+    private async Task SendOverview(string text)
+    {
+        if (_overview is null) return;
+        // SendAsync marks the panel busy before its first await, so render once it has started.
+        var sending = _overview.SendAsync(UsageStore, text);
+        StateHasChanged();
+        await sending;
+        StateHasChanged();
+    }
 
     private record HourRow(string Label, int Debug, int Info, int Warn, int Error, int Other)
     {

@@ -1,0 +1,35 @@
+.ai-verified {
+    display: inline-flex;
+    align-items: center;
+    color: #43a047;
+    font-size: 1.5rem;
+}
+
+.ai-error {
+    color: var(--rz-danger, #c62828);
+}
+
+/* One saved provider in the list. The active one is outlined in the brand colour. */
+.ai-provider {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    margin-top: 0.75rem;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    border-radius: 6px;
+}
+
+.ai-provider-active {
+    border-color: var(--rz-primary, #3b82f6);
+}
+
+.ai-badge {
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    background: var(--rz-primary, #3b82f6);
+    color: var(--rz-on-primary, #ffffff);
+}

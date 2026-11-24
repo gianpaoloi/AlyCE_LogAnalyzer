@@ -1,0 +1,18 @@
+@* Asks before an AI summary of a large set of entries is built. Shown in place of the summary, never on top of it. *@
+@inject Localizer L
+
+<RadzenAlert AlertStyle="AlertStyle.Warning" Variant="Variant.Flat" Shade="Shade.Lighter" AllowClose="false">
+    <RadzenText TextStyle="TextStyle.Body2" class="rz-m-0">@Message</RadzenText>
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mt-2">
+        <RadzenButton Text="@(L["ai.large.proceed"])" Icon="send" ButtonStyle="ButtonStyle.Primary"
+                      Size="ButtonSize.Small" Click="@(() => OnProceed.InvokeAsync())" />
+        <RadzenButton Text="@(L["ai.large.cancel"])" ButtonStyle="ButtonStyle.Light"
+                      Size="ButtonSize.Small" Click="@(() => OnCancel.InvokeAsync())" />
+    </RadzenStack>
+</RadzenAlert>
+
+@code {
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public EventCallback OnProceed { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+}
