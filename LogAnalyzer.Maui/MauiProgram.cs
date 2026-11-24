@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Radzen;
 using LogAnalyzer.Services;
+using LogAnalyzer.Services.Ai;
 using LogAnalyzer.Services.Updates;
 using LogAnalyzer.Maui.Services;
 using System.Diagnostics;
@@ -44,6 +45,9 @@ public static class MauiProgram
 				// Interface languages (built-in and the user's own) and the active one.
 				builder.Services.AddScoped<LanguageStore>();
 				builder.Services.AddScoped<Localizer>();
+				// AI provider settings; the key is encrypted with DPAPI before it reaches localStorage.
+				builder.Services.AddScoped<AiSettingsStore>();
+				builder.Services.AddScoped<AiUsageStore>();
 				// Encrypts the remembered Grafana token and cookie for this Windows account (DPAPI).
 				builder.Services.AddSingleton<ISecretProtector, DpapiSecretProtector>();
 

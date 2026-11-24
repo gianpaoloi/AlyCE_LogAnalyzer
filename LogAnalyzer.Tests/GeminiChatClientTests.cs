@@ -1,0 +1,113 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
+using LogAnalyzer.Services.Ai;
+using Xunit;
+
+namespace LogAnalyzer.Tests;
+
+public class GeminiChatClientTests
+{
+    private const string Answer =
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}]," +
+        "\"usageMetadata\":{\"promptTokenCount\":12,\"candidatesTokenCount\":3,\"totalTokenCount\":15}}";
+
+    private const string Gateway = "https://adb-1.azuredatabricks.net/ai-gateway/gemini";
+    private const string Model = "aiplatform_test.ai_llm_endpoints.gemini_2_5_flash";
+
+    [Fact]
+    public async Task Request_goes_to_generate_content_with_a_bearer_token_and_gemini_roles()
+    {
+        var handler = new Recording(HttpStatusCode.OK, Answer);
+        using var http = new HttpClient(handler);
+        var settings = new AiSettings(AiProviderKind.GeminiNative, Gateway, Model, "dbx-token");
+
+        await AiAssistant.TestAsync(settings, http: http);
+
+        var request = handler.Request!;
+        Assert.Equal($"{Gateway}/v1beta/models/{Model}:generateContent", request.RequestUri!.ToString());
+        Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
+        Assert.Equal("dbx-token", request.Headers.Authorization.Parameter);
+
+        var body = handler.Body!;
+        Assert.Contains("\"role\":\"user\"", body);
+        Assert.Contains("Connection test.", body);
+        Assert.Contains("\"systemInstruction\"", body);
+        Assert.Contains("\"maxOutputTokens\":", body);
+    }
+
+    [Fact]
+    public async Task Assistant_turns_are_sent_as_model_and_system_text_as_system_instruction()
+    {
+        var handler = new Recording(HttpStatusCode.OK, Answer);
+        var client = new GeminiChatClient(new HttpClient(handler), Gateway, Model, "k");
+
+        var messages = new[]
+        {
+            new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.System, "Be brief."),
+            new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.User, "Hi"),
+            new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.Assistant, "Hello"),
+        };
+        await client.GetResponseAsync(messages);
+
+        var body = handler.Body!;
+        Assert.Contains("\"role\":\"model\"", body);
+        Assert.Contains("\"systemInstruction\":{\"parts\":[{\"text\":\"Be brief.\"}]}", body);
+    }
+
+    [Fact]
+    public async Task Text_and_token_counts_are_read_from_the_answer()
+    {
+        using var http = new HttpClient(new Recording(HttpStatusCode.OK, Answer));
+        var settings = new AiSettings(AiProviderKind.GeminiNative, Gateway, Model, "k");
+
+        var reply = await AiAssistant.TestAsync(settings, http: http);
+
+        Assert.Equal("OK", reply.Text);
+        Assert.Equal(12, reply.InputTokens);
+        Assert.Equal(3, reply.OutputTokens);
+    }
+
+    [Fact]
+    public async Task A_rejected_key_gives_the_same_message_as_the_other_providers()
+    {
+        using var http = new HttpClient(new Recording(HttpStatusCode.Unauthorized, "{}"));
+        var settings = new AiSettings(AiProviderKind.GeminiNative, Gateway, Model, "wrong");
+
+        var e = await Assert.ThrowsAsync<AiException>(() => AiAssistant.TestAsync(settings, http: http));
+
+        Assert.Contains("did not accept the request (HTTP 401)", e.Message);
+    }
+
+    [Fact]
+    public async Task An_answer_with_no_text_is_reported_as_blocked_or_empty()
+    {
+        using var http = new HttpClient(new Recording(HttpStatusCode.OK, "{\"promptFeedback\":{\"blockReason\":\"SAFETY\"}}"));
+        var settings = new AiSettings(AiProviderKind.GeminiNative, Gateway, Model, "k");
+
+        var e = await Assert.ThrowsAsync<AiException>(() => AiAssistant.TestAsync(settings, http: http));
+
+        Assert.Contains("no text", e.Message);
+    }
+
+    [Fact]
+    public void Google_endpoint_is_the_default_address_and_a_key_is_required()
+    {
+        Assert.Equal("https://generativelanguage.googleapis.com", AiSettings.DefaultBaseUrl(AiProviderKind.GeminiNative));
+        Assert.True(new AiSettings(AiProviderKind.GeminiNative, Gateway, Model).KeyRequired);
+    }
+
+    /// <summary>Answers one canned response and keeps the request and its body.</summary>
+    private sealed class Recording(HttpStatusCode status, string body) : HttpMessageHandler
+    {
+        public HttpRequestMessage? Request { get; private set; }
+        public string? Body { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Request = request;
+            Body = request.Content is null ? null : await request.Content.ReadAsStringAsync(ct);
+            return new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+        }
+    }
+}

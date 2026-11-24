@@ -86,6 +86,14 @@ public sealed class SessionState
     /// <summary>Time window picked on the volume chart. Null means "the whole span".</summary>
     public TimeRange? ExplorerRange { get; set; }
 
+    // ---- AI ----
+
+    /// <summary>
+    /// When on, the text of an AI request is shown and can be edited before it is sent. Off by default: the request is
+    /// sent as built, with its values masked, and its text is not shown. Kept for the session, shared by every AI control.
+    /// </summary>
+    public bool AiReview { get; set; }
+
     // ---- Live ----
     private IEnumerable<string> _liveLevels = Array.Empty<string>();
     private IEnumerable<string> _liveEnvironments = Array.Empty<string>();

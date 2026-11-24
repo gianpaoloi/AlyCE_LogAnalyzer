@@ -1,6 +1,9 @@
 @page "/"
 @inject Localizer L
 @inject LogStore Store
+@inject AiSettingsStore AiStore
+@inject AiUsageStore UsageStore
+@inject SessionState Session
 @inherits ObservingComponentBase
 @implements IDisposable
 
@@ -39,6 +42,33 @@ else
         @if (s.Span is { } sp)
         {
             <span class="rz-color-muted"> (@FormatSpan(sp))</span>
+        }
+    </RadzenCard>
+
+    <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+        <RadzenText TextStyle="TextStyle.H6">@L["ai.overview.title"]</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@L["ai.overview.hint"]</RadzenText>
+        <AiReviewToggle />
+        <RadzenButton Text="@(L["ai.overview.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
+                      Size="ButtonSize.Small" Click="StartOverview" Disabled="@(!_aiReady)" />
+        @if (!_aiReady)
+        {
+            <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted rz-mt-1">@L["ai.notConfigured"]</RadzenText>
+        }
+        @if (_overviewAsk)
+        {
+            <div class="rz-mt-2">
+                <AiContextConfirm Message="@L["ai.large.overview", Store.Stats!.TotalEntries.ToString("N0"), Fmt(Store.Stats.FirstTime), Fmt(Store.Stats.LastTime)]"
+                                  OnProceed="@(() => ProceedOverview())" OnCancel="@(() => CancelOverviewAsk())" />
+            </div>
+        }
+        @if (_overview is not null)
+        {
+            <div class="rz-mt-2">
+                <AiExplainPanel Settings="@_overview.Settings" Preview="@_overview.Preview" Result="@_overview.Result" Response="@_overview.Response"
+                                Error="@_overview.Error" Busy="@_overview.Busy"
+                                OnSend="@(text => SendOverview(text))" OnCancel="@(() => CloseOverview())" />
+            </div>
         }
     </RadzenCard>
 
@@ -115,6 +145,64 @@ else
 
 @code {
     private record ChartPoint(string Label, double Value);
+
+    private AiPanelState? _overview;
+    private bool _overviewAsk;
+    private bool _aiReady;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Browser storage is reachable only once the component is interactive.
+        if (!firstRender) return;
+        _aiReady = await AiStore.HasUsableProviderAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>Previews the overview request. Nothing leaves the machine until Send is pressed.</summary>
+    private async Task StartOverview()
+    {
+        // A large file gets a confirmation first; the preview is built only after the user agrees.
+        if (AiFeatures.IsLargeContext(Store.Stats!.TotalEntries))
+        {
+            _overviewAsk = true;
+            _overview = null;
+            return;
+        }
+        await PrepareOverview();
+        if (!Session.AiReview && _overview?.Preview is { } overviewPreview) await SendOverview(overviewPreview.User);
+    }
+
+    private async Task ProceedOverview()
+    {
+        _overviewAsk = false;
+        await PrepareOverview();
+        if (!Session.AiReview && _overview?.Preview is { } overviewPreview) await SendOverview(overviewPreview.User);
+        StateHasChanged();
+    }
+
+    private void CancelOverviewAsk() => _overviewAsk = false;
+
+    private async Task PrepareOverview()
+    {
+        var settings = (await AiStore.GetActiveAsync())?.Settings;
+        _overview = AiPanelState.Prepare(settings, L["ai.notConfigured"], () =>
+        {
+            var problems = Store.Triage(new[] { "ERROR", "FATAL", "WARN", "WARNING" }, null);
+            return AiFeatures.BuildOverviewPreview(Store.Stats!, problems, L.CurrentCode);
+        });
+    }
+
+    private void CloseOverview() => _overview = null;
+
+    private async Task SendOverview(string text)
+    {
+        if (_overview is null) return;
+        // SendAsync marks the panel busy before its first await, so render once it has started.
+        var sending = _overview.SendAsync(UsageStore, text);
+        StateHasChanged();
+        await sending;
+        StateHasChanged();
+    }
 
     private record HourRow(string Label, int Debug, int Info, int Warn, int Error, int Other)
     {

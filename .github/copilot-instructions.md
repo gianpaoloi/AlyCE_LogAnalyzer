@@ -1,6 +1,6 @@
 # Copilot instructions — AlyCE Log Analyzer
 
-Windows desktop app (.NET 10, MAUI + Blazor Hybrid) for loading, filtering, triaging and live-tailing structured (JSON-lines / Log4J XML / Grafana JSON) application logs. Logs never leave the machine.
+Windows desktop app (.NET 10, MAUI + Blazor Hybrid) for loading, filtering, triaging and live-tailing structured (JSON-lines / Log4J XML / Grafana JSON) application logs. Logs stay on the machine, except text the user explicitly sends to an AI provider (`Services/Ai/`, the AI page linked from the top bar, and Triage → Explain). That send is always previewed first and goes through `AiRedactor`.
 
 ## Build, test, run
 

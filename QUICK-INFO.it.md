@@ -164,6 +164,48 @@ Panoramica, Esplora e Triage possono caricare i log direttamente da Grafana Clou
 
 Per ricordare l'accesso alla prossima volta, seleziona **Ricorda l'accesso su questo computer**. Il token o il cookie viene salvato cifrato: per questo account Windows nell'app desktop, oppure con le chiavi del server nell'app web. **Dimentica l'accesso** lo elimina. Tratta cookie o token come una password, e usa **Dimentica l'accesso** su un computer condiviso.
 
+## Assistente AI (facoltativo)
+
+L'assistente AI è disattivato finché non aggiungi un provider. Il testo dei log viene inviato via internet al provider solo quando lo chiedi, mai in background.
+
+### Configurare un provider
+
+1. Fai clic su **AI** nella barra superiore.
+2. Premi **Aggiungi provider**, scegli il tipo e compila i suoi campi:
+   - **Claude (Anthropic)** o **ChatGPT (OpenAI)**: una chiave API e un modello.
+   - **Altro gateway o modello locale**: un indirizzo e un modello, più una chiave API se il server la richiede.
+3. Premi **Prova connessione**. Compare un segno verde quando il provider risponde. Premi **Salva**.
+4. Premi **Usa per le spiegazioni** sul provider che vuoi attivo. Puoi salvarne più d'uno e passare da uno all'altro.
+
+La chiave API è salvata cifrata su questo computer. Una chiave non viene mai inviata a un indirizzo via `http` semplice, a meno che l'indirizzo non sia questo computer.
+
+Ogni provider salvato mostra i token usati tramite di lui. **Azzera utilizzo** ne cancella i totali.
+
+### Provider compatibili
+
+- **Claude (Anthropic):** l'API di Claude. L'indirizzo è fisso. Usa una chiave API dalla Claude Console.
+- **ChatGPT (OpenAI):** l'API di OpenAI. L'indirizzo è fisso. Usa una chiave API dalla piattaforma OpenAI.
+- **Altro gateway o modello locale:** qualsiasi server che offre l'API chat-completions di OpenAI (`/v1/chat/completions`). Esempi: un gateway LiteLLM, che può instradare verso Gemini, Claude e altri modelli; Ollama; LM Studio; vLLM; il server llama.cpp. Inserisci l'indirizzo del server, con o senza `/v1`, il nome del modello esattamente come lo elenca il server, e una chiave API solo se il server la richiede.
+
+Non supportati direttamente: Google Gemini, Azure OpenAI e altri formati non OpenAI. Raggiungili tramite un gateway che offre un endpoint compatibile con OpenAI. Solo i tipi Claude e ChatGPT hanno indirizzi fissi; una chiave non viene mai inviata via `http` semplice se l'indirizzo non è questo computer, quindi un gateway remoto richiede `https`.
+
+### Dove l'AI aiuta
+
+- **Dettaglio log** (Esplora, Live, Network): **Spiega** descrive un messaggio e la sua probabile causa. In Esplora, **Trova log correlati** elenca le voci con lo stesso CID, o lo stesso thread entro due minuti nello stesso ambiente. Queste righe correlate sono incluse nella spiegazione.
+- **Triage**: **Analizza i cluster con AI** ordina i gruppi a schermo in *Correggere presto*, *Guardare più tardi* e *Probabile rumore*. Ogni cluster ha anche **Spiega** e **Bozza di segnalazione con AI**. La bozza si apre su GitHub nel browser, dove premi ancora Invia. L'app non la pubblica mai.
+- **Panoramica**: **Riepiloga con AI** descrive il file caricato. Per un file di 50.000 voci o più, l'app chiede prima conferma.
+- **Esplora**: scrivi una domanda con parole semplici, per esempio *errori dei pagamenti di ieri*, e **Chiedi** imposta i filtri. Con un intervallo selezionato sul grafico, **Perché è cambiato?** confronta quell'intervallo con un periodo della stessa durata che lo precede, e **Riepiloga questo intervallo** lo descrive. Un intervallo grande chiede conferma prima.
+- **Live**: **Spiega i nuovi errori con AI** mette in coda ogni nuovo errore in attesa della tua approvazione. Non viene inviato nulla finché non premi **Invia** su di esso.
+
+### Rivedi prima dell'invio
+
+L'interruttore **Rivedi il testo prima dell'invio** è accanto ai pulsanti AI. È disattivato di default.
+
+- **Disattivato:** la richiesta parte appena premi il pulsante. Il testo non viene mostrato, ma valori come indirizzi e-mail, indirizzi IP, password e token vengono mascherati prima che lasci il computer.
+- **Attivato:** viene mostrato il testo esatto e puoi modificarlo. Invia manda ciò che è nella casella.
+
+Ogni risposta mostra i token usati dalla sua richiesta, quando il provider li riporta.
+
 ## Risoluzione dei problemi
 
 ### L'applicazione non si avvia

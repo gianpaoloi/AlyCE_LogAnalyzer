@@ -1,5 +1,7 @@
 @page "/explorer"
 @inject LogStore Store
+@inject AiSettingsStore AiStore
+@inject AiUsageStore UsageStore
 @inject DialogService DialogService
 @inject SessionState State
 @inject IJSRuntime JS
@@ -46,6 +48,45 @@ else
                             Placeholder="@(L["explorer.addColumns"])" Data="@LogColumns.Optional"
                             TextProperty="Title" ValueProperty="Key" TValue="IEnumerable<string>" Style="width:300px" />
             <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["explorer.filterHint"]</RadzenText>
+        </RadzenStack>
+    </RadzenCard>
+
+    <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+        <RadzenStack Gap="0.5rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+                <RadzenTextBox @bind-Value="_question" Placeholder="@(L["ai.query.placeholder"])" style="flex:1; min-width:320px"
+                               title="@(L["ai.query.hint"])" />
+                <AiReviewToggle />
+                <RadzenButton Text="@(L["ai.query.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Small" Click="RunQuestion" Disabled="@(!_aiReady)" />
+                @if (State.ExplorerRange is not null)
+                {
+                    <RadzenButton Text="@(L["ai.window.spike"])" Icon="show_chart" ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.Small" Click="@(() => StartWindow(WindowMode.Spike))" Disabled="@(!_aiReady)" />
+                    <RadzenButton Text="@(L["ai.window.incident"])" Icon="summarize" ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.Small" Click="@(() => StartWindow(WindowMode.Incident))" Disabled="@(!_aiReady)" />
+                }
+            </RadzenStack>
+            @if (!_aiReady)
+            {
+                <RadzenText TextStyle="TextStyle.Caption" class="rz-color-muted">@L["ai.notConfigured"]</RadzenText>
+            }
+            @if (_windowAsk is not null)
+            {
+                <AiContextConfirm Message="@WindowAskText()" OnProceed="@(() => ProceedWindow())" OnCancel="@(() => CancelWindowAsk())" />
+            }
+            @if (_query is not null)
+            {
+                <AiExplainPanel Settings="@_query.Settings" Preview="@_query.Preview" Result="@_query.Result" Response="@_query.Response"
+                                Error="@_query.Error" Busy="@_query.Busy"
+                                OnSend="@(text => SendQuestion(text))" OnCancel="@(() => CloseQuestion())" />
+            }
+            @if (_windowAnalysis is not null)
+            {
+                <AiExplainPanel Settings="@_windowAnalysis.Settings" Preview="@_windowAnalysis.Preview" Result="@_windowAnalysis.Result" Response="@_windowAnalysis.Response"
+                                Error="@_windowAnalysis.Error" Busy="@_windowAnalysis.Busy"
+                                OnSend="@(text => SendWindow(text))" OnCancel="@(() => CloseWindow())" />
+            }
         </RadzenStack>
     </RadzenCard>
 
@@ -219,6 +260,158 @@ else
             ? _chartSource.Where(e => r.Contains(e.Time)).ToList()
             : _chartSource;
 
+    private string _question = "";
+    private AiPanelState? _query;
+    private AiPanelState? _windowAnalysis;
+    private WindowMode? _windowAsk;
+    private bool _aiReady;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Browser storage is reachable only once the component is interactive.
+        if (!firstRender) return;
+        _aiReady = await AiStore.HasUsableProviderAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>Previews the request for a plain-language question. The filter changes only after the answer is read back.</summary>
+    private async Task StartQuestion()
+    {
+        if (string.IsNullOrWhiteSpace(_question)) return;
+        var question = _question;
+        var levels = _levels.ToList();
+        var environments = Store.DistinctEnvironments().ToList();
+        var loggers = Store.DistinctLoggers().Take(AiFeatures.MaxFacetValues).ToList();
+
+        var settings = (await AiStore.GetActiveAsync())?.Settings;
+        _query = AiPanelState.Prepare(settings, L["ai.notConfigured"],
+            () => AiFeatures.BuildQueryPreview(question, levels, environments, loggers, L.CurrentCode));
+    }
+
+    private async Task SendQuestion(string text)
+    {
+        if (_query is null) return;
+        var sending = _query.SendAsync(UsageStore, text);
+        StateHasChanged();
+        await sending;
+
+        if (_query.Result is { } reply)
+        {
+            try
+            {
+                var query = AiFeatures.ParseQuery(reply, _levels.ToList(), Store.DistinctEnvironments().ToList());
+                ApplyQuery(query);
+                _query.Result = L["ai.query.applied", query.Describe()];
+            }
+            catch (AiException e)
+            {
+                _query.Result = null;
+                _query.Error = e.Message;
+            }
+        }
+        StateHasChanged();
+    }
+
+    /// <summary>With Review off, the question is sent as soon as its request is built.</summary>
+    private async Task RunQuestion()
+    {
+        await StartQuestion();
+        if (!State.AiReview && _query?.Preview is { } preview) await SendQuestion(preview.User);
+    }
+
+    /// <summary>With Review off, a window analysis is sent as soon as it is built.</summary>
+    private async Task AutoSendWindowAsync()
+    {
+        if (!State.AiReview && _windowAnalysis?.Preview is { } preview) await SendWindow(preview.User);
+    }
+
+    private void CloseQuestion() => _query = null;
+
+    /// <summary>Sets the toolbar filters from the answer. Only names that exist in the loaded file were kept by the parser.</summary>
+    private void ApplyQuery(AiQuery query)
+    {
+        State.ExplorerLevels = query.Levels.ToList();
+        State.ExplorerEnvironments = query.Environment is null ? Array.Empty<string>() : new[] { query.Environment };
+        State.ExplorerText = query.Text;
+        State.ExplorerLogger = query.Logger;
+        State.ExplorerLoggerPrefix = null;
+
+        if (query.From is not null || query.To is not null)
+        {
+            var first = Store.Stats?.FirstTime ?? DateTime.MinValue;
+            var last = Store.Stats?.LastTime ?? DateTime.MaxValue;
+            State.ExplorerRange = new TimeRange(query.From ?? first, query.To ?? last);
+        }
+        Apply();
+    }
+
+    /// <summary>Previews the spike or incident analysis of the selected time window.</summary>
+    private async Task StartWindow(WindowMode mode)
+    {
+        if (State.ExplorerRange is not { } range) return;
+
+        // A large window gets a confirmation first; the preview is built only after the user agrees.
+        var length = range.To - range.From;
+        var baselineCount = mode == WindowMode.Spike ? _chartSource.Count(e => e.Time >= range.From - length && e.Time < range.From) : 0;
+        if (AiFeatures.IsLargeContext(_filtered.Count + baselineCount))
+        {
+            _windowAsk = mode;
+            _windowAnalysis = null;
+            return;
+        }
+        await PrepareWindow(mode);
+        await AutoSendWindowAsync();
+    }
+
+    private async Task ProceedWindow()
+    {
+        if (_windowAsk is not { } mode) return;
+        _windowAsk = null;
+        await PrepareWindow(mode);
+        await AutoSendWindowAsync();
+        StateHasChanged();
+    }
+
+    private void CancelWindowAsk() => _windowAsk = null;
+
+    /// <summary>What the confirmation tells the user before a large window is sent.</summary>
+    private string WindowAskText()
+    {
+        if (State.ExplorerRange is not { } range) return "";
+        var length = range.To - range.From;
+        var baseline = _windowAsk == WindowMode.Spike
+            ? _chartSource.Count(e => e.Time >= range.From - length && e.Time < range.From)
+            : 0;
+        return L["ai.large.window", (_filtered.Count).ToString("N0"), baseline.ToString("N0"), range.ToString()];
+    }
+
+    private async Task PrepareWindow(WindowMode mode)
+    {
+        if (State.ExplorerRange is not { } range) return;
+        var settings = (await AiStore.GetActiveAsync())?.Settings;
+        _windowAnalysis = AiPanelState.Prepare(settings, L["ai.notConfigured"], () =>
+        {
+            // The window is the filtered rows inside the range. The baseline is the same length just before it.
+            var window = _filtered;
+            var length = range.To - range.From;
+            var baseline = mode == WindowMode.Spike
+                ? _chartSource.Where(e => e.Time >= range.From - length && e.Time < range.From).ToList()
+                : new List<LogEntry>();
+            return AiFeatures.BuildWindowPreview(mode, window, baseline, L.CurrentCode);
+        });
+    }
+
+    private async Task SendWindow(string text)
+    {
+        if (_windowAnalysis is null) return;
+        var sending = _windowAnalysis.SendAsync(UsageStore, text);
+        StateHasChanged();
+        await sending;
+        StateHasChanged();
+    }
+
+    private void CloseWindow() => _windowAnalysis = null;
+
     private void OnRangeChanged(TimeRange? range)
     {
         State.ExplorerRange = range;
@@ -271,7 +464,7 @@ else
         _selectedTime = e.Time;
         await DialogService.OpenAsync<LogDetail>(
             $"{e.Level} · {e.Time:HH:mm:ss.fff}",
-            new Dictionary<string, object?> { { "Entry", e } },
+            new Dictionary<string, object?> { { "Entry", e }, { "Correlate", true } },
             new DialogOptions { Width = "900px", Height = "auto", Resizable = true, Draggable = true });
     }
 

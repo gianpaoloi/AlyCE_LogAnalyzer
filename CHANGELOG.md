@@ -11,6 +11,14 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ### Added
 
+- **AI (opt-in).** A new **AI** link in the top bar opens the providers page. Add as many providers as you need, each
+  with its own name and parameters, and choose the one used for explanations. A provider connects to an AI provider:
+  Claude (Anthropic), ChatGPT (OpenAI), or any other OpenAI-compatible server such as a local model (Ollama, LM Studio)
+  or a gateway. On **Triage**, **Explain** on a
+  cluster shows the exact text that would be sent, with e-mail addresses, IP addresses and secrets masked; nothing is
+  sent until you press **Send**. The API key is encrypted on the computer and never stored in clear text.
+  Built on **Microsoft Agent Framework**: each provider is a model client behind one abstraction
+  (`IAiChatClientFactory`), so models can be added without changing the explain flow.
 - **Languages.** The interface is available in English, Italiano and Shqip (Albanian). Choose the language from the
   selector in the top bar. A new **Language Editor** (Appearance in the sidebar) translates the app into any other
   language: duplicate a built-in language, edit the texts, save, and export or import the language as a file. Text

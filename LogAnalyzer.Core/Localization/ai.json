@@ -1,0 +1,412 @@
+{
+  "ai.title": {
+    "en": "AI",
+    "it": "AI",
+    "sq": "AI"
+  },
+  "ai.intro": {
+    "en": "Explains log messages with an AI provider you choose. Log text is sent to that provider over the internet, but only when you press Send on a message, and you read the exact text first.",
+    "it": "Spiega i messaggi di log con un provider AI a tua scelta. Il testo dei log viene inviato al provider via internet, ma solo quando premi Invia su un messaggio, e puoi leggere prima il testo esatto.",
+    "sq": "Shpjegon mesazhet e log-eve me një ofrues AI sipas zgjedhjes tënde. Teksti i log-eve dërgohet te ofruesi përmes internetit, por vetëm kur shtyp Dërgo mbi një mesazh, dhe e lexon më parë tekstin e saktë."
+  },
+  "ai.configured": {
+    "en": "Providers",
+    "it": "Provider",
+    "sq": "Ofruesit"
+  },
+  "ai.add": {
+    "en": "Add provider",
+    "it": "Aggiungi provider",
+    "sq": "Shto ofrues"
+  },
+  "ai.newProvider": {
+    "en": "New provider",
+    "it": "Nuovo provider",
+    "sq": "Ofrues i ri"
+  },
+  "ai.editProvider": {
+    "en": "Edit provider",
+    "it": "Modifica provider",
+    "sq": "Ndrysho ofruesin"
+  },
+  "ai.noProviders": {
+    "en": "No provider is saved yet. Add one to use AI explanations.",
+    "it": "Nessun provider è ancora salvato. Aggiungine uno per usare le spiegazioni AI.",
+    "sq": "Ende nuk është ruajtur asnjë ofrues. Shto një për të përdorur shpjegimet AI."
+  },
+  "ai.providerType": {
+    "en": "Provider type",
+    "it": "Tipo di provider",
+    "sq": "Lloji i ofruesit"
+  },
+  "ai.name": {
+    "en": "Name",
+    "it": "Nome",
+    "sq": "Emri"
+  },
+  "ai.apiKeyOptional": {
+    "en": "API key (optional)",
+    "it": "Chiave API (facoltativa)",
+    "sq": "Çelësi API (opsional)"
+  },
+  "ai.use": {
+    "en": "Use for explanations",
+    "it": "Usa per le spiegazioni",
+    "sq": "Përdore për shpjegimet"
+  },
+  "ai.edit": {
+    "en": "Edit",
+    "it": "Modifica",
+    "sq": "Ndrysho"
+  },
+  "ai.remove": {
+    "en": "Remove",
+    "it": "Rimuovi",
+    "sq": "Hiq"
+  },
+  "ai.removed": {
+    "en": "Provider removed.",
+    "it": "Provider rimosso.",
+    "sq": "Ofruesi u hoq."
+  },
+  "ai.inUse": {
+    "en": "In use",
+    "it": "In uso",
+    "sq": "Në përdorim"
+  },
+  "ai.cancel": {
+    "en": "Cancel",
+    "it": "Annulla",
+    "sq": "Anulo"
+  },
+  "ai.kindAnthropic": {
+    "en": "Claude (Anthropic)",
+    "it": "Claude (Anthropic)",
+    "sq": "Claude (Anthropic)"
+  },
+  "ai.kindOpenAi": {
+    "en": "ChatGPT (OpenAI)",
+    "it": "ChatGPT (OpenAI)",
+    "sq": "ChatGPT (OpenAI)"
+  },
+  "ai.kindGemini": {
+    "en": "Google Gemini (native API, e.g. Databricks AI Gateway)",
+    "it": "Google Gemini (API nativa, es. Databricks AI Gateway)",
+    "sq": "Google Gemini (API native, p.sh. Databricks AI Gateway)"
+  },
+  "ai.kindGateway": {
+    "en": "Other gateway or local model",
+    "it": "Altro gateway o modello locale",
+    "sq": "Gateway tjetër ose model lokal"
+  },
+  "ai.address": {
+    "en": "Address",
+    "it": "Indirizzo",
+    "sq": "Adresa"
+  },
+  "ai.model": {
+    "en": "Model",
+    "it": "Modello",
+    "sq": "Modeli"
+  },
+  "ai.apiKey": {
+    "en": "API key",
+    "it": "Chiave API",
+    "sq": "Çelësi API"
+  },
+  "ai.apiKeyHint": {
+    "en": "Stored encrypted on this computer. Optional for a local model.",
+    "it": "Salvata cifrata su questo computer. Facoltativa per un modello locale.",
+    "sq": "Ruhet e enkriptuar në këtë kompjuter. Opsionale për një model lokal."
+  },
+  "ai.save": {
+    "en": "Save",
+    "it": "Salva",
+    "sq": "Ruaj"
+  },
+  "ai.test": {
+    "en": "Test connection",
+    "it": "Prova connessione",
+    "sq": "Testo lidhjen"
+  },
+  "ai.verified": {
+    "en": "Connection verified",
+    "it": "Connessione verificata",
+    "sq": "Lidhja u verifikua"
+  },
+  "ai.verifiedNotSaved": {
+    "en": "The connection works, but it could not be remembered on this computer.",
+    "it": "La connessione funziona, ma non è stato possibile ricordarla su questo computer.",
+    "sq": "Lidhja funksionon, por nuk mund të mbahej mend në këtë kompjuter."
+  },
+  "ai.saved": {
+    "en": "Settings saved.",
+    "it": "Impostazioni salvate.",
+    "sq": "Cilësimet u ruajtën."
+  },
+  "ai.saveFailed": {
+    "en": "Could not store the API key securely on this computer, so the settings were not saved.",
+    "it": "Impossibile salvare la chiave API in modo sicuro su questo computer: impostazioni non salvate.",
+    "sq": "Çelësi API nuk mund të ruhet në mënyrë të sigurt në këtë kompjuter, ndaj cilësimet nuk u ruajtën."
+  },
+  "ai.testing": {
+    "en": "Testing the connection…",
+    "it": "Prova della connessione…",
+    "sq": "Po testohet lidhja…"
+  },
+  "ai.testOk": {
+    "en": "The provider answered: {0}",
+    "it": "Il provider ha risposto: {0}",
+    "sq": "Ofruesi u përgjigj: {0}"
+  },
+  "ai.notConfigured": {
+    "en": "No AI provider is set up yet. Open AI in the top bar to set one up.",
+    "it": "Nessun provider AI è ancora configurato. Apri AI nella barra superiore per configurarne uno.",
+    "sq": "Ende nuk është konfiguruar asnjë ofrues AI. Hap AI në shiritin e sipërm për ta konfiguruar."
+  },
+  "ai.explain.button": {
+    "en": "Explain",
+    "it": "Spiega",
+    "sq": "Shpjego"
+  },
+  "ai.explain.previewIntro": {
+    "en": "This text will be sent to {0} (model {1}). {2} value(s) were masked. Read it before you send.",
+    "it": "Questo testo sarà inviato a {0} (modello {1}). {2} valore/i sono stati mascherati. Leggilo prima di inviare.",
+    "sq": "Ky tekst do të dërgohet te {0} (modeli {1}). {2} vlerë u maskuan. Lexoje para se ta dërgosh."
+  },
+  "ai.explain.send": {
+    "en": "Send",
+    "it": "Invia",
+    "sq": "Dërgo"
+  },
+  "ai.explain.cancel": {
+    "en": "Cancel",
+    "it": "Annulla",
+    "sq": "Anulo"
+  },
+  "ai.explain.busy": {
+    "en": "Asking {0}…",
+    "it": "Richiesta a {0} in corso…",
+    "sq": "Po pyes {0}…"
+  },
+  "ai.explain.copy": {
+    "en": "Copy explanation",
+    "it": "Copia spiegazione",
+    "sq": "Kopjo shpjegimin"
+  },
+  "ai.triage.analyse": {
+    "en": "Analyse clusters with AI",
+    "it": "Analizza i cluster con l'AI",
+    "sq": "Analizo grupet me AI"
+  },
+  "ai.triage.hint": {
+    "en": "Ranks the clusters below: what to fix soon, what can wait, and what is probably noise. You read the text before anything is sent.",
+    "it": "Ordina i cluster qui sotto: cosa correggere presto, cosa può attendere e cosa è probabilmente rumore. Leggi il testo prima che venga inviato.",
+    "sq": "Renditi grupet më poshtë: çfarë të rregullohet shpejt, çfarë mund të presë dhe çfarë është ndoshta zhurmë. Lexon tekstin para se të dërgohet diçka."
+  },
+  "ai.triage.empty": {
+    "en": "No clusters to analyse with the current filter.",
+    "it": "Nessun cluster da analizzare con il filtro attuale.",
+    "sq": "Nuk ka grupe për t'u analizuar me filtrin aktual."
+  },
+  "ai.related.button": {
+    "en": "Find related logs",
+    "it": "Trova log correlati",
+    "sq": "Gjej log-et e lidhura"
+  },
+  "ai.related.hint": {
+    "en": "Related lines have the same CID, or the same thread in the same environment within two minutes.",
+    "it": "I log correlati hanno lo stesso CID, oppure lo stesso thread nello stesso ambiente entro due minuti.",
+    "sq": "Rreshtat e lidhur kanë të njëjtin CID, ose të njëjtin thread në të njëjtin mjedis brenda dy minutash."
+  },
+  "ai.related.none": {
+    "en": "No related logs found.",
+    "it": "Nessun log correlato trovato.",
+    "sq": "Nuk u gjetën log-e të lidhura."
+  },
+  "ai.related.colTime": {
+    "en": "Time",
+    "it": "Ora",
+    "sq": "Koha"
+  },
+  "ai.related.colLevel": {
+    "en": "Level",
+    "it": "Livello",
+    "sq": "Niveli"
+  },
+  "ai.related.colReason": {
+    "en": "Why related",
+    "it": "Perché correlato",
+    "sq": "Pse është i lidhur"
+  },
+  "ai.related.colMessage": {
+    "en": "Message",
+    "it": "Messaggio",
+    "sq": "Mesazhi"
+  },
+  "ai.related.reasonCid": {
+    "en": "same CID",
+    "it": "stesso CID",
+    "sq": "i njëjti CID"
+  },
+  "ai.related.reasonThread": {
+    "en": "same thread",
+    "it": "stesso thread",
+    "sq": "i njëjti thread"
+  },
+  "ai.overview.title": {
+    "en": "AI summary of this file",
+    "it": "Riepilogo AI di questo file",
+    "sq": "Përmbledhje AI e këtij skedari"
+  },
+  "ai.overview.hint": {
+    "en": "Counts, the busiest hours and the most frequent problems. You read the text before anything is sent.",
+    "it": "Conteggi, le ore più intense e i problemi più frequenti. Leggi il testo prima che venga inviato.",
+    "sq": "Numërime, orët më të ngarkuara dhe problemet më të shpeshta. Lexon tekstin para se të dërgohet diçka."
+  },
+  "ai.overview.button": {
+    "en": "Summarise with AI",
+    "it": "Riepiloga con AI",
+    "sq": "Përmblidh me AI"
+  },
+  "ai.query.placeholder": {
+    "en": "Ask in plain words, e.g. errors from the payment service yesterday",
+    "it": "Chiedi con parole semplici, ad esempio errori del servizio pagamenti di ieri",
+    "sq": "Pyet me fjalë të thjeshta, p.sh. gabime nga shërbimi i pagesave dje"
+  },
+  "ai.query.hint": {
+    "en": "The question is sent with the names of the levels, environments and loggers in this file. The answer only sets the filters.",
+    "it": "La domanda viene inviata insieme ai nomi di livelli, ambienti e logger di questo file. La risposta imposta solo i filtri.",
+    "sq": "Pyetja dërgohet së bashku me emrat e niveleve, mjediseve dhe logger-ëve të këtij skedari. Përgjigja vendos vetëm filtrat."
+  },
+  "ai.query.button": {
+    "en": "Ask",
+    "it": "Chiedi",
+    "sq": "Pyet"
+  },
+  "ai.query.applied": {
+    "en": "Filter applied: {0}",
+    "it": "Filtro applicato: {0}",
+    "sq": "Filtri u aplikua: {0}"
+  },
+  "ai.window.spike": {
+    "en": "Why did it change?",
+    "it": "Perché è cambiato?",
+    "sq": "Pse ndryshoi?"
+  },
+  "ai.window.incident": {
+    "en": "Summarise this window",
+    "it": "Riepiloga questo intervallo",
+    "sq": "Përmblidh këtë interval"
+  },
+  "ai.live.toggle": {
+    "en": "Queue new errors for AI explanation",
+    "it": "Metti in coda i nuovi errori per la spiegazione AI",
+    "sq": "Vendos gabimet e reja në radhë për shpjegim me AI"
+  },
+  "ai.live.warning": {
+    "en": "Off by default, and only for this session. New errors wait in a queue. Each one is sent only after you press Send on its preview. A new one is queued at most every 30 seconds, and each message is queued once.",
+    "it": "Disattivato di default e solo per questa sessione. I nuovi errori attendono in una coda. Ognuno viene inviato solo dopo che premi Invia sulla sua anteprima. Un nuovo errore entra in coda al massimo ogni 30 secondi, e ogni messaggio una sola volta.",
+    "sq": "Çaktivizuar si parazgjedhje, dhe vetëm për këtë sesion. Gabimet e reja presin në radhë. Çdo njëri dërgohet vetëm pasi shtyp Dërgo mbi pamjen paraprake. Një gabim i ri vendoset në radhë jo më shpesh se çdo 30 sekonda, dhe çdo mesazh një herë."
+  },
+  "ai.large.overview": {
+    "en": "This file has {0} entries, from {1} to {2}. The summary sends counts, the busiest hours and the most frequent problems to your AI provider, not every line. Do you want to proceed?",
+    "it": "Questo file ha {0} voci, da {1} a {2}. Il riepilogo invia al provider AI conteggi, le ore più intense e i problemi più frequenti, non ogni riga. Vuoi procedere?",
+    "sq": "Ky skedar ka {0} hyrje, nga {1} deri më {2}. Përmbledhja i dërgon ofruesit AI numërimet, orët më të ngarkuara dhe problemet më të shpeshta, jo çdo rresht. Dëshiron të vazhdosh?"
+  },
+  "ai.large.window": {
+    "en": "The selected window ({2}) has {0} entries, and the baseline before it has {1}. The analysis sends counts, the busiest loggers and the most frequent problems to your AI provider, not every line. Do you want to proceed?",
+    "it": "L'intervallo selezionato ({2}) ha {0} voci, e la base di confronto prima di esso ne ha {1}. L'analisi invia al provider AI conteggi, i logger più attivi e i problemi più frequenti, non ogni riga. Vuoi procedere?",
+    "sq": "Intervali i zgjedhur ({2}) ka {0} hyrje, dhe baza e krahasimit para tij ka {1}. Analiza i dërgon ofruesit AI numërimet, logger-ët më aktivë dhe problemet më të shpeshta, jo çdo rresht. Dëshiron të vazhdosh?"
+  },
+  "ai.large.proceed": {
+    "en": "Proceed",
+    "it": "Procedi",
+    "sq": "Vazhdo"
+  },
+  "ai.large.cancel": {
+    "en": "Not now",
+    "it": "Non ora",
+    "sq": "Jo tani"
+  },
+  "ai.live.clear": {
+    "en": "Clear explanations",
+    "it": "Cancella spiegazioni",
+    "sq": "Pastro shpjegimet"
+  },
+  "ai.draft.button": {
+    "en": "Draft issue with AI",
+    "it": "Bozza di segnalazione con AI",
+    "sq": "Skicë çështjeje me AI"
+  },
+  "ai.draft.hint": {
+    "en": "Check and edit the draft. It opens on GitHub in your browser, where you still press Submit. Nothing is posted by the app.",
+    "it": "Controlla e modifica la bozza. Si apre su GitHub nel browser, dove devi ancora premere Invia. L'app non pubblica nulla.",
+    "sq": "Kontrollo dhe ndrysho skicën. Hapet në GitHub në shfletues, ku duhet ende të shtypësh Dërgo. Aplikacioni nuk publikon asgjë."
+  },
+  "ai.draft.titleLabel": {
+    "en": "Issue title",
+    "it": "Titolo della segnalazione",
+    "sq": "Titulli i çështjes"
+  },
+  "ai.draft.open": {
+    "en": "Open on GitHub",
+    "it": "Apri su GitHub",
+    "sq": "Hap në GitHub"
+  },
+  "ai.draft.discard": {
+    "en": "Discard draft",
+    "it": "Scarta bozza",
+    "sq": "Hidh skicën"
+  },
+  "ai.usage.none": {
+    "en": "No tokens used yet",
+    "it": "Nessun token usato finora",
+    "sq": "Asnjë token i përdorur ende"
+  },
+  "ai.usage.line": {
+    "en": "Used: {0} requests, {1} input and {2} output tokens",
+    "it": "Usati: {0} richieste, {1} token di input e {2} di output",
+    "sq": "Përdorur: {0} kërkesa, {1} token hyrës dhe {2} token dalës"
+  },
+  "ai.usage.unreported": {
+    "en": "token counts not reported for {0} request(s)",
+    "it": "conteggio dei token non riportato per {0} richiesta/e",
+    "sq": "numërimi i token-ëve nuk u raportua për {0} kërkesë(a)"
+  },
+  "ai.usage.last": {
+    "en": "last used {0}",
+    "it": "ultimo uso {0}",
+    "sq": "përdorur për herë të fundit më {0}"
+  },
+  "ai.usage.reset": {
+    "en": "Reset usage",
+    "it": "Azzera utilizzo",
+    "sq": "Rivendos përdorimin"
+  },
+  "ai.usage.hint": {
+    "en": "Token counts come from the provider's answers and are kept on this computer only.",
+    "it": "I conteggi dei token arrivano dalle risposte del provider e sono conservati solo su questo computer.",
+    "sq": "Numërimet e token-ëve vijnë nga përgjigjet e ofruesit dhe ruhen vetëm në këtë kompjuter."
+  },
+  "ai.review.label": {
+    "en": "Review text before sending",
+    "it": "Rivedi il testo prima dell'invio",
+    "sq": "Shqyrto tekstin para dërgimit"
+  },
+  "ai.review.hint": {
+    "en": "Ticked: the text is shown and you can edit it before it is sent. Not ticked: the text is not shown; it is sent as built, with values masked.",
+    "it": "Selezionato: il testo viene mostrato e puoi modificarlo prima dell'invio. Non selezionato: il testo non viene mostrato; viene inviato così com'è, con i valori mascherati.",
+    "sq": "I zgjedhur: teksti shfaqet dhe mund ta ndryshosh para dërgimit. Jo i zgjedhur: teksti nuk shfaqet; dërgohet siç është ndërtuar, me vlerat e maskuara."
+  },
+  "ai.tokens.line": {
+    "en": "Tokens for this request: {0} input, {1} output",
+    "it": "Token per questa richiesta: {0} di input, {1} di output",
+    "sq": "Token për këtë kërkesë: {0} hyrës, {1} dalës"
+  },
+  "ai.tokens.notReported": {
+    "en": "Token counts were not reported by this provider",
+    "it": "Il conteggio dei token non è stato riportato da questo provider",
+    "sq": "Numërimi i token-ëve nuk u raportua nga ky ofrues"
+  }
+}

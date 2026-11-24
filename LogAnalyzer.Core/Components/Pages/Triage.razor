@@ -1,6 +1,10 @@
 @page "/triage"
 @inject LogStore Store
 @inject IJSRuntime JS
+@inject AiSettingsStore AiStore
+@inject AiUsageStore UsageStore
+@inject SessionState Session
+@inject UpdateChecker Updates
 @inherits ObservingComponentBase
 @implements IDisposable
 @inject Localizer L
@@ -40,6 +44,26 @@ else
         @(L["triage.summary", _groups.Count.ToString("N0"), _groups.Sum(g => g.Count).ToString("N0")])
     </RadzenText>
 
+    <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+        <RadzenStack Gap="0.5rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <AiReviewToggle />
+                <RadzenButton Text="@(L["ai.triage.analyse"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Small" Click="RunTriageAnalysis" Disabled="@(!_aiReady)" />
+                <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">
+                    @(_aiReady ? L["ai.triage.hint"] : L["ai.notConfigured"])
+                </RadzenText>
+            </RadzenStack>
+            @if (_explain.TryGetValue(TriageKey, out var triage))
+            {
+                <AiExplainPanel Settings="@triage.Settings" Preview="@triage.Preview" Result="@triage.Result" Response="@triage.Response"
+                                Error="@triage.Error" Busy="@triage.Busy"
+                                OnSend="@(text => SendExplain(TriageKey, text))"
+                                OnCancel="@(() => CancelExplain(TriageKey))" />
+            }
+        </RadzenStack>
+    </RadzenCard>
+
     <RadzenDataGrid Data="@_groups" TItem="MessageGroup" AllowPaging="true" PageSize="25"
                     AllowSorting="true" Density="Density.Compact" ExpandMode="DataGridExpandMode.Single">
         <Template Context="g">
@@ -61,7 +85,45 @@ else
                     <RadzenButton Text="@(L["triage.copyDetails"])" Icon="content_copy" ButtonStyle="ButtonStyle.Light"
                                   Size="ButtonSize.Small"
                                   Click="@(() => CopyToClipboard(BuildDetails(g)))" />
+                    <RadzenButton Text="@(L["ai.explain.button"])" Icon="auto_awesome" ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.Small" Disabled="@(!_aiReady)"
+                                  Click="@(() => RunExplain(g))" />
+                    <RadzenButton Text="@(L["ai.draft.button"])" Icon="bug_report" ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.Small" Disabled="@(!_aiReady)"
+                                  Click="@(() => RunDraft(g))" />
                 </RadzenStack>
+                @if (_explain.TryGetValue(g.Signature, out var explain))
+                {
+                    <AiExplainPanel Settings="@explain.Settings" Preview="@explain.Preview" Result="@explain.Result" Response="@explain.Response"
+                                    Error="@explain.Error" Busy="@explain.Busy"
+                                    OnSend="@(text => SendExplain(g.Signature, text))"
+                                    OnCancel="@(() => CancelExplain(g.Signature))" />
+                }
+                @if (_drafts.TryGetValue(g.Signature, out var draft))
+                {
+                    <div class="ai-draft">
+                        @if (draft.Title is null)
+                        {
+                            <AiExplainPanel Settings="@draft.State.Settings" Preview="@draft.State.Preview" Result="@null"
+                                            Error="@draft.State.Error" Busy="@draft.State.Busy"
+                                            OnSend="@(text => SendDraft(g.Signature, text))"
+                                            OnCancel="@(() => CancelDraft(g.Signature))" />
+                        }
+                        else
+                        {
+                            <RadzenText TextStyle="TextStyle.Body2" class="rz-color-muted">@L["ai.draft.hint"]</RadzenText>
+                            <RadzenTextBox @bind-Value="draft.Title" Placeholder="@(L["ai.draft.titleLabel"])" style="width:100%" />
+                            <RadzenTextArea @bind-Value="draft.Body" Rows="10" style="width:100%" class="rz-mt-2" />
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mt-2">
+                                <a class="btn btn-primary btn-sm" href="@IssueUrl(draft)" target="_blank" rel="noopener noreferrer">
+                                    @L["ai.draft.open"]
+                                </a>
+                                <RadzenButton Text="@(L["ai.draft.discard"])" ButtonStyle="ButtonStyle.Light"
+                                              Size="ButtonSize.Small" Click="@(() => CancelDraft(g.Signature))" />
+                            </RadzenStack>
+                        }
+                    </div>
+                }
             </RadzenStack>
         </Template>
         <Columns>
@@ -85,6 +147,163 @@ else
     private bool _showWarn = true;
     private string? _env;
     private IReadOnlyList<MessageGroup> _groups = Array.Empty<MessageGroup>();
+
+    /// <summary>The explain panel of one cluster, keyed by its signature. Open panels stay open across a filter change.</summary>
+    private sealed class ExplainState
+    {
+        public AiSettings? Settings { get; set; }
+        public AiPreview? Preview { get; set; }
+        public string? Result { get; set; }
+        public string? Error { get; set; }
+        public bool Busy { get; set; }
+        public AiResponse? Response { get; set; }
+    }
+
+    private readonly Dictionary<string, ExplainState> _explain = new(StringComparer.Ordinal);
+
+    /// <summary>Builds the preview the user reads before anything is sent. Nothing leaves the machine here.</summary>
+    private async Task StartExplain(MessageGroup g)
+    {
+        var settings = (await AiStore.GetActiveAsync())?.Settings;
+        var state = new ExplainState { Settings = settings };
+        if (settings is null) state.Error = L["ai.notConfigured"];
+        else if (settings.Validate() is { } problem) state.Error = problem;
+        else state.Preview = AiAssistant.BuildClusterPreview(g, L.CurrentCode);
+
+        _explain[g.Signature] = state;
+    }
+
+    /// <summary>Key of the whole-list analysis. It holds no "|", so it never collides with a cluster signature.</summary>
+    private const string TriageKey = "*triage*";
+
+    /// <summary>Previews one request that ranks the clusters currently shown. Nothing leaves the machine until Send.</summary>
+    private async Task StartTriageAnalysis()
+    {
+        var settings = (await AiStore.GetActiveAsync())?.Settings;
+        var state = new ExplainState { Settings = settings };
+        if (settings is null) state.Error = L["ai.notConfigured"];
+        else if (settings.Validate() is { } problem) state.Error = problem;
+        else if (_groups.Count == 0) state.Error = L["ai.triage.empty"];
+        else state.Preview = AiLogAnalysis.BuildTriagePreview(_groups, L.CurrentCode);
+
+        _explain[TriageKey] = state;
+    }
+
+    /// <summary>With Review off, the explanation of a cluster is sent as soon as its request is built.</summary>
+    private async Task RunExplain(MessageGroup g)
+    {
+        await StartExplain(g);
+        if (!Session.AiReview && _explain.TryGetValue(g.Signature, out var state) && state.Preview is { } preview)
+            await SendExplain(g.Signature, preview.User);
+    }
+
+    /// <summary>With Review off, the whole-list analysis is sent as soon as its request is built.</summary>
+    private async Task RunTriageAnalysis()
+    {
+        await StartTriageAnalysis();
+        if (!Session.AiReview && _explain.TryGetValue(TriageKey, out var state) && state.Preview is { } preview)
+            await SendExplain(TriageKey, preview.User);
+    }
+
+    /// <summary>With Review off, a draft issue is requested as soon as its request is built.</summary>
+    private async Task RunDraft(MessageGroup g)
+    {
+        await StartDraft(g);
+        if (!Session.AiReview && _drafts.TryGetValue(g.Signature, out var draft) && draft.State.Preview is { } preview)
+            await SendDraft(g.Signature, preview.User);
+    }
+
+    private void CancelExplain(string signature) => _explain.Remove(signature);
+
+    /// <summary>A draft issue for one cluster: the request is previewed, then its title and body are shown to edit.</summary>
+    private sealed class DraftState
+    {
+        public AiPanelState State { get; init; } = null!;
+        public string? Title { get; set; }
+        public string? Body { get; set; }
+    }
+
+    private readonly Dictionary<string, DraftState> _drafts = new(StringComparer.Ordinal);
+
+    private bool _aiReady;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Browser storage is reachable only once the component is interactive.
+        if (!firstRender) return;
+        _aiReady = await AiStore.HasUsableProviderAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>Appended to every draft. The draft is written in English, so the footer is too.</summary>
+    private const string DraftFooter =
+        "---\nDrafted with AI from a log cluster in AlyCE Log Analyzer. Check the text against the log before you submit.";
+
+    private async Task StartDraft(MessageGroup g)
+    {
+        var settings = (await AiStore.GetActiveAsync())?.Settings;
+        _drafts[g.Signature] = new DraftState
+        {
+            State = AiPanelState.Prepare(settings, L["ai.notConfigured"], () => AiFeatures.BuildIssueDraftPreview(g)),
+        };
+    }
+
+    private async Task SendDraft(string signature, string text)
+    {
+        if (!_drafts.TryGetValue(signature, out var draft)) return;
+
+        var sending = draft.State.SendAsync(UsageStore, text);
+        StateHasChanged();
+        await sending;
+
+        if (draft.State.Result is { } reply)
+        {
+            try
+            {
+                var parsed = AiFeatures.ParseIssueDraft(reply);
+                draft.Title = parsed.Title;
+                draft.Body = parsed.Body;
+                draft.State.Result = null;
+            }
+            catch (AiException e)
+            {
+                draft.State.Result = null;
+                draft.State.Error = e.Message;
+            }
+        }
+        StateHasChanged();
+    }
+
+    private void CancelDraft(string signature) => _drafts.Remove(signature);
+
+    /// <summary>The GitHub new-issue address for the edited draft. The user still presses Submit there.</summary>
+    private string IssueUrl(DraftState draft) =>
+        IssueLink.Build(Updates.Options.Repository, IssueKind.Bug, draft.Title, draft.Body, IssueLink.Footer(DraftFooter));
+
+    /// <summary>Sends the previewed text, once the user has pressed Send on it.</summary>
+    private async Task SendExplain(string signature, string text)
+    {
+        if (!_explain.TryGetValue(signature, out var state) || state.Settings is null || state.Preview is null) return;
+
+        state.Busy = true;
+        state.Error = null;
+        StateHasChanged();
+        try
+        {
+            var response = await AiAssistant.SendAsync(state.Settings, state.Preview! with { User = text });
+            state.Result = response.Text;
+            state.Response = response;
+            await UsageStore.RecordAsync(state.Settings.ProviderId, response);
+        }
+        catch (AiException e)
+        {
+            state.Error = e.Message;
+        }
+        finally
+        {
+            state.Busy = false;
+        }
+    }
 
     protected override void OnInitialized()
     {
