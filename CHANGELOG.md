@@ -9,6 +9,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.2.8] — 2026-11-24
+
 ### Added
 
 - **AI (opt-in).** A new **AI** link in the top bar opens the providers page. Add as many providers as you need, each
