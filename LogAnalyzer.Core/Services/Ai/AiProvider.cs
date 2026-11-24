@@ -17,6 +17,9 @@ public enum AiProviderKind
 
     /// <summary>Gemini's own generateContent API: Google's endpoint, or a gateway that serves Gemini natively such as Databricks AI Gateway.</summary>
     GeminiNative,
+
+    /// <summary>The OpenAI Responses API, served by OpenAI and by gateways such as Databricks AI Gateway.</summary>
+    ResponsesApi,
 }
 
 /// <summary>What the user configured. <see cref="ApiKey"/> lives in memory only; storage encrypts it.</summary>
@@ -29,6 +32,7 @@ public sealed record AiSettings(AiProviderKind Kind, string BaseUrl, string Mode
         AiProviderKind.Anthropic => "https://api.anthropic.com",
         AiProviderKind.OpenAi => "https://api.openai.com/v1",
         AiProviderKind.GeminiNative => "https://generativelanguage.googleapis.com",
+        AiProviderKind.ResponsesApi => "https://api.openai.com/v1",
         _ => "",
     };
 

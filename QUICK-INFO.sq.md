@@ -185,9 +185,11 @@ Asistenti AI është i çaktivizuar derisa të shtosh një ofrues. Teksti i logj
 
 - **Claude (Anthropic):** API e Claude. Adresa është fikse. Përdor një çelës API nga Claude Console.
 - **ChatGPT (OpenAI):** API e OpenAI. Adresa është fikse. Përdor një çelës API nga platforma OpenAI.
+- **Google Gemini (API native):** API `generateContent` e vetë Gemini. Përdore për endpoint-in e Google ose për një gateway që shërben Gemini në mënyrë native, si Databricks AI Gateway. Shkruaj adresën deri te rrënja e gateway-it, p.sh. `https://<workspace>.azuredatabricks.net/ai-gateway/gemini`; aplikacioni shton `/v1beta/models/<modeli>:generateContent`. Shkruaj emrin e modelit siç e liston endpoint-i, dhe token-in ose çelësin që kërkon gateway-i (për Databricks, një personal access token). Adresa e Google plotësohet si parazgjedhje.
+- **OpenAI Responses API:** API `/v1/responses` e OpenAI, të cilën e përdorin modelet më të reja të OpenAI, dhe gateway-et që e ofrojnë, si Databricks AI Gateway. Shkruaj adresën deri te rrënja e gateway-it, p.sh. `https://<workspace>.azuredatabricks.net/ai-gateway/mlflow`; aplikacioni shton `/v1/responses`. Shkruaj emrin e modelit siç e liston endpoint-i, dhe token-in ose çelësin që kërkon gateway-i. Adresa e OpenAI plotësohet si parazgjedhje.
 - **Gateway tjetër ose model lokal:** çdo server që ofron API-n chat-completions të OpenAI (`/v1/chat/completions`). Shembuj: një gateway LiteLLM, që mund të drejtojë te Gemini, Claude dhe modele të tjera; Ollama; LM Studio; vLLM; serveri llama.cpp. Shkruaj adresën e serverit, me ose pa `/v1`, emrin e modelit saktësisht siç e liston serveri, dhe një çelës API vetëm nëse serveri e kërkon.
 
-Jo të mbështetura drejtpërdrejt: Google Gemini, Azure OpenAI dhe formate të tjera jo-OpenAI. Arrije përmes një gateway-i që ofron një endpoint të pajtueshëm me OpenAI. Vetëm llojet Claude dhe ChatGPT kanë adresa fikse; një çelës nuk dërgohet kurrë përmes `http` të thjeshtë përveç nëse adresa është ky kompjuter, prandaj një gateway në distancë kërkon `https`.
+Jo të mbështetura drejtpërdrejt: Azure OpenAI dhe formate që nuk janë as OpenAI as Gemini. Arrije përmes një gateway-i që ofron një endpoint të pajtueshëm me OpenAI ose me API-n native të Gemini. Vetëm llojet Claude dhe ChatGPT kanë adresa fikse; një çelës nuk dërgohet kurrë përmes `http` të thjeshtë përveç nëse adresa është ky kompjuter, prandaj një gateway në distancë kërkon `https`.
 
 ### Ku ndihmon AI
 

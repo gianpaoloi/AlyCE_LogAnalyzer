@@ -69,7 +69,9 @@ public sealed class GeminiChatClient : IChatClient
     private JsonObject BuildRequest(IEnumerable<ChatMessage> messages, ChatOptions? options)
     {
         var contents = new JsonArray();
+        // The agent passes its instructions in the options; a system message in the list is the other way they arrive.
         var system = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(options?.Instructions)) system.Append(options.Instructions);
 
         foreach (var message in messages)
         {

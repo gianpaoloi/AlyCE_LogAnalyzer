@@ -85,7 +85,7 @@
             </RadzenStack>
 
             @* Only a gateway or local model needs an address; the hosted providers have a fixed one. *@
-            @if (_kind is AiProviderKind.Gateway or AiProviderKind.GeminiNative)
+            @if (_kind is AiProviderKind.Gateway or AiProviderKind.GeminiNative or AiProviderKind.ResponsesApi)
             {
                 <RadzenStack Gap="0.25rem">
                     <RadzenLabel Text="@L["ai.address"]" Component="ai-address" />
@@ -151,6 +151,7 @@
         new(AiProviderKind.Anthropic, L["ai.kindAnthropic"]),
         new(AiProviderKind.OpenAi, L["ai.kindOpenAi"]),
         new(AiProviderKind.GeminiNative, L["ai.kindGemini"]),
+        new(AiProviderKind.ResponsesApi, L["ai.kindResponses"]),
         new(AiProviderKind.Gateway, L["ai.kindGateway"]),
     ];
 
@@ -194,12 +195,13 @@
         AiProviderKind.Anthropic => L["ai.kindAnthropic"],
         AiProviderKind.OpenAi => L["ai.kindOpenAi"],
         AiProviderKind.GeminiNative => L["ai.kindGemini"],
+        AiProviderKind.ResponsesApi => L["ai.kindResponses"],
         _ => L["ai.kindGateway"],
     };
 
     /// <summary>One line describing a saved provider: its type, model and, for a gateway, its address.</summary>
     private string Describe(AiSettings settings) =>
-        settings.Kind is AiProviderKind.Gateway or AiProviderKind.GeminiNative
+        settings.Kind is AiProviderKind.Gateway or AiProviderKind.GeminiNative or AiProviderKind.ResponsesApi
             ? $"{KindLabel(settings.Kind)} · {settings.Model} · {settings.BaseUrl}"
             : $"{KindLabel(settings.Kind)} · {settings.Model}";
 

@@ -111,3 +111,48 @@ public class GeminiChatClientTests
         }
     }
 }
+
+public class ResponsesApiTests
+{
+    private const string Answer =
+        "{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":0,\"model\":\"m\",\"status\":\"completed\"," +
+        "\"output\":[{\"type\":\"message\",\"id\":\"msg_1\",\"role\":\"assistant\",\"status\":\"completed\"," +
+        "\"content\":[{\"type\":\"output_text\",\"text\":\"OK\",\"annotations\":[]}]}]," +
+        "\"usage\":{\"input_tokens\":12,\"output_tokens\":3,\"total_tokens\":15}}";
+
+    [Fact]
+    public async Task Request_goes_to_v1_responses_with_a_bearer_token_and_returns_text_and_tokens()
+    {
+        var handler = new RecordingResponses(Answer);
+        using var http = new HttpClient(handler);
+        var settings = new AiSettings(AiProviderKind.ResponsesApi, "https://adb-1.azuredatabricks.net/ai-gateway/mlflow",
+                                      "aiplatform_test.ai_llm_endpoints.databricks_claude_opus_5", "dbx-token");
+
+        var reply = await AiAssistant.TestAsync(settings, http: http);
+
+        Assert.Equal("https://adb-1.azuredatabricks.net/ai-gateway/mlflow/v1/responses", handler.Url);
+        Assert.Equal("Bearer dbx-token", handler.Authorization);
+        Assert.Contains("\"model\":\"aiplatform_test.ai_llm_endpoints.databricks_claude_opus_5\"", handler.Body);
+        Assert.Equal("OK", reply.Text);
+        Assert.Equal(12, reply.InputTokens);
+        Assert.Equal(3, reply.OutputTokens);
+    }
+
+    private sealed class RecordingResponses(string body) : HttpMessageHandler
+    {
+        public string? Url { get; private set; }
+        public string? Authorization { get; private set; }
+        public string? Body { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Url = request.RequestUri!.ToString();
+            Authorization = request.Headers.Authorization?.ToString();
+            Body = request.Content is null ? null : await request.Content.ReadAsStringAsync(ct);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+            };
+        }
+    }
+}

@@ -94,6 +94,11 @@
     "it": "Google Gemini (API nativa, es. Databricks AI Gateway)",
     "sq": "Google Gemini (API native, p.sh. Databricks AI Gateway)"
   },
+  "ai.kindResponses": {
+    "en": "OpenAI Responses API (e.g. Databricks AI Gateway)",
+    "it": "OpenAI Responses API (es. Databricks AI Gateway)",
+    "sq": "OpenAI Responses API (p.sh. Databricks AI Gateway)"
+  },
   "ai.kindGateway": {
     "en": "Other gateway or local model",
     "it": "Altro gateway o modello locale",

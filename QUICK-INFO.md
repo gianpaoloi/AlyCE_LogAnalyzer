@@ -185,9 +185,11 @@ Each saved provider shows the tokens used through it. **Reset usage** clears its
 
 - **Claude (Anthropic):** the Claude API. The address is fixed. Use an API key from the Claude Console.
 - **ChatGPT (OpenAI):** the OpenAI API. The address is fixed. Use an API key from the OpenAI platform.
+- **Google Gemini (native API):** Gemini's own `generateContent` API. Use it for Google's endpoint, or for a gateway that serves Gemini natively, such as Databricks AI Gateway. Enter the address up to the gateway root, for example `https://<workspace>.azuredatabricks.net/ai-gateway/gemini`; the app adds `/v1beta/models/<model>:generateContent`. Enter the model name as the endpoint lists it, and the token or key the gateway requires (for Databricks, a personal access token). Google's own address is filled in by default.
+- **OpenAI Responses API:** OpenAI's `/v1/responses` API, which newer OpenAI models use, and gateways that serve it, such as Databricks AI Gateway. Enter the address up to the gateway root, for example `https://<workspace>.azuredatabricks.net/ai-gateway/mlflow`; the app adds `/v1/responses`. Enter the model name as the endpoint lists it, and the token or key the gateway requires. OpenAI's own address is filled in by default.
 - **Other gateway or local model:** any server that offers the OpenAI chat-completions API (`/v1/chat/completions`). Examples are a LiteLLM gateway, which can route to Gemini, Claude and other models; Ollama; LM Studio; vLLM; and the llama.cpp server. Enter the server's address, with or without `/v1`, the model name exactly as the server lists it, and an API key only if the server requires one.
 
-Not supported directly: Google Gemini, Azure OpenAI and other non-OpenAI formats. Reach them through a gateway that offers an OpenAI-compatible endpoint. Only the Claude and ChatGPT types have fixed addresses; a key is never sent over plain `http` unless the address is this computer, so a remote gateway needs `https`.
+Not supported directly: Azure OpenAI and other formats that are neither OpenAI's nor Gemini's. Reach them through a gateway that offers an OpenAI-compatible or Gemini-native endpoint. Only the Claude and ChatGPT types have fixed addresses; a key is never sent over plain `http` unless the address is this computer, so a remote gateway needs `https`.
 
 ### Where AI helps
 

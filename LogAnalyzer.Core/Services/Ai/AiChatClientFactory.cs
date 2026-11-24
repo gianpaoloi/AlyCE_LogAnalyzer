@@ -4,6 +4,7 @@ using Anthropic;
 using Microsoft.Extensions.AI;
 using OpenAI;
 using OpenAI.Chat;
+using OpenAI.Responses;
 
 namespace LogAnalyzer.Services.Ai;
 
@@ -36,6 +37,7 @@ public sealed class AiChatClientFactory : IAiChatClientFactory
     {
         AiProviderKind.Anthropic => CreateAnthropic(settings, http),
         AiProviderKind.GeminiNative => new GeminiChatClient(http, settings.BaseUrl, settings.Model, settings.ApiKey ?? ""),
+        AiProviderKind.ResponsesApi => CreateResponsesApi(settings, http),
         _ => CreateOpenAiFormat(settings, http),
     };
 
@@ -61,4 +63,18 @@ public sealed class AiChatClientFactory : IAiChatClientFactory
         };
         return new ChatClient(settings.Model.Trim(), credential, options).AsIChatClient();
     }
+
+    /// <summary>The OpenAI Responses API (<c>/v1/responses</c>), which newer OpenAI models and some gateways serve instead of chat-completions.</summary>
+#pragma warning disable OPENAI001 // The Responses client is marked experimental by the SDK; the adapter is the supported way to use it here.
+    private static IChatClient CreateResponsesApi(AiSettings settings, HttpClient http)
+    {
+        var credential = new ApiKeyCredential(settings.HasKey ? settings.ApiKey!.Trim() : "no-key");
+        var options = new ResponsesClientOptions
+        {
+            Endpoint = new Uri(AiEndpoints.V1(settings.BaseUrl)),
+            Transport = new HttpClientPipelineTransport(http),
+        };
+        return new ResponsesClient(credential, options).AsIChatClient(settings.Model.Trim());
+    }
+#pragma warning restore OPENAI001
 }
