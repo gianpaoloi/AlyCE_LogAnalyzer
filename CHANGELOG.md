@@ -22,6 +22,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
   address path), how long it took, the token counts, and why it failed. The provider's own exception is kept at Debug.
 - **Unreachable AI gateway shows the "Could not reach the provider" message.** It used to escape as an unhandled
   `AggregateException` after the SDK's retries.
+- **AI connection test failures explain what to fix.** Each failure now says what happened and what to check, and shows the
+  address and model that were used. Provider errors (HTTP 400, 401, 403, 404, 429, 5xx) and network errors (unknown host,
+  refused connection, timeout, TLS) each get their own message. The provider's own words are shown, with the API key removed.
+- **The app log can be read while the app writes to it.** It is opened with read sharing, so an editor or a test does not block it.
 
 ## [1.2.8] — 2026-11-24
 

@@ -127,7 +127,12 @@ public static class AppLog
 
             // One writer at a time: events arrive on background threads (watcher, UDP listener, load).
             lock (Gate)
-                File.AppendAllText(path, text.ToString(), Encoding.UTF8);
+            {
+                // ReadWrite sharing: the log can be opened in an editor, or read by a test, while the app is writing.
+                using var file = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+                using var writer = new StreamWriter(file, Encoding.UTF8);
+                writer.Write(text.ToString());
+            }
         }
         catch
         {

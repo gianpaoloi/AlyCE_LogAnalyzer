@@ -11,6 +11,14 @@ public class AppLogTests
     private static string NewFolder() =>
         Path.Combine(Path.GetTempPath(), "alyce-applog-tests-" + Guid.NewGuid().ToString("N"));
 
+    /// <summary>Reads today's log while the app may still be writing to it, the way an editor would.</summary>
+    private static string ReadLog()
+    {
+        using var file = new FileStream(AppLog.CurrentFilePath!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(file);
+        return reader.ReadToEnd();
+    }
+
     private static void Cleanup(string folder)
     {
         try { Directory.Delete(folder, recursive: true); } catch { /* temp folder */ }
@@ -27,7 +35,7 @@ public class AppLogTests
             AppLog.Warn("Test", "hello warn");
             AppLog.Error("Test", "hello error", new InvalidOperationException("boom"));
 
-            var text = File.ReadAllText(AppLog.CurrentFilePath!);
+            var text = ReadLog();
             Assert.Contains("INFO  [Test] hello info", text);
             Assert.Contains("WARN  [Test] hello warn", text);
             Assert.Contains("ERROR [Test] hello error", text);
@@ -49,7 +57,7 @@ public class AppLogTests
             AppLog.Info("Test", "quiet info");
             AppLog.Warn("Test", "loud warn");
 
-            var text = File.ReadAllText(AppLog.CurrentFilePath!);
+            var text = ReadLog();
             Assert.DoesNotContain("quiet info", text);
             Assert.Contains("loud warn", text);
         }
@@ -150,7 +158,7 @@ public class AppLogTests
             AppLog.Debug("Test", "routine debug");
             AppLog.Error("Test", "a failure");
 
-            var text = File.ReadAllText(AppLog.CurrentFilePath!);
+            var text = ReadLog();
             Assert.DoesNotContain("routine", text);
             Assert.Contains("a failure", text);
         }
@@ -169,7 +177,7 @@ public class AppLogTests
             AppLog.Initialize(new LogSettings { Folder = folder, Level = AppLogLevel.Debug });
             AppLog.Debug("Test", "detail line");
 
-            var text = File.ReadAllText(AppLog.CurrentFilePath!);
+            var text = ReadLog();
             Assert.Contains("DEBUG [Test] detail line", text);
         }
         finally
@@ -190,7 +198,7 @@ public class AppLogTests
 
             await Assert.ThrowsAsync<AiException>(() => AiAssistant.TestAsync(settings, http: http));
 
-            var text = File.ReadAllText(AppLog.CurrentFilePath!);
+            var text = ReadLog();
             Assert.Contains("ERROR [AI] Connection test failed", text);
             Assert.Contains("Gateway at http://localhost:4000, model m", text);
             Assert.DoesNotContain("secret-path", text);
