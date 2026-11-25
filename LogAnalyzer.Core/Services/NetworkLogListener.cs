@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Sockets;
 using LogAnalyzer.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LogAnalyzer.Services;
 
@@ -24,6 +26,11 @@ namespace LogAnalyzer.Services;
 /// </summary>
 public sealed class NetworkLogListener : IAsyncDisposable
 {
+    private readonly ILogger<NetworkLogListener> _log;
+
+    /// <summary>Writes to the app log through the standard logging pipeline. Null in tests, where nothing is written.</summary>
+    public NetworkLogListener(ILogger<NetworkLogListener>? logger = null) => _log = logger ?? NullLogger<NetworkLogListener>.Instance;
+
     /// <summary>Port used by the sample configuration in the docs and prefilled in the UI.</summary>
     public const int DefaultPort = 9999;
 
@@ -140,7 +147,7 @@ public sealed class NetworkLogListener : IAsyncDisposable
             // Overwhelmingly: the port is already taken (by another copy of this app, or by the
             // real NLog viewer). Reported as-is rather than swallowed, because the alternative is a
             // page that says it is listening and never shows a line.
-            AppLog.Error("NetworkLogListener", $"Could not listen on UDP port {port}", ex);
+            _log.LogError(ex, $"Could not listen on UDP port {port}");
             LastError = ex.SocketErrorCode == SocketError.AddressAlreadyInUse
                 ? $"Port {port} is already in use by another application."
                 : ex.Message;
@@ -149,7 +156,7 @@ public sealed class NetworkLogListener : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            AppLog.Error("NetworkLogListener", $"Could not listen on UDP port {port}", ex);
+            _log.LogError(ex, $"Could not listen on UDP port {port}");
             LastError = ex.Message;
             StatusChanged?.Invoke();
             return;
@@ -251,7 +258,7 @@ public sealed class NetworkLogListener : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            AppLog.Error("NetworkLogListener", "The listener stopped after an error", ex);
+            _log.LogError(ex, "The listener stopped after an error");
             LastError = ex.Message;
             StatusChanged?.Invoke();
         }

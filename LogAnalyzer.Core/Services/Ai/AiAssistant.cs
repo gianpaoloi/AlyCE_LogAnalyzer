@@ -1,5 +1,7 @@
 using System.ClientModel;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Text;
 using Anthropic.Exceptions;
 using LogAnalyzer.Models;
@@ -57,7 +59,7 @@ public static class AiAssistant
     /// <param name="http">The HTTP client for the request. Null uses the app's shared client.</param>
     public static async Task<AiResponse> SendAsync(AiSettings settings, AiPreview preview,
                                                    IAiChatClientFactory? factory = null, HttpClient? http = null,
-                                                   CancellationToken ct = default)
+                                                   CancellationToken ct = default, ILogger? logger = null)
     {
         if (settings.Validate() is { } problem) throw new AiException(problem);
 
@@ -78,7 +80,7 @@ public static class AiAssistant
         }
         // Logs the provider's own exception before it is turned into a message for the user, since the
         // mapping below discards the status and the cause. The filter never catches: it only records.
-        catch (Exception e) when (LogProviderException(e))
+        catch (Exception e) when (LogProviderException(e, logger))
         {
             throw;
         }
@@ -144,23 +146,25 @@ public static class AiAssistant
     /// A minimal request that checks the address, the key and the model. Each test is logged: the provider,
     /// model and host (never the key or the path), how long it took, and why it failed. Logs go to the app log.
     /// </summary>
-    public static async Task<AiResponse> TestAsync(AiSettings settings, IAiChatClientFactory? factory = null, HttpClient? http = null)
+    public static async Task<AiResponse> TestAsync(AiSettings settings, IAiChatClientFactory? factory = null, HttpClient? http = null,
+                                                        ILogger? logger = null)
     {
+        logger ??= NullLogger.Instance;
         var target = DescribeTarget(settings);
-        AppLog.Info("AI", $"Connection test started: {target}");
+        logger.LogInformation($"Connection test started: {target}");
 
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var reply = await SendAsync(settings, new AiPreview("Reply with the single word OK.", "Connection test.", 0), factory, http);
-            AppLog.Info("AI", $"Connection test passed in {stopwatch.ElapsedMilliseconds:N0} ms: {target}; " +
+            var reply = await SendAsync(settings, new AiPreview("Reply with the single word OK.", "Connection test.", 0), factory, http, logger: logger);
+            logger.LogInformation($"Connection test passed in {stopwatch.ElapsedMilliseconds:N0} ms: {target}; " +
                               $"reply {reply.Text.Length} chars, tokens in {reply.InputTokens?.ToString() ?? "n/a"}, " +
                               $"out {reply.OutputTokens?.ToString() ?? "n/a"}");
             return reply;
         }
         catch (AiException e)
         {
-            AppLog.Error("AI", $"Connection test failed after {stopwatch.ElapsedMilliseconds:N0} ms: {target}: {e.Message}");
+            logger.LogError($"Connection test failed after {stopwatch.ElapsedMilliseconds:N0} ms: {target}: {e.Message}");
             throw;
         }
     }
@@ -181,7 +185,7 @@ public static class AiAssistant
     /// Records a provider exception at Debug and returns false, so the caller's catch clauses still run.
     /// Walks the inner exceptions, since the SDKs wrap the network cause in their own type.
     /// </summary>
-    private static bool LogProviderException(Exception e)
+    private static bool LogProviderException(Exception e, ILogger? logger)
     {
         if (e is AiException) return false;
 
@@ -192,7 +196,7 @@ public static class AiAssistant
             chain.Append(cause.GetType().Name).Append(": ").Append(cause.Message);
         }
 
-        AppLog.Debug("AI", $"Provider call raised {chain}");
+        logger?.LogDebug($"Provider call raised {chain}");
         return false;
     }
 }

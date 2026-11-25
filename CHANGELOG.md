@@ -26,6 +26,7 @@ tag is collected under *Unreleased* until it is moved under a version heading.
   address and model that were used. Provider errors (HTTP 400, 401, 403, 404, 429, 5xx) and network errors (unknown host,
   refused connection, timeout, TLS) each get their own message. The provider's own words are shown, with the API key removed.
 - **The app log can be read while the app writes to it.** It is opened with read sharing, so an editor or a test does not block it.
+- **Logging uses the standard `ILogger` abstraction.** Code logs through `ILogger<T>`, injected as usual, and the app log file is one of its providers. Level names are the standard ones (Trace to Critical, plus None); the default is still Error.
 
 ## [1.2.8] — 2026-11-24
 

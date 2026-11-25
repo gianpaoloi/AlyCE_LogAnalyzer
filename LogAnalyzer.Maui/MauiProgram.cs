@@ -13,13 +13,9 @@ public static class MauiProgram
 {
 	public static MauiApp CreateMauiApp()
 	{
-		AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-			AppLog.Error("Unhandled", "Unhandled exception, the app is closing", e.ExceptionObject as Exception);
-		TaskScheduler.UnobservedTaskException += (_, e) =>
-		{
-			AppLog.Error("Unhandled", "Unobserved task exception", e.Exception);
-			e.SetObserved();
-		};
+			// The file log's settings. Read from appsettings.json once the builder has it; until then, the defaults.
+			var logSettings = new LogSettings();
+
 
 		try
 		{
@@ -84,20 +80,33 @@ public static class MauiProgram
 			builder.Configuration.AddJsonFile(
 				Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: true, reloadOnChange: false);
 
-			// Started here rather than at the top of the method, because its folder and level come from the
-			// settings just read. Failures before this point can only be seen in the debugger.
-			AppLog.Initialize(LogSettings.FromConfiguration(builder.Configuration));
+			// Read after the defaults and the settings file, so their values win. Failures before this point are
+			// written only to the debugger.
+			logSettings = LogSettings.FromConfiguration(builder.Configuration);
 
-			// Enable logging
+			// Standard logging: the debugger and the daily app log file are both providers of the same ILogger pipeline.
 			builder.Logging.ClearProviders();
 			builder.Logging.AddDebug();
-			builder.Logging.SetMinimumLevel(LogLevel.Information);
+			builder.Logging.AddAppFileLog(logSettings);
 
 #if DEBUG
 			builder.Services.AddBlazorWebViewDeveloperTools();
 #endif
 
 			var app = builder.Build();
+
+			var startup = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+			startup.LogInformation("Starting AlyCE Log Analyzer {Version} ({Commit}) on {OS}; log settings: {Settings}",
+				AppVersion.Display, AppVersion.ShortCommit ?? "no commit", Environment.OSVersion, logSettings);
+
+			AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+				startup.LogCritical(e.ExceptionObject as Exception, "Unhandled exception, the app is closing");
+			TaskScheduler.UnobservedTaskException += (_, e) =>
+			{
+				startup.LogError(e.Exception, "Unobserved task exception");
+				e.SetObserved();
+			};
+
 			Debug.WriteLine("MauiApp created successfully");
 			return app;
 		}
@@ -105,7 +114,7 @@ public static class MauiProgram
 		{
 			Debug.WriteLine($"ERROR creating MauiApp: {ex}");
 			Debug.WriteLine($"StackTrace: {ex.StackTrace}");
-			AppLog.Error("Startup", "The app could not be built", ex);
+			new FileLoggerProvider(logSettings).CreateLogger("Startup").LogError(ex, "The app could not be built");
 			throw;
 		}
 	}

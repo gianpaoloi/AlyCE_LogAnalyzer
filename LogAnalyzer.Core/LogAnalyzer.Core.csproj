@@ -11,6 +11,8 @@
   <ItemGroup>
     <PackageReference Include="Radzen.Blazor" Version="11.0.5" />
     <PackageReference Include="Markdig" Version="1.1.3" />
+    <!-- The logging host (ILoggingBuilder, AddProvider, AddFilter) for the app log file; the same version the MAUI host uses. -->
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
     <!-- AI: Microsoft Agent Framework agents over the vendor SDKs' chat clients (see Services/Ai). -->
     <PackageReference Include="Microsoft.Agents.AI" Version="1.28.0" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.11.1" />

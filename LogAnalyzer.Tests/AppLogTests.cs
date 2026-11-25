@@ -1,20 +1,21 @@
 using LogAnalyzer.Services;
 using LogAnalyzer.Services.Ai;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace LogAnalyzer.Tests;
 
-// AppLog is process-wide state, so only this class may call Initialize; each test gets its own folder.
+// Each test builds its own provider over its own folder, so nothing is shared between tests.
 public class AppLogTests
 {
     private static string NewFolder() =>
         Path.Combine(Path.GetTempPath(), "alyce-applog-tests-" + Guid.NewGuid().ToString("N"));
 
-    /// <summary>Reads today's log while the app may still be writing to it, the way an editor would.</summary>
-    private static string ReadLog()
+    /// <summary>Reads today's file while the provider may still be writing to it, the way an editor would.</summary>
+    private static string ReadLog(FileLoggerProvider provider)
     {
-        using var file = new FileStream(AppLog.CurrentFilePath!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var file = new FileStream(provider.CurrentFilePath!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         using var reader = new StreamReader(file);
         return reader.ReadToEnd();
     }
@@ -25,17 +26,18 @@ public class AppLogTests
     }
 
     [Fact]
-    public void Writes_info_warning_and_error_with_exception_to_todays_file()
+    public void Writes_information_warning_and_error_with_exception_to_todays_file()
     {
         var folder = NewFolder();
         try
         {
-            AppLog.Initialize(new LogSettings { Folder = folder, Level = AppLogLevel.Information });
-            AppLog.Info("Test", "hello info");
-            AppLog.Warn("Test", "hello warn");
-            AppLog.Error("Test", "hello error", new InvalidOperationException("boom"));
+            using var provider = new FileLoggerProvider(new LogSettings { Folder = folder, Level = LogLevel.Information });
+            var logger = provider.CreateLogger("Test");
+            logger.LogInformation("hello info");
+            logger.LogWarning("hello warn");
+            logger.LogError(new InvalidOperationException("boom"), "hello error");
 
-            var text = ReadLog();
+            var text = ReadLog(provider);
             Assert.Contains("INFO  [Test] hello info", text);
             Assert.Contains("WARN  [Test] hello warn", text);
             Assert.Contains("ERROR [Test] hello error", text);
@@ -53,11 +55,12 @@ public class AppLogTests
         var folder = NewFolder();
         try
         {
-            AppLog.Initialize(new LogSettings { Folder = folder, Level = AppLogLevel.Warning });
-            AppLog.Info("Test", "quiet info");
-            AppLog.Warn("Test", "loud warn");
+            using var provider = new FileLoggerProvider(new LogSettings { Folder = folder, Level = LogLevel.Warning });
+            var logger = provider.CreateLogger("Test");
+            logger.LogInformation("quiet info");
+            logger.LogWarning("loud warn");
 
-            var text = ReadLog();
+            var text = ReadLog(provider);
             Assert.DoesNotContain("quiet info", text);
             Assert.Contains("loud warn", text);
         }
@@ -73,10 +76,10 @@ public class AppLogTests
         var folder = NewFolder();
         try
         {
-            AppLog.Initialize(new LogSettings { Folder = folder, Enabled = false });
-            AppLog.Error("Test", "should not appear");
+            using var provider = new FileLoggerProvider(new LogSettings { Folder = folder, Enabled = false });
+            provider.CreateLogger("Test").LogError("should not appear");
 
-            Assert.Null(AppLog.CurrentFilePath);
+            Assert.Null(provider.CurrentFilePath);
             Assert.False(Directory.Exists(folder));
         }
         finally
@@ -86,7 +89,7 @@ public class AppLogTests
     }
 
     [Fact]
-    public void Initialize_removes_daily_files_past_the_configured_retention()
+    public void Daily_files_past_the_configured_retention_are_removed_when_the_log_starts()
     {
         var folder = NewFolder();
         Directory.CreateDirectory(folder);
@@ -98,7 +101,7 @@ public class AppLogTests
             File.WriteAllText(recent, "recent");
             File.SetLastWriteTime(old, DateTime.Now.AddDays(-4));
 
-            AppLog.Initialize(new LogSettings { Folder = folder, RetentionDays = 3 });
+            using var provider = new FileLoggerProvider(new LogSettings { Folder = folder, RetentionDays = 3 });
 
             Assert.False(File.Exists(old));
             Assert.True(File.Exists(recent));
@@ -110,7 +113,47 @@ public class AppLogTests
     }
 
     [Fact]
-    public void Settings_read_from_configuration_with_defaults_for_missing_or_bad_values()
+    public void Default_level_records_errors_only()
+    {
+        var folder = NewFolder();
+        try
+        {
+            using var provider = new FileLoggerProvider(new LogSettings { Folder = folder });
+            var logger = provider.CreateLogger("Test");
+            logger.LogInformation("routine info");
+            logger.LogDebug("routine debug");
+            logger.LogError("a failure");
+
+            var text = ReadLog(provider);
+            Assert.DoesNotContain("routine", text);
+            Assert.Contains("a failure", text);
+        }
+        finally
+        {
+            Cleanup(folder);
+        }
+    }
+
+    [Fact]
+    public void Debug_level_records_debug_entries()
+    {
+        var folder = NewFolder();
+        try
+        {
+            using var provider = new FileLoggerProvider(new LogSettings { Folder = folder, Level = LogLevel.Debug });
+            provider.CreateLogger("Test").LogDebug("detail line");
+
+            var text = ReadLog(provider);
+            Assert.Contains("DEBUG [Test] detail line", text);
+        }
+        finally
+        {
+            Cleanup(folder);
+        }
+    }
+
+    [Fact]
+    public void Settings_read_from_configuration_with_bounds_applied()
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -124,7 +167,7 @@ public class AppLogTests
 
         Assert.False(settings.Enabled);
         Assert.Equal("diag", settings.Folder);
-        Assert.Equal(AppLogLevel.Warning, settings.Level);
+        Assert.Equal(LogLevel.Warning, settings.Level);
         Assert.Equal(LogSettings.MaxRetentionDays, settings.RetentionDays);
     }
 
@@ -143,47 +186,8 @@ public class AppLogTests
 
         Assert.True(settings.Enabled);
         Assert.Null(settings.Folder);
-        Assert.Equal(AppLogLevel.Error, settings.Level);
+        Assert.Equal(LogLevel.Error, settings.Level);
         Assert.Equal(LogSettings.DefaultRetentionDays, settings.RetentionDays);
-    }
-
-    [Fact]
-    public void Default_level_records_errors_only()
-    {
-        var folder = NewFolder();
-        try
-        {
-            AppLog.Initialize(new LogSettings { Folder = folder });
-            AppLog.Info("Test", "routine info");
-            AppLog.Debug("Test", "routine debug");
-            AppLog.Error("Test", "a failure");
-
-            var text = ReadLog();
-            Assert.DoesNotContain("routine", text);
-            Assert.Contains("a failure", text);
-        }
-        finally
-        {
-            Cleanup(folder);
-        }
-    }
-
-    [Fact]
-    public void Debug_level_records_debug_entries()
-    {
-        var folder = NewFolder();
-        try
-        {
-            AppLog.Initialize(new LogSettings { Folder = folder, Level = AppLogLevel.Debug });
-            AppLog.Debug("Test", "detail line");
-
-            var text = ReadLog();
-            Assert.Contains("DEBUG [Test] detail line", text);
-        }
-        finally
-        {
-            Cleanup(folder);
-        }
     }
 
     [Fact]
@@ -192,13 +196,14 @@ public class AppLogTests
         var folder = NewFolder();
         try
         {
-            AppLog.Initialize(new LogSettings { Folder = folder });
+            using var provider = new FileLoggerProvider(new LogSettings { Folder = folder });
             using var http = new HttpClient(new UnreachableHandler());
             var settings = new AiSettings(AiProviderKind.Gateway, "http://localhost:4000/secret-path", "m");
 
-            await Assert.ThrowsAsync<AiException>(() => AiAssistant.TestAsync(settings, http: http));
+            await Assert.ThrowsAsync<AiException>(() =>
+                AiAssistant.TestAsync(settings, http: http, logger: provider.CreateLogger("AI")));
 
-            var text = ReadLog();
+            var text = ReadLog(provider);
             Assert.Contains("ERROR [AI] Connection test failed", text);
             Assert.Contains("Gateway at http://localhost:4000, model m", text);
             Assert.DoesNotContain("secret-path", text);
@@ -217,13 +222,14 @@ public class AppLogTests
     }
 
     [Theory]
-    [InlineData("debug", AppLogLevel.Debug)]
-    [InlineData("Info", AppLogLevel.Information)]
-    [InlineData("WARN", AppLogLevel.Warning)]
-    [InlineData("error", AppLogLevel.Error)]
-    [InlineData("nonsense", AppLogLevel.Error)]
-    public void Level_names_parse_ignoring_case_and_fall_back(string value, AppLogLevel expected)
+    [InlineData("debug", LogLevel.Debug)]
+    [InlineData("Info", LogLevel.Information)]
+    [InlineData("WARN", LogLevel.Warning)]
+    [InlineData("error", LogLevel.Error)]
+    [InlineData("Critical", LogLevel.Critical)]
+    [InlineData("nonsense", LogLevel.Error)]
+    public void Level_names_parse_ignoring_case_and_fall_back(string value, LogLevel expected)
     {
-        Assert.Equal(expected, LogSettings.ParseLevel(value, AppLogLevel.Error));
+        Assert.Equal(expected, LogSettings.ParseLevel(value, LogLevel.Error));
     }
 }

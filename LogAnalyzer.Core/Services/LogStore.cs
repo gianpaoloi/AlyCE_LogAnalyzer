@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
 using LogAnalyzer.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LogAnalyzer.Services;
 
@@ -15,6 +17,11 @@ namespace LogAnalyzer.Services;
 /// </summary>
 public sealed class LogStore
 {
+    private readonly ILogger<LogStore> _log;
+
+    /// <summary>Writes to the app log through the standard logging pipeline. Null in tests, where nothing is written.</summary>
+    public LogStore(ILogger<LogStore>? logger = null) => _log = logger ?? NullLogger<LogStore>.Instance;
+
     /// <summary>
     /// Rough bytes per log line, measured on the sample corpus. Used only to pre-size the entry
     /// lists: the old fixed <c>capacity: 1_000_000</c> allocated an 8 MB array to hold 600 lines.
@@ -186,7 +193,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
-            AppLog.Error("LogStore", "Load failed (files)", ex);
+            _log.LogError(ex, "Load failed (files)");
             LoadError = ex.Message;
             RaiseDataset();
         }
@@ -296,7 +303,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
-            AppLog.Error("LogStore", "Load failed (Grafana/Loki)", ex);
+            _log.LogError(ex, "Load failed (Grafana/Loki)");
             LoadError = ex.Message;
         }
 
@@ -342,7 +349,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
-            AppLog.Error("LogStore", "Load failed (folder)", ex);
+            _log.LogError(ex, "Load failed (folder)");
             LoadError = ex.Message;
             RaiseDataset();
             return;
@@ -392,7 +399,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
-            AppLog.Error("LogStore", "Load failed (ZIP)", ex);
+            _log.LogError(ex, "Load failed (ZIP)");
             LoadError = ex.Message;
             RaiseDataset();
         }
@@ -455,7 +462,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
-            AppLog.Error("LogStore", "Load failed (upload)", ex);
+            _log.LogError(ex, "Load failed (upload)");
             LoadError = ex.Message;
             RaiseDataset();
         }
@@ -537,7 +544,7 @@ public sealed class LogStore
         var startedUtc = DateTime.UtcNow;
         var stopwatch = Stopwatch.StartNew();
         var bytes = sources.Sum(s => s.SizeHint);
-        AppLog.Debug("LogStore", $"Loading {sources.Count} source(s), {bytes:N0} bytes, append={append}: {string.Join(", ", sources.Select(s => s.Name))}");
+        _log.LogDebug($"Loading {sources.Count} source(s), {bytes:N0} bytes, append={append}: {string.Join(", ", sources.Select(s => s.Name))}");
 
         try
         {
@@ -563,7 +570,7 @@ public sealed class LogStore
 
             _data = dataset;
             Interlocked.Exchange(ref _entriesParsed, dataset.Entries.Count);
-            AppLog.Info("LogStore", $"Loaded {dataset.Entries.Count:N0} entries from {sources.Count} source(s) in {stopwatch.ElapsedMilliseconds:N0} ms");
+            _log.LogInformation($"Loaded {dataset.Entries.Count:N0} entries from {sources.Count} source(s) in {stopwatch.ElapsedMilliseconds:N0} ms");
         }
         catch (OperationCanceledException)
         {
@@ -571,7 +578,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
-            AppLog.Error("LogStore", "Load failed (dataset build)", ex);
+            _log.LogError(ex, "Load failed (dataset build)");
             LoadError = ex.Message;
         }
         finally

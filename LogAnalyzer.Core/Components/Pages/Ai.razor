@@ -2,6 +2,7 @@
 @inject AiSettingsStore Store
 @inject AiUsageStore Usage
 @inject Localizer L
+@inject Microsoft.Extensions.Logging.ILoggerFactory Loggers
 
 <PageTitle>@L["ai.title"] · AlyCE Log Analyzer</PageTitle>
 
@@ -327,7 +328,7 @@
         FormShow(L["ai.testing"], error: false);
         try
         {
-            var reply = await AiAssistant.TestAsync(settings);
+            var reply = await AiAssistant.TestAsync(settings, logger: Loggers.CreateLogger("AI"));
             // A test of a saved provider uses its tokens too; a new provider has no totals yet.
             await Usage.RecordAsync(_editingId, reply);
             _verified = true;
@@ -378,7 +379,7 @@
         ListShow(L["ai.testing"], error: false);
         try
         {
-            var reply = await AiAssistant.TestAsync(config.Settings with { Verified = false });
+            var reply = await AiAssistant.TestAsync(config.Settings with { Verified = false }, logger: Loggers.CreateLogger("AI"));
             await Usage.RecordAsync(config.Id, reply);
             var remembered = await Store.SaveAsync(config with { Settings = config.Settings with { Verified = true } });
             await ReloadAsync();

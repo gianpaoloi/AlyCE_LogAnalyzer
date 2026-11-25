@@ -1,25 +1,10 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace LogAnalyzer.Services;
 
-/// <summary>How much the application's own log records. Lower values record more.</summary>
-public enum AppLogLevel
-{
-    /// <summary>Detailed tracing for diagnosing a problem: file positions, source lists, timings.</summary>
-    Debug = 0,
-
-    /// <summary>Start-up, loads, and anything else worth knowing about a normal run.</summary>
-    Information = 1,
-
-    /// <summary>Something went wrong but the app carried on (a watch that could not start, a skipped file).</summary>
-    Warning = 2,
-
-    /// <summary>A failure the user will notice (a load that did not finish, an unhandled exception).</summary>
-    Error = 3,
-}
-
 /// <summary>
-/// Settings for the application's own troubleshooting log (<see cref="AppLog"/>), read from the
+/// Settings for the application's own troubleshooting log (<see cref="FileLoggerProvider"/>), read from the
 /// <c>LogAnalyzer:Log</c> section of <c>appsettings.json</c>, which sits beside the executable.
 /// <para>
 /// Every key is optional. Anything absent, empty or unparseable falls back to the default, so a
@@ -35,7 +20,7 @@ public sealed record LogSettings
     public const int DefaultRetentionDays = 14;
 
     /// <summary>The level used when none is configured: failures only.</summary>
-    public const AppLogLevel DefaultLevel = AppLogLevel.Error;
+    public const LogLevel DefaultLevel = LogLevel.Error;
 
     /// <summary>Upper bound for <see cref="RetentionDays"/>, so a typo cannot keep files for decades.</summary>
     public const int MaxRetentionDays = 365;
@@ -50,10 +35,10 @@ public sealed record LogSettings
     public string? Folder { get; init; }
 
     /// <summary>
-    /// The least severe entry that is recorded. Defaults to <see cref="AppLogLevel.Error"/>, so a normal run
-    /// writes only failures; set <see cref="AppLogLevel.Debug"/> to record everything.
+    /// The least severe entry that is recorded. Defaults to <see cref="LogLevel.Error"/>, so a normal run
+    /// writes only failures; set <see cref="LogLevel.Debug"/> to record everything.
     /// </summary>
-    public AppLogLevel Level { get; init; } = DefaultLevel;
+    public LogLevel Level { get; init; } = DefaultLevel;
 
     /// <summary>How many days of daily files to keep, between 1 and <see cref="MaxRetentionDays"/>.</summary>
     public int RetentionDays { get; init; } = DefaultRetentionDays;
@@ -82,17 +67,20 @@ public sealed record LogSettings
     }
 
     /// <summary>
-    /// Accepts the names in the usual logging vocabulary, ignoring case: <c>Debug</c>, <c>Information</c> or
-    /// <c>Info</c>, <c>Warning</c> or <c>Warn</c>, <c>Error</c>.
+    /// Accepts the standard level names (<c>Trace</c>, <c>Debug</c>, <c>Information</c>, <c>Warning</c>,
+    /// <c>Error</c>, <c>Critical</c>, <c>None</c>), ignoring case, plus the short forms <c>Info</c> and <c>Warn</c>.
     /// </summary>
-    public static AppLogLevel ParseLevel(string? value, AppLogLevel fallback) => value?.Trim().ToLowerInvariant() switch
+    public static LogLevel ParseLevel(string? value, LogLevel fallback)
     {
-        "debug" => AppLogLevel.Debug,
-        "information" or "info" => AppLogLevel.Information,
-        "warning" or "warn" => AppLogLevel.Warning,
-        "error" => AppLogLevel.Error,
-        _ => fallback,
-    };
+        var name = value?.Trim().ToLowerInvariant();
+        switch (name)
+        {
+            case "info": return LogLevel.Information;
+            case "warn": return LogLevel.Warning;
+        }
+
+        return Enum.TryParse<LogLevel>(name, ignoreCase: true, out var level) ? level : fallback;
+    }
 
     public override string ToString() =>
         $"enabled={Enabled}, folder={Folder ?? "(default)"}, level={Level}, retentionDays={RetentionDays}";

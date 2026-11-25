@@ -4,13 +4,12 @@ using LogAnalyzer.Services.Ai;
 using LogAnalyzer.Services.Updates;
 using Radzen;
 
-AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-    AppLog.Error("Unhandled", "Unhandled exception, the server is stopping", e.ExceptionObject as Exception);
-
 var builder = WebApplication.CreateBuilder(args);
 
-// After the builder, because its folder and level come from appsettings.json, which the builder has just read.
-AppLog.Initialize(LogSettings.FromConfiguration(builder.Configuration));
+// Standard logging: the console and the daily app log file are both providers of the same ILogger pipeline.
+// The file log reads its settings from appsettings.json, which the builder has just loaded.
+var logSettings = LogSettings.FromConfiguration(builder.Configuration);
+builder.Logging.AddAppFileLog(logSettings);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -68,6 +67,13 @@ builder.Services.Configure<Microsoft.AspNetCore.SignalR.HubOptions>(o =>
 });
 
 var app = builder.Build();
+
+var startup = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+startup.LogInformation("Starting AlyCE Log Analyzer {Version} ({Commit}) on {OS}; log settings: {Settings}",
+    AppVersion.Display, AppVersion.ShortCommit ?? "no commit", Environment.OSVersion, logSettings);
+
+AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+    startup.LogCritical(e.ExceptionObject as Exception, "Unhandled exception, the server is stopping");
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

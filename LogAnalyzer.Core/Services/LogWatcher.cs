@@ -1,5 +1,7 @@
 using System.Buffers;
 using LogAnalyzer.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LogAnalyzer.Services;
 
@@ -11,6 +13,11 @@ namespace LogAnalyzer.Services;
 /// </summary>
 public sealed class LogWatcher : IAsyncDisposable
 {
+    private readonly ILogger<LogWatcher> _log;
+
+    /// <summary>Writes to the app log through the standard logging pipeline. Null in tests, where nothing is written.</summary>
+    public LogWatcher(ILogger<LogWatcher>? logger = null) => _log = logger ?? NullLogger<LogWatcher>.Instance;
+
     /// <summary>
     /// Most bytes read in one go. Tailing appends a few KB at a time, but catching up — from the
     /// start of a big file, or after a rotation — would otherwise read the whole remainder into a
@@ -102,11 +109,11 @@ public sealed class LogWatcher : IAsyncDisposable
 
             _creationTimeUtc = creationTimeUtc;
             if (!fromStart) _position = length;
-            AppLog.Debug("LogWatcher", $"Watching {filePath} from byte {_position:N0} (length {length:N0}, fromStart={fromStart})");
+            _log.LogDebug($"Watching {filePath} from byte {_position:N0} (length {length:N0}, fromStart={fromStart})");
         }
         catch (Exception ex)
         {
-            AppLog.Error("LogWatcher", $"Could not start watching {filePath}", ex);
+            _log.LogError(ex, $"Could not start watching {filePath}");
             LastError = ex.Message;
             StatusChanged?.Invoke();
             return;
@@ -170,7 +177,7 @@ public sealed class LogWatcher : IAsyncDisposable
                 {
                     // Once per distinct error: a file that stays unreadable would otherwise log every tick.
                     if (LastError != ex.Message)
-                        AppLog.Error("LogWatcher", $"Error while tailing {filePath}", ex);
+                        _log.LogError(ex, $"Error while tailing {filePath}");
                     LastError = ex.Message;
                     StatusChanged?.Invoke();
                 }
