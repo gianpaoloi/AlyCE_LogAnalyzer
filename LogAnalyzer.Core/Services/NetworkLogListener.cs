@@ -140,6 +140,7 @@ public sealed class NetworkLogListener : IAsyncDisposable
             // Overwhelmingly: the port is already taken (by another copy of this app, or by the
             // real NLog viewer). Reported as-is rather than swallowed, because the alternative is a
             // page that says it is listening and never shows a line.
+            AppLog.Error("NetworkLogListener", $"Could not listen on UDP port {port}", ex);
             LastError = ex.SocketErrorCode == SocketError.AddressAlreadyInUse
                 ? $"Port {port} is already in use by another application."
                 : ex.Message;
@@ -148,6 +149,7 @@ public sealed class NetworkLogListener : IAsyncDisposable
         }
         catch (Exception ex)
         {
+            AppLog.Error("NetworkLogListener", $"Could not listen on UDP port {port}", ex);
             LastError = ex.Message;
             StatusChanged?.Invoke();
             return;
@@ -249,6 +251,7 @@ public sealed class NetworkLogListener : IAsyncDisposable
         }
         catch (Exception ex)
         {
+            AppLog.Error("NetworkLogListener", "The listener stopped after an error", ex);
             LastError = ex.Message;
             StatusChanged?.Invoke();
         }

@@ -4,7 +4,13 @@ using LogAnalyzer.Services.Ai;
 using LogAnalyzer.Services.Updates;
 using Radzen;
 
+AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+    AppLog.Error("Unhandled", "Unhandled exception, the server is stopping", e.ExceptionObject as Exception);
+
 var builder = WebApplication.CreateBuilder(args);
+
+// After the builder, because its folder and level come from appsettings.json, which the builder has just read.
+AppLog.Initialize(LogSettings.FromConfiguration(builder.Configuration));
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

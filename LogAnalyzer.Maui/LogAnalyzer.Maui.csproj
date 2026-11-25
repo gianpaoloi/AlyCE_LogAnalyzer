@@ -66,7 +66,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="..\QUICK-INFO.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+        <!-- Read at start-up from beside the executable; copied to the publish folder so the installer ships it. -->
+        <None Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+        <None Include="..\QUICK-INFO.md"CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
         <None Include="..\QUICK-INFO.it.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
         <None Include="..\QUICK-INFO.sq.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
         <None Include="..\CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

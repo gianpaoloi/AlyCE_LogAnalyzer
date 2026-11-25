@@ -186,6 +186,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
+            AppLog.Error("LogStore", "Load failed (files)", ex);
             LoadError = ex.Message;
             RaiseDataset();
         }
@@ -295,6 +296,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
+            AppLog.Error("LogStore", "Load failed (Grafana/Loki)", ex);
             LoadError = ex.Message;
         }
 
@@ -340,6 +342,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
+            AppLog.Error("LogStore", "Load failed (folder)", ex);
             LoadError = ex.Message;
             RaiseDataset();
             return;
@@ -389,6 +392,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
+            AppLog.Error("LogStore", "Load failed (ZIP)", ex);
             LoadError = ex.Message;
             RaiseDataset();
         }
@@ -451,6 +455,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
+            AppLog.Error("LogStore", "Load failed (upload)", ex);
             LoadError = ex.Message;
             RaiseDataset();
         }
@@ -532,6 +537,7 @@ public sealed class LogStore
         var startedUtc = DateTime.UtcNow;
         var stopwatch = Stopwatch.StartNew();
         var bytes = sources.Sum(s => s.SizeHint);
+        AppLog.Debug("LogStore", $"Loading {sources.Count} source(s), {bytes:N0} bytes, append={append}: {string.Join(", ", sources.Select(s => s.Name))}");
 
         try
         {
@@ -557,6 +563,7 @@ public sealed class LogStore
 
             _data = dataset;
             Interlocked.Exchange(ref _entriesParsed, dataset.Entries.Count);
+            AppLog.Info("LogStore", $"Loaded {dataset.Entries.Count:N0} entries from {sources.Count} source(s) in {stopwatch.ElapsedMilliseconds:N0} ms");
         }
         catch (OperationCanceledException)
         {
@@ -564,6 +571,7 @@ public sealed class LogStore
         }
         catch (Exception ex)
         {
+            AppLog.Error("LogStore", "Load failed (dataset build)", ex);
             LoadError = ex.Message;
         }
         finally

@@ -9,7 +9,15 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **The app now keeps its own troubleshooting log.** One file per day, `app-YYYY-MM-DD.log`, in
+  `logs` folder beside the app's executable. It records start-up (version, OS), each load's entry
+  count and time, watcher and UDP listener errors, failed loads, and unhandled exceptions. Files older than
+  14 days are removed automatically. Nothing is sent anywhere. This is separate from the logs you analyse.
+- **Settings file (`appsettings.json`) beside the executable.** The desktop app now reads one; it holds the
+  `LogAnalyzer:Log` section (`Enabled`, `Folder`, `Level` = Debug / Information / Warning / Error (default Error), `RetentionDays` 1–365)
+  and `LogAnalyzer:Updates:Enabled`. Missing or invalid values fall back to the defaults.
 
 ## [1.2.8] — 2026-11-24
 

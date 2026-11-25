@@ -13,6 +13,14 @@ public static class MauiProgram
 {
 	public static MauiApp CreateMauiApp()
 	{
+		AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+			AppLog.Error("Unhandled", "Unhandled exception, the app is closing", e.ExceptionObject as Exception);
+		TaskScheduler.UnobservedTaskException += (_, e) =>
+		{
+			AppLog.Error("Unhandled", "Unobserved task exception", e.Exception);
+			e.SetObserved();
+		};
+
 		try
 		{
 			var builder = MauiApp.CreateBuilder();
@@ -63,14 +71,22 @@ public static class MauiProgram
 			// package, and re-running that package silently is a supported upgrade.
 			builder.Services.AddSingleton<IUpdateInstaller, WindowsUpdateInstaller>();
 
+			// Built-in defaults first, then appsettings.json beside the executable, read after them so that any key it sets wins.
+			// A missing file is fine: the defaults stand.
 			// Default log folder - use user's Documents for portability
 			string defaultLogFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 			defaultLogFolder = Path.Combine(defaultLogFolder, "AlyCE Logs");
-			
+
 			builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 			{
 				["LogAnalyzer:DefaultLogFolder"] = defaultLogFolder,
 			});
+			builder.Configuration.AddJsonFile(
+				Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: true, reloadOnChange: false);
+
+			// Started here rather than at the top of the method, because its folder and level come from the
+			// settings just read. Failures before this point can only be seen in the debugger.
+			AppLog.Initialize(LogSettings.FromConfiguration(builder.Configuration));
 
 			// Enable logging
 			builder.Logging.ClearProviders();
@@ -89,6 +105,7 @@ public static class MauiProgram
 		{
 			Debug.WriteLine($"ERROR creating MauiApp: {ex}");
 			Debug.WriteLine($"StackTrace: {ex.StackTrace}");
+			AppLog.Error("Startup", "The app could not be built", ex);
 			throw;
 		}
 	}

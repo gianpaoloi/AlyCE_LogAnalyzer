@@ -102,9 +102,11 @@ public sealed class LogWatcher : IAsyncDisposable
 
             _creationTimeUtc = creationTimeUtc;
             if (!fromStart) _position = length;
+            AppLog.Debug("LogWatcher", $"Watching {filePath} from byte {_position:N0} (length {length:N0}, fromStart={fromStart})");
         }
         catch (Exception ex)
         {
+            AppLog.Error("LogWatcher", $"Could not start watching {filePath}", ex);
             LastError = ex.Message;
             StatusChanged?.Invoke();
             return;
@@ -166,6 +168,9 @@ public sealed class LogWatcher : IAsyncDisposable
                 }
                 catch (Exception ex)
                 {
+                    // Once per distinct error: a file that stays unreadable would otherwise log every tick.
+                    if (LastError != ex.Message)
+                        AppLog.Error("LogWatcher", $"Error while tailing {filePath}", ex);
                     LastError = ex.Message;
                     StatusChanged?.Invoke();
                 }
