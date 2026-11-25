@@ -77,9 +77,19 @@ public sealed class WindowsUpdateInstaller : IUpdateInstaller
                 $"The installer for {update.TagName} is not hosted on GitHub ({update.InstallerUrl}); " +
                 "it will not be downloaded.");
 
+        // Refused before anything is downloaded: an installer that cannot be checked is not run.
+        if (!UpdateDownload.IsValidSha256(update.InstallerSha256))
+            throw new InvalidOperationException(
+                $"Release {update.TagName} publishes no SHA256 for its installer, so it cannot be verified " +
+                "and will not be downloaded. Download it from GitHub instead.");
+
         var file = await DownloadAsync(update, progress, cancellationToken).ConfigureAwait(false);
 
-        await VerifyAsync(file, update.InstallerSha256, cancellationToken).ConfigureAwait(false);
+        // Held open until the installer has started. The hash is taken from this same handle, and other
+        // processes can read the file but not write to or delete it meanwhile, so nothing can swap it in
+        // between the check and the launch.
+        await using var verified = await OpenVerifiedAsync(file, update.InstallerSha256!, cancellationToken)
+            .ConfigureAwait(false);
 
         await StartAsync(file, cancellationToken).ConfigureAwait(false);
     }
@@ -100,6 +110,12 @@ public sealed class WindowsUpdateInstaller : IUpdateInstaller
             .ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
+
+        // HttpClient follows redirects by itself, so the URL checked above is only the first hop. The
+        // address the bytes really come from must be GitHub too; checked before any of them are read.
+        if (!UpdateDownload.IsTrustedUrl(response.RequestMessage?.RequestUri?.ToString()))
+            throw new InvalidOperationException(
+                $"The download for {update.TagName} was redirected away from GitHub, so it will not be run.");
 
         // Content-Length is normally present; fall back to the size the API reported so the progress
         // bar still has a total.
@@ -136,24 +152,29 @@ public sealed class WindowsUpdateInstaller : IUpdateInstaller
     }
 
     /// <summary>
-    /// Checks the download against the hash published with the release. Skipped only when the
-    /// release published none — the transport was still HTTPS to GitHub in that case, which is the
-    /// same assurance a user clicking the download link gets.
+    /// Checks the download against the SHA256 published with the release. Returns the file open for
+    /// reading with <see cref="FileShare.Read"/> only, so other processes cannot write to it or delete it
+    /// while the caller holds the stream. A mismatch deletes the file and throws, so it is never run.
     /// </summary>
-    private static async Task VerifyAsync(string file, string? expected, CancellationToken cancellationToken)
+    private static async Task<FileStream> OpenVerifiedAsync(string file, string expected, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(expected)) return;
-
+        var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read,
+                                    DownloadBufferSize, useAsync: true);
         string actual;
-        await using (var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read,
-                                                 DownloadBufferSize, useAsync: true))
+        try
         {
             var hash = await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
             actual = Convert.ToHexString(hash);
         }
+        catch
+        {
+            await stream.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
 
-        if (string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase)) return;
+        if (string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase)) return stream;
 
+        await stream.DisposeAsync().ConfigureAwait(false);
         TryDelete(file);
 
         throw new InvalidDataException(

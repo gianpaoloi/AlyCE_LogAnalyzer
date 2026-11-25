@@ -67,4 +67,26 @@ public class UpdateDownloadTests
         // Never an empty path, and never a directory — either would throw at the FileStream instead.
         Assert.Equal("AlyCE-LogAnalyzer-Setup.exe", UpdateDownload.SafeFileName(asset));
     }
+
+    [Theory]
+    [InlineData("E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855")]
+    [InlineData("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")]
+    public void Accepts_a_sha256_written_as_64_hex_digits(string hash)
+    {
+        Assert.True(UpdateDownload.IsValidSha256(hash));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    // Too short or too long to be a SHA256.
+    [InlineData("E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B85")]
+    [InlineData("E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B8550")]
+    // Right length, but not hexadecimal.
+    [InlineData("G3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855")]
+    public void Refuses_anything_that_is_not_a_sha256(string? hash)
+    {
+        Assert.False(UpdateDownload.IsValidSha256(hash));
+    }
 }

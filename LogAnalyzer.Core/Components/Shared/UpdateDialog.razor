@@ -73,6 +73,14 @@
             @L["update.noInstallerBody", Release.TagName]
         </RadzenAlert>
     }
+    else if (!LogAnalyzer.Services.Updates.UpdateDownload.IsValidSha256(Release.InstallerSha256))
+    {
+        @* Without a published SHA256 the download cannot be verified, so the updater will not run it. *@
+        <RadzenAlert AlertStyle="AlertStyle.Warning" Variant="Variant.Flat" Shade="Shade.Lighter"
+                     Title="@(L["update.noChecksum"])" AllowClose="false">
+            @L["update.noChecksumBody", Release.TagName]
+        </RadzenAlert>
+    }
     else
     {
         <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0 rz-color-muted">
@@ -93,7 +101,7 @@
         <RadzenButton Text="@(_error is null ? L["update.later"] : L["update.close"])" ButtonStyle="ButtonStyle.Light"
                       class="rz-ml-auto" Disabled="@_busy" Click="@(() => DialogService.Close(false))" />
 
-        @if (Installer.CanInstall && Release.HasInstaller && _error is null)
+        @if (Installer.CanInstall && Release.HasInstaller && LogAnalyzer.Services.Updates.UpdateDownload.IsValidSha256(Release.InstallerSha256) && _error is null)
         {
             <RadzenButton Text="@(L["update.downloadAndInstall"])" Icon="system_update_alt" ButtonStyle="ButtonStyle.Primary"
                           IsBusy="@_busy" BusyText="@(L["update.installing"])" Disabled="@_busy" Click="@Install" />

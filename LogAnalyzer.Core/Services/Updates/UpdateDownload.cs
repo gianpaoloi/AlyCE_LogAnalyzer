@@ -37,6 +37,13 @@ public static class UpdateDownload
     }
 
     /// <summary>
+    /// True for a SHA256 written as 64 hexadecimal digits. Anything else cannot be checked a download
+    /// against, so the updater refuses to run a release that does not publish one.
+    /// </summary>
+    public static bool IsValidSha256(string? hash) =>
+        hash is { Length: 64 } && hash.All(Uri.IsHexDigit);
+
+    /// <summary>
     /// Reduces an asset name to something safe to write into a temporary directory: no directory
     /// components, no invalid characters, and never empty. An asset name is chosen by whoever
     /// published the release, so it cannot be concatenated into a path as-is.
