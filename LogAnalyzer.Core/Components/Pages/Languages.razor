@@ -528,9 +528,7 @@
         Show(L["languages.msgReadmeSaved", _draft.Name], false);
     }
 
-    private static readonly MarkdownPipeline ReadmePipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
-
-    private static string RenderReadme(string markdown) => Markdown.ToHtml(markdown, ReadmePipeline);
+    private static string RenderReadme(string markdown) => LogAnalyzer.Services.SafeMarkdown.ToHtml(markdown);
 
     private async Task ImportFile(InputFileChangeEventArgs e)
     {

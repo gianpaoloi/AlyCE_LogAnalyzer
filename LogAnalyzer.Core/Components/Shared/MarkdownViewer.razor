@@ -53,10 +53,6 @@ else
   /// <summary>One "## " section: its title in the contents menu and its rendered HTML.</summary>
   private sealed record Section(string Title, string Html);
 
-  private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
-      .UseAdvancedExtensions()
-      .Build();
-
   /// <summary>Matches the opening tag of a link to a web address.</summary>
   private static readonly Regex ExternalLink = new(@"<a href=""(https?://[^""]+)""");
 
@@ -65,7 +61,7 @@ else
   /// would replace the page. Links to other files stay as they are.
   /// </summary>
   private static string ToHtml(string markdown) =>
-      ExternalLink.Replace(Markdown.ToHtml(markdown, Pipeline),
+      ExternalLink.Replace(LogAnalyzer.Services.SafeMarkdown.ToHtml(markdown),
           @"<a href=""$1"" target=""_blank"" rel=""noopener noreferrer""");
 
   private string _intro = string.Empty;
