@@ -18,6 +18,10 @@ tag is collected under *Unreleased* until it is moved under a version heading.
 - **Settings file (`appsettings.json`) beside the executable.** The desktop app now reads one; it holds the
   `LogAnalyzer:Log` section (`Enabled`, `Folder`, `Level` = Debug / Information / Warning / Error (default Error), `RetentionDays` 1–365)
   and `LogAnalyzer:Updates:Enabled`. Missing or invalid values fall back to the defaults.
+- **AI provider connection tests are logged.** Each test records the provider, model and host (never the key or the
+  address path), how long it took, the token counts, and why it failed. The provider's own exception is kept at Debug.
+- **Unreachable AI gateway shows the "Could not reach the provider" message.** It used to escape as an unhandled
+  `AggregateException` after the SDK's retries.
 
 ## [1.2.8] — 2026-11-24
 

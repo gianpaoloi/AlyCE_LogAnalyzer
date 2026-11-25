@@ -9,6 +9,11 @@
     color: var(--rz-danger, #c62828);
 }
 
+/* Failure messages are several short lines (cause, fix, address, provider's words); keep the breaks. */
+.ai-status {
+    white-space: pre-line;
+}
+
 /* One saved provider in the list. The active one is outlined in the brand colour. */
 .ai-provider {
     display: flex;

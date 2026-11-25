@@ -1,4 +1,5 @@
 using System.ClientModel;
+using System.Diagnostics;
 using System.Text;
 using Anthropic.Exceptions;
 using LogAnalyzer.Models;
@@ -75,31 +76,59 @@ public static class AiAssistant
             var usage = reply.AsChatResponse().Usage;
             return new AiResponse(text, usage?.InputTokenCount, usage?.OutputTokenCount);
         }
-        catch (HttpRequestException)
+        // Logs the provider's own exception before it is turned into a message for the user, since the
+        // mapping below discards the status and the cause. The filter never catches: it only records.
+        catch (Exception e) when (LogProviderException(e))
         {
-            throw new AiException("Could not reach the provider. Check the address and the network connection.");
+            throw;
         }
-        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        catch (HttpRequestException e)
+        {
+            throw AiFailure.FromNetwork(e, settings);
+        }
+        catch (AggregateException e) when (e.InnerException is ClientResultException or HttpRequestException || IsNetworkFailure(e))
+        {
+            // The SDK's retry policy gives up with its attempts gathered here. Classify the cause as if it had come alone.
+            throw e.InnerException is ClientResultException { Status: >= 400 } failed
+                ? AiFailure.FromStatus(failed.Status, settings, ProviderText(failed))
+                : AiFailure.FromNetwork(e, settings);
+        }
+        catch (TaskCanceledException e) when (!ct.IsCancellationRequested)
         {
             // The HttpClient timeout, not the user cancelling.
-            throw new AiException("The provider did not answer in time.");
+            throw AiFailure.FromNetwork(e, settings);
         }
         catch (ClientResultException e)
         {
             // The OpenAI SDK reports an HTTP error this way; a status below 400 means no answer came back.
             throw e.Status >= 400
-                ? AiFailure.FromStatus(e.Status)
-                : new AiException("Could not reach the provider. Check the address and the network connection.");
+                ? AiFailure.FromStatus(e.Status, settings, ProviderText(e))
+                : AiFailure.FromNetwork(e, settings);
         }
         catch (AnthropicException e) when (IsNetworkFailure(e))
         {
             // The Anthropic SDK wraps a dropped connection in its own exception; the cause says what happened.
-            throw new AiException("Could not reach the provider. Check the address and the network connection.");
+            throw AiFailure.FromNetwork(e, settings);
         }
         catch (AnthropicException e)
         {
             var detail = e.Message.Length > 300 ? e.Message[..300] + "…" : e.Message;
-            throw new AiException($"The provider returned an error: {detail}");
+            throw new AiException($"The provider returned an error.\n{detail}");
+        }
+    }
+
+    /// <summary>The text of an HTTP error response, when the SDK kept it. Null when it is not available.</summary>
+    private static string? ProviderText(ClientResultException e)
+    {
+        try
+        {
+            var text = e.GetRawResponse()?.Content.ToString();
+            return string.IsNullOrWhiteSpace(text) ? null : text;
+        }
+        catch (Exception)
+        {
+            // The response body was not buffered or cannot be read; the status alone is still useful.
+            return null;
         }
     }
 
@@ -111,7 +140,59 @@ public static class AiAssistant
         return false;
     }
 
-    /// <summary>A minimal request that checks the address, the key and the model.</summary>
-    public static Task<AiResponse> TestAsync(AiSettings settings, IAiChatClientFactory? factory = null, HttpClient? http = null) =>
-        SendAsync(settings, new AiPreview("Reply with the single word OK.", "Connection test.", 0), factory, http);
+    /// <summary>
+    /// A minimal request that checks the address, the key and the model. Each test is logged: the provider,
+    /// model and host (never the key or the path), how long it took, and why it failed. Logs go to the app log.
+    /// </summary>
+    public static async Task<AiResponse> TestAsync(AiSettings settings, IAiChatClientFactory? factory = null, HttpClient? http = null)
+    {
+        var target = DescribeTarget(settings);
+        AppLog.Info("AI", $"Connection test started: {target}");
+
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            var reply = await SendAsync(settings, new AiPreview("Reply with the single word OK.", "Connection test.", 0), factory, http);
+            AppLog.Info("AI", $"Connection test passed in {stopwatch.ElapsedMilliseconds:N0} ms: {target}; " +
+                              $"reply {reply.Text.Length} chars, tokens in {reply.InputTokens?.ToString() ?? "n/a"}, " +
+                              $"out {reply.OutputTokens?.ToString() ?? "n/a"}");
+            return reply;
+        }
+        catch (AiException e)
+        {
+            AppLog.Error("AI", $"Connection test failed after {stopwatch.ElapsedMilliseconds:N0} ms: {target}: {e.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Provider, model and the scheme, host and port of the address. The path is left out because a gateway
+    /// can carry a token in it, and the key is never part of these settings' description.
+    /// </summary>
+    private static string DescribeTarget(AiSettings settings)
+    {
+        var host = Uri.TryCreate(settings.BaseUrl?.Trim(), UriKind.Absolute, out var uri)
+            ? uri.GetLeftPart(UriPartial.Authority)
+            : "(invalid address)";
+        return $"{settings.Kind} at {host}, model {settings.Model}";
+    }
+
+    /// <summary>
+    /// Records a provider exception at Debug and returns false, so the caller's catch clauses still run.
+    /// Walks the inner exceptions, since the SDKs wrap the network cause in their own type.
+    /// </summary>
+    private static bool LogProviderException(Exception e)
+    {
+        if (e is AiException) return false;
+
+        var chain = new StringBuilder();
+        for (Exception? cause = e; cause is not null; cause = cause.InnerException)
+        {
+            if (chain.Length > 0) chain.Append(" <- ");
+            chain.Append(cause.GetType().Name).Append(": ").Append(cause.Message);
+        }
+
+        AppLog.Debug("AI", $"Provider call raised {chain}");
+        return false;
+    }
 }

@@ -52,7 +52,12 @@ public sealed class GeminiChatClient : IChatClient
 
         using var response = await _http.SendAsync(request, cancellationToken);
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!response.IsSuccessStatusCode) throw AiFailure.FromStatus((int)response.StatusCode);
+        if (!response.IsSuccessStatusCode)
+        {
+            // The provider's own message helps the user fix it; the key is never shown, even if echoed back.
+            var detail = _apiKey.Length >= 4 ? json.Replace(_apiKey, "[key hidden]", StringComparison.Ordinal) : json;
+            throw AiFailure.FromStatus((int)response.StatusCode, providerDetail: detail);
+        }
 
         return ParseResponse(json);
     }

@@ -1,4 +1,5 @@
 using LogAnalyzer.Services;
+using LogAnalyzer.Services.Ai;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
@@ -175,6 +176,36 @@ public class AppLogTests
         {
             Cleanup(folder);
         }
+    }
+
+    [Fact]
+    public async Task A_failed_provider_test_is_logged_with_the_target_and_no_key()
+    {
+        var folder = NewFolder();
+        try
+        {
+            AppLog.Initialize(new LogSettings { Folder = folder });
+            using var http = new HttpClient(new UnreachableHandler());
+            var settings = new AiSettings(AiProviderKind.Gateway, "http://localhost:4000/secret-path", "m");
+
+            await Assert.ThrowsAsync<AiException>(() => AiAssistant.TestAsync(settings, http: http));
+
+            var text = File.ReadAllText(AppLog.CurrentFilePath!);
+            Assert.Contains("ERROR [AI] Connection test failed", text);
+            Assert.Contains("Gateway at http://localhost:4000, model m", text);
+            Assert.DoesNotContain("secret-path", text);
+        }
+        finally
+        {
+            Cleanup(folder);
+        }
+    }
+
+    /// <summary>Fails every request as if the host could not be reached.</summary>
+    private sealed class UnreachableHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromException<HttpResponseMessage>(new HttpRequestException("connection refused"));
     }
 
     [Theory]

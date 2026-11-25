@@ -64,7 +64,7 @@
 
     @if (_listStatus is not null)
     {
-        <RadzenText TextStyle="TextStyle.Body2" class="@(_listStatusIsError ? "ai-error" : "")">@_listStatus</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2" class="@(_listStatusIsError ? "ai-status ai-error" : "ai-status")">@_listStatus</RadzenText>
     }
 </RadzenCard>
 
@@ -120,7 +120,7 @@
 
             @if (_formStatus is not null)
             {
-                <RadzenText TextStyle="TextStyle.Body2" class="@(_formStatusIsError ? "ai-error" : "")">@_formStatus</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" class="@(_formStatusIsError ? "ai-status ai-error" : "ai-status")">@_formStatus</RadzenText>
             }
         </RadzenStack>
     </RadzenCard>

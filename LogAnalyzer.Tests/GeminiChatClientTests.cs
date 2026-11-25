@@ -76,7 +76,7 @@ public class GeminiChatClientTests
 
         var e = await Assert.ThrowsAsync<AiException>(() => AiAssistant.TestAsync(settings, http: http));
 
-        Assert.Contains("did not accept the request (HTTP 401)", e.Message);
+        Assert.Contains("did not accept the API key (HTTP 401)", e.Message);
     }
 
     [Fact]
